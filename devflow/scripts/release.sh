@@ -51,6 +51,15 @@ check_formula_has_vendor_install() {
     fi
 }
 
+# Returns true if the tap_repo path lives inside this git repo (subtree mode).
+is_subtree() {
+    local tap_abs tap_top repo_top
+    tap_abs=$(cd "$1" 2>/dev/null && pwd) || return 1
+    tap_top=$(git -C "$tap_abs" rev-parse --show-toplevel 2>/dev/null) || return 1
+    repo_top=$(git rev-parse --show-toplevel 2>/dev/null) || return 1
+    [[ "$tap_top" == "$repo_top" ]]
+}
+
 # Discover tool names from the tap repo's Formula/*.rb files.
 discover_tools() {
     local tap_repo="$1"
@@ -204,7 +213,7 @@ release_all() {
     # Fail fast if the tap repo has any uncommitted or staged changes — mutating
     # formulas in a dirty tree risks clobbering local work or smuggling unrelated
     # staged hunks into the release commit.
-    if [[ "$MONOREPO_MODE" != "1" ]]; then
+    if ! is_subtree "$tap_repo" && [[ "$MONOREPO_MODE" != "1" ]]; then
         if ! git -C "$tap_repo" diff --quiet || ! git -C "$tap_repo" diff --cached --quiet; then
             echo "ERROR: tap repo '$tap_repo' has uncommitted changes. Please commit or stash them before releasing." >&2
             exit 1
@@ -244,8 +253,12 @@ release_all() {
         echo "    Version:  ${affected_sources[$i]}"
     done
     echo ""
-    echo "  Push to:  origin (ai-utils)"
-    echo "  Tap repo: $tap_repo"
+    echo "  Push to:  origin (devflow-platform)"
+    if is_subtree "$tap_repo"; then
+        echo "  Tap:      $tap_repo (subtree — will git subtree push to tap remote)"
+    else
+        echo "  Tap repo: $tap_repo"
+    fi
     echo ""
     echo "Formula diff:"
     for tool in "${affected_tools[@]}"; do
@@ -284,14 +297,23 @@ release_all() {
     git push origin "${affected_tags[@]}"
 
     # Commit and push all formulas to the tap repo in a single commit.
-    # Use --only to restrict the commit strictly to the formula files we staged,
-    # preventing any pre-existing staged content from being included.
     local commit_msg="chore: release ${affected_tags[*]}"
     local formula_paths=()
     for tool in "${affected_tools[@]}"; do
         formula_paths+=("Formula/$tool.rb")
     done
-    if [[ "$MONOREPO_MODE" != "1" ]]; then
+    if is_subtree "$tap_repo"; then
+        local _repo_root _subtree_prefix abs_formula_paths=()
+        _repo_root=$(git rev-parse --show-toplevel)
+        _subtree_prefix="${tap_repo#${_repo_root}/}"
+        for tool in "${affected_tools[@]}"; do
+            abs_formula_paths+=("$tap_repo/Formula/$tool.rb")
+        done
+        git add "${abs_formula_paths[@]}"
+        git commit -m "$commit_msg"
+        git push origin HEAD
+        git subtree push --prefix="$_subtree_prefix" tap main
+    elif [[ "$MONOREPO_MODE" != "1" ]]; then
         git -C "$tap_repo" commit --only -m "$commit_msg" -- "${formula_paths[@]}"
         git -C "$tap_repo" push
     fi
@@ -309,7 +331,7 @@ release_all() {
 
 [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]] && usage
 
-TAP_REPO="../homebrew-devflow"
+TAP_REPO="$(git rev-parse --show-toplevel)/homebrew-devflow"
 ALL_MODE=false
 
 if [[ $# -eq 0 ]]; then
@@ -336,7 +358,7 @@ VERSION_OVERRIDE=""
 if [[ $# -ge 2 ]]; then
     if [[ "$2" == v* ]]; then
         VERSION_OVERRIDE="$2"
-        TAP_REPO="${3:-../homebrew-devflow}"
+        TAP_REPO="${3:-$(git rev-parse --show-toplevel)/homebrew-devflow}"
     else
         TAP_REPO="$2"
     fi
@@ -420,7 +442,7 @@ echo "About to release $TOOL $VERSION"
 echo ""
 echo "  Tag:      $TAG → $SHORT_REV"
 echo "  Version:  $VERSION_SOURCE"
-echo "  Push to:  origin (ai-utils)"
+echo "  Push to:  origin (devflow-platform)"
 echo "  Formula:  $FORMULA"
 echo ""
 echo "Formula diff:"
@@ -447,7 +469,14 @@ trap - EXIT
 git push origin "$TAG"
 
 # Commit and push formula to tap repo
-if [[ "$MONOREPO_MODE" != "1" ]]; then
+if is_subtree "$TAP_REPO"; then
+    _repo_root=$(git rev-parse --show-toplevel)
+    _subtree_prefix="${TAP_REPO#${_repo_root}/}"
+    git add "$TAP_REPO/Formula/$TOOL.rb"
+    git commit -m "chore: release $TOOL $TAG"
+    git push origin HEAD
+    git subtree push --prefix="$_subtree_prefix" tap main
+elif [[ "$MONOREPO_MODE" != "1" ]]; then
     git -C "$TAP_REPO" add "Formula/$TOOL.rb"
     git -C "$TAP_REPO" commit -m "chore: release $TOOL $TAG"
     git -C "$TAP_REPO" push
