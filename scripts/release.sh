@@ -131,6 +131,12 @@ if $SDK_RELEASE; then
   git add devflow/vendor/
   if ! git diff --cached --quiet -- devflow/vendor/; then
     git commit -m "chore: update devflow-sdk vendor wheel to v${SDK_NEXT}"
+    # Re-evaluate devflow release: vendor wheels changed, so devflow needs a
+    # new tag and formula update even if it had no prior unreleased commits.
+    if ! $DEVFLOW_RELEASE; then
+      DEVFLOW_RELEASE=true
+      DEVFLOW_NEXT=$(apply_bump "${DEVFLOW_CURRENT:-0.0.0}" "$(semver_bump_for "$DEVFLOW_LAST" "devflow/")")
+    fi
   fi
 fi
 
