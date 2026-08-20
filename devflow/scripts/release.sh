@@ -20,22 +20,23 @@ usage() {
 # wheels), runs update-vendor.sh then commits the result automatically.
 ensure_vendor_up_to_date() {
     [[ "$MONOREPO_MODE" == "1" ]] && return
-    local repo_root
+    local repo_root vendor_dir
     repo_root="$(git rev-parse --show-toplevel)"
+    vendor_dir="$repo_root/devflow/vendor"
 
-    if [[ -d "$repo_root/vendor" ]] && \
-       [[ -n "$(ls "$repo_root/vendor"/*.whl 2>/dev/null)" ]] && \
-       [[ -z "$(git ls-files --others --exclude-standard -- vendor/ 2>/dev/null)" ]] && \
-       [[ -z "$(git ls-files --deleted -- vendor/ 2>/dev/null)" ]]; then
+    if [[ -d "$vendor_dir" ]] && \
+       [[ -n "$(ls "$vendor_dir"/*.whl 2>/dev/null)" ]] && \
+       [[ -z "$(git ls-files --others --exclude-standard -- devflow/vendor/ 2>/dev/null)" ]] && \
+       [[ -z "$(git ls-files --deleted -- devflow/vendor/ 2>/dev/null)" ]]; then
         return
     fi
 
     echo "vendor/ changed — refreshing vendor/..."
-    bash "$repo_root/scripts/update-vendor.sh"
+    bash "$repo_root/devflow/scripts/update-vendor.sh"
     echo ""
-    git add vendor/
-    if ! git diff --cached --quiet -- vendor/; then
-        git commit --only -m "chore: update vendor wheels" -- vendor/
+    git add devflow/vendor/
+    if ! git diff --cached --quiet -- devflow/vendor/; then
+        git commit --only -m "chore: update vendor wheels" -- devflow/vendor/
         echo "Committed vendor/."
         echo ""
     fi
@@ -254,8 +255,10 @@ release_all() {
     done
     echo ""
     echo "  Push to:  origin (devflow-platform)"
-    if is_subtree "$tap_repo"; then
-        echo "  Tap:      $tap_repo (subtree — will git subtree push to tap remote)"
+    if [[ "$MONOREPO_MODE" == "1" ]]; then
+        echo "  Tap:      managed by outer release script"
+    elif is_subtree "$tap_repo"; then
+        echo "  Tap:      $tap_repo (subtree)"
     else
         echo "  Tap repo: $tap_repo"
     fi
@@ -302,20 +305,22 @@ release_all() {
     for tool in "${affected_tools[@]}"; do
         formula_paths+=("Formula/$tool.rb")
     done
-    if is_subtree "$tap_repo"; then
-        local _repo_root _subtree_prefix abs_formula_paths=()
-        _repo_root=$(git rev-parse --show-toplevel)
-        _subtree_prefix="${tap_repo#${_repo_root}/}"
-        for tool in "${affected_tools[@]}"; do
-            abs_formula_paths+=("$tap_repo/Formula/$tool.rb")
-        done
-        git add "${abs_formula_paths[@]}"
-        git commit -m "$commit_msg"
-        git push origin HEAD
-        git subtree push --prefix="$_subtree_prefix" tap main
-    elif [[ "$MONOREPO_MODE" != "1" ]]; then
-        git -C "$tap_repo" commit --only -m "$commit_msg" -- "${formula_paths[@]}"
-        git -C "$tap_repo" push
+    if [[ "$MONOREPO_MODE" != "1" ]]; then
+        if is_subtree "$tap_repo"; then
+            local _repo_root _subtree_prefix abs_formula_paths=()
+            _repo_root=$(git rev-parse --show-toplevel)
+            _subtree_prefix="${tap_repo#${_repo_root}/}"
+            for tool in "${affected_tools[@]}"; do
+                abs_formula_paths+=("$tap_repo/Formula/$tool.rb")
+            done
+            git add "${abs_formula_paths[@]}"
+            git commit -m "$commit_msg"
+            git push origin HEAD
+            git subtree push --prefix="$_subtree_prefix" tap main
+        else
+            git -C "$tap_repo" commit --only -m "$commit_msg" -- "${formula_paths[@]}"
+            git -C "$tap_repo" push
+        fi
     fi
 
     echo ""
@@ -469,17 +474,19 @@ trap - EXIT
 git push origin "$TAG"
 
 # Commit and push formula to tap repo
-if is_subtree "$TAP_REPO"; then
-    _repo_root=$(git rev-parse --show-toplevel)
-    _subtree_prefix="${TAP_REPO#${_repo_root}/}"
-    git add "$TAP_REPO/Formula/$TOOL.rb"
-    git commit -m "chore: release $TOOL $TAG"
-    git push origin HEAD
-    git subtree push --prefix="$_subtree_prefix" tap main
-elif [[ "$MONOREPO_MODE" != "1" ]]; then
-    git -C "$TAP_REPO" add "Formula/$TOOL.rb"
-    git -C "$TAP_REPO" commit -m "chore: release $TOOL $TAG"
-    git -C "$TAP_REPO" push
+if [[ "$MONOREPO_MODE" != "1" ]]; then
+    if is_subtree "$TAP_REPO"; then
+        _repo_root=$(git rev-parse --show-toplevel)
+        _subtree_prefix="${TAP_REPO#${_repo_root}/}"
+        git add "$TAP_REPO/Formula/$TOOL.rb"
+        git commit -m "chore: release $TOOL $TAG"
+        git push origin HEAD
+        git subtree push --prefix="$_subtree_prefix" tap main
+    else
+        git -C "$TAP_REPO" add "Formula/$TOOL.rb"
+        git -C "$TAP_REPO" commit -m "chore: release $TOOL $TAG"
+        git -C "$TAP_REPO" push
+    fi
 fi
 
 echo ""
