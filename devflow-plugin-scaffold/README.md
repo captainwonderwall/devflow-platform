@@ -5,14 +5,14 @@ One-liner scaffold for [devflow](https://github.com/captainwonderwall/devflow) p
 ## Usage
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/captainwonderwall/devflow-plugin-scaffold/main/scaffold.sh | bash -s -- acme-format
+curl -fsSL https://raw.githubusercontent.com/captainwonderwall/devflow-platform/main/devflow-plugin-scaffold/scaffold.sh | bash -s -- acme-format
 ```
 
 Or clone and run locally:
 
 ```bash
-git clone https://github.com/captainwonderwall/devflow-plugin-scaffold
-bash devflow-plugin-scaffold/scaffold.sh acme-format
+git clone https://github.com/captainwonderwall/devflow-platform
+bash devflow-platform/devflow-plugin-scaffold/scaffold.sh acme-format
 ```
 
 ## What gets generated
@@ -66,7 +66,7 @@ def build_body(self, ai_result: dict, user_inputs: dict) -> str:
     # ai_result: whatever JSON keys your build_prompt requested
 ```
 
-See [devflow-sdk](https://github.com/captainwonderwall/devflow-sdk) for the full `PluginBase` API.
+See [devflow-sdk](https://github.com/captainwonderwall/devflow-platform/tree/main/devflow-sdk) for the full `PluginBase` API.
 
 ## Publishing via Homebrew (public plugins)
 
