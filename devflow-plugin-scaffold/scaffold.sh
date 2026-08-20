@@ -121,12 +121,8 @@ cat > "$PLUGIN_NAME/install.sh" << 'SHEOF'
 #!/bin/bash
 set -e
 PLUGIN_FILE="$(cd "$(dirname "$0")" && pwd)/__MODULE_NAME__.py"
-DEVFLOW_CELLAR="$(brew --prefix)/Cellar/devflow"
-if [ ! -d "$DEVFLOW_CELLAR" ]; then
-  echo "ERROR: devflow not installed."
-  exit 1
-fi
-PLUGIN_DIR="$(brew --prefix)/lib/devflow/plugins"
+DEVFLOW_PREFIX="$(brew --prefix devflow 2>/dev/null)" || { echo "ERROR: devflow not installed."; exit 1; }
+PLUGIN_DIR="$DEVFLOW_PREFIX/libexec/draft-pr/plugins"
 mkdir -p "$PLUGIN_DIR"
 cp "$PLUGIN_FILE" "$PLUGIN_DIR/"
 echo "Installed."
@@ -139,7 +135,7 @@ chmod +x "$PLUGIN_NAME/install.sh"
 cat > "$PLUGIN_NAME/uninstall.sh" << 'SHEOF'
 #!/bin/bash
 set -e
-PLUGIN_FILE="$(brew --prefix)/lib/devflow/plugins/__MODULE_NAME__.py"
+PLUGIN_FILE="$(brew --prefix devflow 2>/dev/null)/libexec/draft-pr/plugins/__MODULE_NAME__.py"
 [ -f "$PLUGIN_FILE" ] || { echo "Not installed."; exit 0; }
 rm "$PLUGIN_FILE"
 echo "Removed."
