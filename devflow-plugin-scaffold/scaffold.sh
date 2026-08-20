@@ -235,15 +235,18 @@ usage() {
 
 [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]] && usage
 
+# ── Validate we're in a git repo with a pyproject.toml ────────────────────────
 REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null)" || {
     echo "ERROR: not inside a git repository." >&2; exit 1
 }
 PYPROJECT="$REPO_ROOT/pyproject.toml"
 [[ -f "$PYPROJECT" ]] || { echo "ERROR: $PYPROJECT not found." >&2; exit 1; }
 
-CURRENT_VERSION="$(grep -E '^version\s*=' "$PYPROJECT" | head -1 | sed 's/.*=\s*"\(.*\)"/\1/')"
+# ── Read current version ───────────────────────────────────────────────────────
+CURRENT_VERSION="$(grep -E '^version[[:space:]]*=' "$PYPROJECT" | head -1 | sed 's/.*=[[:space:]]*"\(.*\)"/\1/')"
 [[ -n "$CURRENT_VERSION" ]] || { echo "ERROR: could not read version from $PYPROJECT." >&2; exit 1; }
 
+# ── Compute or validate next version ──────────────────────────────────────────
 compute_next_version() {
     local last_tag
     last_tag="$(git tag --list "v*" | sort -V | tail -1)" || true
@@ -295,16 +298,19 @@ fi
 
 VERSION_BARE="${VERSION#v}"
 
+# ── Guard: tag must not already exist ─────────────────────────────────────────
 if git rev-parse "refs/tags/$VERSION" >/dev/null 2>&1; then
     echo "ERROR: tag $VERSION already exists. Delete it first: git tag -d $VERSION" >&2
     exit 1
 fi
 
+# ── Warn on uncommitted changes ───────────────────────────────────────────────
 if ! git diff --quiet || ! git diff --cached --quiet; then
     echo "WARNING: you have uncommitted changes — they will not be included in the release." >&2
     echo ""
 fi
 
+# ── Show summary and confirm ──────────────────────────────────────────────────
 SHORT_REV="$(git rev-parse --short HEAD)"
 echo "About to release $(basename "$REPO_ROOT") $VERSION"
 echo ""
@@ -318,18 +324,32 @@ read -r -p "Proceed? [y/N] " REPLY
 echo ""
 [[ "$REPLY" =~ ^[Yy]$ ]] || { echo "Aborted. No changes made."; exit 0; }
 
-sed -i '' "s/^version\s*=\s*\"$CURRENT_VERSION\"/version = \"$VERSION_BARE\"/" "$PYPROJECT"
+# ── Bump version in pyproject.toml ───────────────────────────────────────────
+if [[ "$CURRENT_VERSION" == "$VERSION_BARE" ]]; then
+    echo "pyproject.toml already at $VERSION_BARE — skipping version bump commit."
+    SKIP_VERSION_COMMIT=1
+else
+    sed -i '' "s/^version[[:space:]]*=[[:space:]]*\"$CURRENT_VERSION\"/version = \"$VERSION_BARE\"/" "$PYPROJECT"
 
-if git diff --quiet "$PYPROJECT"; then
-    echo "ERROR: pyproject.toml was not modified — version line may not match expected format." >&2
-    exit 1
+    if git diff --quiet "$PYPROJECT"; then
+        echo "ERROR: pyproject.toml was not modified — version line may not match expected format." >&2
+        exit 1
+    fi
+    SKIP_VERSION_COMMIT=0
 fi
 
-CLEANUP_MSG="To undo: git tag -d $VERSION && git reset --hard HEAD~1"
+# ── Commit, tag, push ─────────────────────────────────────────────────────────
+if [[ "$SKIP_VERSION_COMMIT" -eq 0 ]]; then
+    CLEANUP_MSG="To undo: git tag -d $VERSION && git reset --hard HEAD~1"
+else
+    CLEANUP_MSG="To undo: git tag -d $VERSION"
+fi
 trap 'echo ""; echo "ERROR: release step failed. $CLEANUP_MSG"' ERR
 
-git add "$PYPROJECT"
-git commit -m "chore: release $VERSION"
+if [[ "$SKIP_VERSION_COMMIT" -eq 0 ]]; then
+    git add "$PYPROJECT"
+    git commit -m "chore: release $VERSION"
+fi
 git tag "$VERSION"
 git push origin HEAD
 git push origin "$VERSION"
