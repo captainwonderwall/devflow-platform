@@ -1,0 +1,4 @@
+#!/bin/bash
+set -e
+SCRIPT_DIR="$(cd "$(dirname "$(realpath "$0")")" && pwd)"
+python3 "$SCRIPT_DIR/start-issue.py" "$@"

@@ -1,0 +1,10 @@
+__pycache__/
+*.pyc
+.tmp/
+.draft-pr-tmp/
+
+# Exclude IntelliJ IDEA files
+/.idea/
+
+# Exclude VS Code files
+/.vscode/

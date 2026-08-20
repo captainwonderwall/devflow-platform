@@ -1,0 +1,19 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "devflow-sdk"
+version = "0.2.0"
+description = "Shared utilities and plugin interface for devflow"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "questionary==2.1.1",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8", "build>=1.0"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
