@@ -26,9 +26,9 @@ has_changes_since() {
   # has_changes_since <tag-or-""> <pathspec>  →  exits 0 if unreleased commits exist
   local tag="$1" pathspec="$2"
   if [[ -z "$tag" ]]; then
-    git log --oneline -- "$pathspec" | grep -q .
+    [[ -n "$(git log --oneline -- "$pathspec")" ]]
   else
-    git log "${tag}..HEAD" --oneline -- "$pathspec" | grep -q .
+    [[ -n "$(git log "${tag}..HEAD" --oneline -- "$pathspec")" ]]
   fi
 }
 
