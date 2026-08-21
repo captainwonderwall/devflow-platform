@@ -173,5 +173,13 @@ if $DEVFLOW_RELEASE; then
   git subtree push --prefix=homebrew-devflow "$TAP_REMOTE" main
 fi
 
+# ── push commits and tags ─────────────────────────────────────────────────────
+
+echo "==> Pushing commits and tags to origin..."
+git push origin main
+if $DEVFLOW_RELEASE; then
+  git push origin "devflow/v${DEVFLOW_NEXT}"
+fi
+
 echo ""
 echo "==> Release complete."
