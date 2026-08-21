@@ -1,0 +1,5 @@
+Based on my analysis of the repository, there are no recognized build files (pom.xml or package.json) at the root level. The only build configuration found is a Python project in `devflow-sdk/pyproject.toml`, but Python is not included in the specified build tool rules.
+
+```toml
+[pre-start]
+```
