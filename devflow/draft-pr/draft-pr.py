@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import os
 import re
+import subprocess
 import sys
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -13,6 +14,8 @@ for _whl in sorted(_glob.glob(os.path.join(VENDOR_DIR, "*.whl"))):
 
 from devflow_sdk.ai import run_ai_prompt
 from devflow_sdk.prompts import select, prompt
+from devflow_sdk.config import load_config, load_tool_config
+from config import DraftPrConfig, resolve_plugin
 
 from gather_pr_data import collect
 from prepare import validate_state
@@ -78,13 +81,38 @@ def main():
         print(f"PR already exists: {existing_url}")
         sys.exit(0)
 
+    devflow_cfg = load_config()
+    draft_pr_cfg = load_tool_config(devflow_cfg, "draft-pr", DraftPrConfig)
+    try:
+        git_root = subprocess.check_output(
+            ["git", "rev-parse", "--show-toplevel"],
+            text=True, stderr=subprocess.DEVNULL,
+        ).strip()
+        cwd_rel = os.path.relpath(os.getcwd(), git_root)
+    except subprocess.CalledProcessError:
+        cwd_rel = os.getcwd()  # fallback: not in a git repo
+    configured_plugin_name = resolve_plugin(draft_pr_cfg, cwd_rel)
+
     plugins = discover(PLUGIN_DIR)
     if not plugins:
         print(f"Error: no plugins found in {PLUGIN_DIR}", file=sys.stderr)
         print("Install a plugin into the plugins directory to continue.", file=sys.stderr)
         sys.exit(1)
 
-    if len(plugins) == 1:
+    if configured_plugin_name:
+        plugin_names = [p.name or type(p).__name__ for p in plugins]
+        if configured_plugin_name in plugin_names:
+            plugin = plugins[plugin_names.index(configured_plugin_name)]
+        else:
+            print(
+                f"Warning: configured plugin '{configured_plugin_name}' not found. "
+                f"Available: {', '.join(plugin_names)}",
+                file=sys.stderr,
+            )
+            plugin = plugins[0] if len(plugins) == 1 else plugins[plugin_names.index(
+                select("Select format", choices=plugin_names)
+            )]
+    elif len(plugins) == 1:
         plugin = plugins[0]
     else:
         plugin_names = [p.name or type(p).__name__ for p in plugins]

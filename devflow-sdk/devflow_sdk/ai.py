@@ -45,7 +45,7 @@ def launch_interactive_session(
         print(f"WARNING: {exc}", file=sys.stderr)
         return
     try:
-        provider = get_provider(config)
+        provider = get_provider(config.global_config)
     except ValueError as exc:
         print(f"WARNING: {exc}", file=sys.stderr)
         return
@@ -75,7 +75,7 @@ def run_ai_prompt(
         print(f"ERROR: {exc}", file=sys.stderr)
         sys.exit(1)
     try:
-        provider = get_provider(config)
+        provider = get_provider(config.global_config)
     except ValueError as exc:
         print(f"ERROR: {exc}", file=sys.stderr)
         sys.exit(1)

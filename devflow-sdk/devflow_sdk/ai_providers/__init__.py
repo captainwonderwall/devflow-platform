@@ -2,7 +2,7 @@ import re
 
 from devflow_sdk.ai_providers.claude_provider import ClaudeProvider
 from devflow_sdk.ai_providers.opencode_provider import OpenCodeProvider
-from devflow_sdk.config import DevflowConfig
+from devflow_sdk.config import GlobalConfig
 
 _PROVIDERS = {
     "claude": ClaudeProvider,
@@ -12,7 +12,7 @@ _PROVIDERS = {
 _DATE_SUFFIX_RE = re.compile(r'-\d{8}$')
 
 
-def get_provider(config: DevflowConfig):
+def get_provider(config: GlobalConfig):
     provider_cls = _PROVIDERS.get(config.ai_provider)
     if provider_cls is None:
         allowed = ", ".join(sorted(_PROVIDERS.keys()))

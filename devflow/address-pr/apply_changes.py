@@ -249,7 +249,7 @@ def apply_changes(pr_title: str, pr_description: str,
                   "it appears.\n")
             try:
                 config = load_config()
-                provider = get_provider(config)
+                provider = get_provider(config.global_config)
                 resume_cmd = provider.build_interactive_resume_command(current_session_id)
                 interactive_proc = subprocess.run(resume_cmd)
                 return interactive_proc.returncode == 0
