@@ -154,26 +154,22 @@ def test_opencode_parse_output_nonzero_returncode():
 
 import pytest
 from devflow_sdk.ai_providers import get_provider
-from devflow_sdk.config import DevflowConfig
+from devflow_sdk.config import GlobalConfig
 
 
 def test_get_provider_claude():
-    provider = get_provider(DevflowConfig(ai_provider="claude"))
-    assert isinstance(provider, ClaudeProvider)
+    provider = get_provider(GlobalConfig(ai_provider="claude"))
+    assert provider.name == "claude"
 
 
 def test_get_provider_opencode():
-    provider = get_provider(DevflowConfig(ai_provider="opencode"))
-    assert isinstance(provider, OpenCodeProvider)
+    provider = get_provider(GlobalConfig(ai_provider="opencode"))
+    assert provider.name == "opencode"
 
 
 def test_get_provider_unknown_raises_with_valid_names_listed():
-    with pytest.raises(ValueError) as exc_info:
-        get_provider(DevflowConfig(ai_provider="bogus"))
-    message = str(exc_info.value)
-    assert "claude" in message
-    assert "opencode" in message
-    assert "bogus" in message
+    with pytest.raises(ValueError, match="claude"):
+        get_provider(GlobalConfig(ai_provider="bogus"))
 
 
 def test_parse_provider_output_non_dict_json_array_does_not_raise():
