@@ -19,7 +19,7 @@ def discover(plugin_dir: str, base_cls: type) -> list[PluginBase]:
             spec = importlib.util.spec_from_file_location(fname[:-3], path)
             mod = importlib.util.module_from_spec(spec)
             spec.loader.exec_module(mod)
-        except Exception as exc:
+        except Exception:
             print(
                 f"Warning: plugin '{fname}' failed to load — it may be incompatible "
                 "with this version of devflow. Check for an updated release.",

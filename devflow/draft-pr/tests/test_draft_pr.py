@@ -130,9 +130,8 @@ class TestMainSinglePlugin(unittest.TestCase):
 
 
 class TestMainMultiplePlugins(unittest.TestCase):
-    def test_prompts_user_to_choose_plugin_when_multiple(self):
+    def test_sdk_selected_plugin_is_used_by_main(self):
         plugin_alpha = _make_plugin("Alpha")
-        plugins = [plugin_alpha, _make_plugin("Beta")]
         with patch.object(draft_pr, "collect", return_value=_make_data()), \
              patch.object(draft_pr, "validate_state"), \
              patch.object(draft_pr, "check_existing_pr", return_value=None), \
@@ -147,8 +146,8 @@ class TestMainMultiplePlugins(unittest.TestCase):
              patch("questionary.prompt", return_value=_STANDARD_ANSWERS), \
              patch("builtins.input", return_value="no"):
             draft_pr.main()
-        # The select_plugin function handles the selection now, not select()
-        # This test verifies that a plugin is successfully selected and used
+        # Verify that the plugin returned by select_plugin is used
+        plugin_alpha.build_prompt.assert_called_once()
 
 
 class TestMainPluginQuestions(unittest.TestCase):
