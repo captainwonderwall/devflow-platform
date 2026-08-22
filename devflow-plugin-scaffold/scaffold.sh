@@ -25,14 +25,18 @@ DISPLAY_NAME="$(printf '%s' "$PLUGIN_NAME" | tr '-' '\n' \
     | awk '{print toupper(substr($0,1,1)) tolower(substr($0,2))}' \
     | tr '\n' ' ' | sed 's/ $//')"
 
+# Detect current devflow major for compatibility stamping (fallback to 0)
+DEVFLOW_MAJOR_STAMP="$(brew list --versions devflow 2>/dev/null | awk '{print $2}' | cut -d. -f1)"
+DEVFLOW_MAJOR_STAMP="${DEVFLOW_MAJOR_STAMP:-0}"
+
 mkdir -p "$PLUGIN_NAME/tests" "$PLUGIN_NAME/.github/workflows" "$PLUGIN_NAME/scripts"
 
 # ── Plugin stub ───────────────────────────────────────────────────────────────
 cat > "$PLUGIN_NAME/${MODULE_NAME}.py" << 'PYEOF'
-from devflow_sdk.plugin_base import PluginBase
+from devflow_sdk.draft_pr_plugin import DraftPrPlugin
 
 
-class __CLASS_NAME__(PluginBase):
+class __CLASS_NAME__(DraftPrPlugin):
     name = "__DISPLAY_NAME__"
 
     def get_questions(self, data: dict) -> list[dict]:
@@ -131,12 +135,26 @@ if [ -L "$PLUGIN_LINK" ]; then
 else
   PLUGIN_DIR="$PLUGIN_LINK"
 fi
+# Check devflow major version compatibility
+DEVFLOW_VERSION="$(brew list --versions devflow | awk '{print $2}')"
+DEVFLOW_MAJOR="${DEVFLOW_VERSION%%.*}"
+PLUGIN_MIN_MAJOR="__PLUGIN_MIN_MAJOR__"
+PLUGIN_MAX_MAJOR="__PLUGIN_MAX_MAJOR__"
+if [ "$DEVFLOW_MAJOR" -lt "$PLUGIN_MIN_MAJOR" ] || [ "$DEVFLOW_MAJOR" -gt "$PLUGIN_MAX_MAJOR" ]; then
+    echo "ERROR: incompatible devflow version — this plugin supports devflow ${PLUGIN_MIN_MAJOR}.x – ${PLUGIN_MAX_MAJOR}.x"
+    echo "Installed: devflow $DEVFLOW_VERSION"
+    echo "Run 'brew upgrade devflow' or check the plugin repo for an updated release."
+    exit 1
+fi
 mkdir -p "$PLUGIN_DIR"
 cp "$PLUGIN_FILE" "$PLUGIN_DIR/"
 echo "Installed."
 SHEOF
-sed -i.bak "s/__MODULE_NAME__/${MODULE_NAME}/g" "$PLUGIN_NAME/install.sh" \
-    && rm "$PLUGIN_NAME/install.sh.bak"
+sed -i.bak \
+    -e "s/__MODULE_NAME__/${MODULE_NAME}/g" \
+    -e "s/__PLUGIN_MIN_MAJOR__/${DEVFLOW_MAJOR_STAMP}/g" \
+    -e "s/__PLUGIN_MAX_MAJOR__/${DEVFLOW_MAJOR_STAMP}/g" \
+    "$PLUGIN_NAME/install.sh" && rm "$PLUGIN_NAME/install.sh.bak"
 chmod +x "$PLUGIN_NAME/install.sh"
 
 # ── uninstall.sh ──────────────────────────────────────────────────────────────
@@ -301,6 +319,16 @@ else
 fi
 
 VERSION_BARE="${VERSION#v}"
+
+# Warn on major bump so author updates install.sh compatibility range
+NEW_MAJOR="${VERSION_BARE%%.*}"
+OLD_MAJOR="${CURRENT_VERSION%%.*}"
+if [ "$NEW_MAJOR" -gt "$OLD_MAJOR" ] 2>/dev/null; then
+    echo "Major release detected. Before tagging, update install.sh:"
+    echo "  PLUGIN_MIN_MAJOR=\"$NEW_MAJOR\""
+    echo "  PLUGIN_MAX_MAJOR=\"$NEW_MAJOR\""
+    echo ""
+fi
 
 # ── Guard: tag must not already exist ─────────────────────────────────────────
 if git rev-parse "refs/tags/$VERSION" >/dev/null 2>&1; then

@@ -34,7 +34,8 @@ file_exists "$D/.gitignore"
 
 has_content "$D/acme_format.py"                   "class AcmePlugin"
 has_content "$D/acme_format.py"                   'name = "Acme Format"'
-has_content "$D/acme_format.py"                   "from devflow_sdk.plugin_base import PluginBase"
+has_content "$D/acme_format.py"                   "from devflow_sdk.draft_pr_plugin import DraftPrPlugin"
+has_content "$D/acme_format.py"                   "class AcmePlugin(DraftPrPlugin)"
 has_content "$D/tests/test_acme_format.py"        "from acme_format import AcmePlugin"
 has_content "$D/tests/test_acme_format.py"        "def test_build_body_contains_title"
 has_content "$D/tests/test_acme_format.py"        "def test_build_prompt_returns_string"
@@ -44,7 +45,13 @@ has_content "$D/.github/workflows/release.yml"    "acme_format.py"
 has_content "$D/.github/workflows/release.yml"    'GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}'
 has_content "$D/.github/workflows/release.yml"    'TAG: ${{ github.ref_name }}'
 has_content "$D/.github/workflows/release.yml"    '"$TAG"'
+has_content "$D/scripts/release.sh"               "Major release detected"
+has_content "$D/scripts/release.sh"               "PLUGIN_MIN_MAJOR"
+has_content "$D/scripts/release.sh"               "PLUGIN_MAX_MAJOR"
 has_content "$D/install.sh"                       "acme_format.py"
+has_content "$D/install.sh"                       "PLUGIN_MIN_MAJOR="
+has_content "$D/install.sh"                       "PLUGIN_MAX_MAJOR="
+has_content "$D/install.sh"                       "incompatible"
 has_content "$D/uninstall.sh"                     "acme_format.py"
 
 # ── single-word name ──────────────────────────────────────────────────────────
