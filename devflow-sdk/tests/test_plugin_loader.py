@@ -167,9 +167,11 @@ class TestSelectPlugin(unittest.TestCase):
         b = _make_plugin("Beta")
         with patch("devflow_sdk.plugin_loader.discover", return_value=[a, b]):
             with patch("devflow_sdk.plugin_loader.select", return_value="Beta"):
-                with patch("sys.stderr"):
+                with patch("sys.stderr") as mock_stderr:
                     result = select_plugin("/any", DraftPrPlugin, configured_name="Missing")
         self.assertIs(result, b)
+        warning = "".join(call.args[0] for call in mock_stderr.write.call_args_list)
+        self.assertIn("Missing", warning)
 
     def test_prompts_when_multiple_plugins_no_config(self):
         a = _make_plugin("Alpha")
