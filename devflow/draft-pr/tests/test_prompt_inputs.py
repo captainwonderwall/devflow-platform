@@ -12,11 +12,6 @@ class TestBuildQuestions(unittest.TestCase):
     def _base(self):
         return {"jira_ticket": "CONS-123", "issue_type": "Feature"}
 
-    def test_always_includes_customer_visible(self):
-        questions = build_questions(self._base())
-        ids = [q["id"] for q in questions]
-        self.assertIn("customer_visible", ids)
-
     def test_no_jira_question_when_ticket_present(self):
         questions = build_questions(self._base())
         ids = [q["id"] for q in questions]
@@ -51,12 +46,6 @@ class TestBuildQuestions(unittest.TestCase):
             self.assertIsInstance(q["text"], str)
             self.assertTrue(len(q["text"]) > 0)
 
-    def test_customer_visible_question_mentions_yes_no(self):
-        questions = build_questions(self._base())
-        cv = next(q for q in questions if q["id"] == "customer_visible")
-        self.assertIn("Yes", cv["text"])
-        self.assertIn("No", cv["text"])
-
     def test_issue_type_question_lists_options(self):
         data = {**self._base(), "issue_type": None}
         questions = build_questions(data)
@@ -64,12 +53,11 @@ class TestBuildQuestions(unittest.TestCase):
         self.assertIn("Feature", type_q["text"])
         self.assertIn("Enhancement", type_q["text"])
 
-    def test_order_jira_before_type_before_customer(self):
+    def test_order_jira_before_type(self):
         data = {"jira_ticket": None, "issue_type": None}
         questions = build_questions(data)
         ids = [q["id"] for q in questions]
         self.assertLess(ids.index("jira_ticket"), ids.index("issue_type"))
-        self.assertLess(ids.index("issue_type"), ids.index("customer_visible"))
 
 
 class TestLoadStdinJson(unittest.TestCase):

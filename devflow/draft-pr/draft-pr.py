@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 import os
-import re
 import subprocess
 import sys
 
@@ -13,7 +12,7 @@ for _whl in sorted(_glob.glob(os.path.join(VENDOR_DIR, "*.whl"))):
     sys.path.insert(0, _whl)
 
 from devflow_sdk.ai import run_ai_prompt
-from devflow_sdk.prompts import select, prompt
+from devflow_sdk.prompts import select, prompt, checkbox
 from devflow_sdk.config import load_config, load_tool_config
 from config import DraftPrConfig, resolve_plugin
 
@@ -29,41 +28,21 @@ from orchestrate import check_existing_pr, run_create_script
 PLUGIN_DIR = os.path.join(SCRIPT_DIR, "plugins")
 TMP_DIR = os.path.join(SCRIPT_DIR, ".tmp")
 
-_JIRA_RE = re.compile(r'\b([A-Z]+-[0-9]+)\b')
-
-
-def detect_issue_refs(branch):
-    """Return list of JIRA keys found in a branch name."""
-    if not branch:
-        return []
-    return _JIRA_RE.findall(branch)
-
 
 def resolve_jira(data, github_issue_arg):
-    """Resolve Jira ticket from branch/data or github issue.
+    """Resolve issue reference from data or CLI arg.
 
-    Returns (jira_key, github_issue_arg).
+    Returns (issue_ref, github_issue).
     """
-    branch = data.get("branch", "")
-    refs = detect_issue_refs(branch)
     jira_ticket = data.get("jira_ticket")
+    github_issue = data.get("github_issue") or github_issue_arg
 
-    candidates = []
     if jira_ticket:
-        candidates.append(jira_ticket)
-    for r in refs:
-        if r not in candidates:
-            candidates.append(r)
-
-    if candidates:
-        if len(candidates) == 1:
-            jira = select("Confirm Jira ticket", candidates)
-        else:
-            jira = select("Select Jira ticket", candidates)
+        jira = select("Confirm Jira ticket", [jira_ticket])
         return jira, github_issue_arg
 
-    if github_issue_arg:
-        return f"#{github_issue_arg}", github_issue_arg
+    if github_issue:
+        return f"#{github_issue}", github_issue
 
     return None, github_issue_arg
 
@@ -105,7 +84,8 @@ def main():
     standard_answers = prompt(build_questions(data))
     jira = standard_answers.get("jira_ticket") or jira   # user may have typed it
     issue_type = standard_answers.get("issue_type") or data.get("issue_type", "Issue")
-    customer_visible = standard_answers.get("customer_visible", "no")
+    checked = checkbox("Is this a customer-visible change?", choices=["Yes", "No"])
+    customer_visible = "yes" if "Yes" in (checked or []) else "no"
 
     user_inputs = {
         "jira_ticket": jira,

@@ -1,8 +1,16 @@
 #!/usr/bin/env python3
+import glob as _glob
 import json
-import re
+import os
 import subprocess
 import sys
+
+_SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+_VENDOR_DIR = os.path.join(os.path.dirname(_SCRIPT_DIR), "vendor")
+for _whl in sorted(_glob.glob(os.path.join(_VENDOR_DIR, "*.whl"))):
+    sys.path.insert(0, _whl)
+
+from devflow_sdk.branch_name import parse_branch
 
 FIX_PREFIXES = {"fix", "bugfix", "hotfix"}
 
@@ -26,16 +34,6 @@ def run_git(args):
     if result.returncode != 0:
         return None
     return result.stdout.strip()
-
-
-def extract_prefix(branch):
-    match = re.match(r'^([a-z]+)/', branch or "")
-    return match.group(1) if match else None
-
-
-def extract_jira_ticket(branch):
-    match = re.search(r'[A-Z]+-[0-9]+', branch or "")
-    return match.group(0) if match else None
 
 
 def is_fix(prefix):
@@ -81,8 +79,10 @@ def get_base_branch():
 
 def collect():
     branch = run_git(["branch", "--show-current"])
-    prefix = extract_prefix(branch)
-    jira_ticket = extract_jira_ticket(branch)
+    parsed = parse_branch(branch)
+    prefix = parsed["type"] if parsed else None
+    jira_ticket = parsed["id"] if parsed and parsed["source"] == "jira" else None
+    github_issue = parsed["id"] if parsed and parsed["source"] == "github" else None
     issue_type = PREFIX_TO_TYPE.get(prefix) if prefix else None
     base = get_base_branch()
     remote_base = f"origin/{base}"
@@ -96,6 +96,7 @@ def collect():
         "base": base,
         "prefix": prefix,
         "jira_ticket": jira_ticket,
+        "github_issue": github_issue,
         "issue_type": issue_type,
         "is_fix": is_fix(prefix),
         "git_log": git_log,
