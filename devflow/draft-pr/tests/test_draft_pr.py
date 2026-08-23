@@ -65,7 +65,7 @@ class TestMainNoPlugins(unittest.TestCase):
         with patch.object(draft_pr, "collect", return_value=_make_data()), \
              patch.object(draft_pr, "validate_state"), \
              patch.object(draft_pr, "check_existing_pr", return_value=None), \
-             patch.object(draft_pr, "discover", return_value=[]):
+             patch.object(draft_pr, "select_plugin", return_value=None):
             with self.assertRaises(SystemExit) as ctx:
                 draft_pr.main()
             self.assertNotEqual(ctx.exception.code, 0)
@@ -78,7 +78,7 @@ class TestMainSinglePlugin(unittest.TestCase):
         with patch.object(draft_pr, "collect", return_value=_make_data()), \
              patch.object(draft_pr, "validate_state"), \
              patch.object(draft_pr, "check_existing_pr", return_value=None), \
-             patch.object(draft_pr, "discover", return_value=[plugin]), \
+             patch.object(draft_pr, "select_plugin", return_value=plugin), \
              patch.object(draft_pr, "resolve_jira", return_value=("CONS-123", None)), \
              patch.object(draft_pr, "select", return_value="Issue"), \
              patch.object(draft_pr, "run_ai_prompt", return_value=ai_result), \
@@ -93,7 +93,7 @@ class TestMainSinglePlugin(unittest.TestCase):
         with patch.object(draft_pr, "collect", return_value=_make_data()), \
              patch.object(draft_pr, "validate_state"), \
              patch.object(draft_pr, "check_existing_pr", return_value=None), \
-             patch.object(draft_pr, "discover", return_value=[plugin]), \
+             patch.object(draft_pr, "select_plugin", return_value=plugin), \
              patch.object(draft_pr, "resolve_jira", return_value=("CONS-123", None)), \
              patch.object(draft_pr, "select") as mock_select, \
              patch.object(draft_pr, "run_ai_prompt",
@@ -130,15 +130,15 @@ class TestMainSinglePlugin(unittest.TestCase):
 
 
 class TestMainMultiplePlugins(unittest.TestCase):
-    def test_prompts_user_to_choose_plugin_when_multiple(self):
-        plugins = [_make_plugin("Alpha"), _make_plugin("Beta")]
+    def test_sdk_selected_plugin_is_used_by_main(self):
+        plugin_alpha = _make_plugin("Alpha")
         with patch.object(draft_pr, "collect", return_value=_make_data()), \
              patch.object(draft_pr, "validate_state"), \
              patch.object(draft_pr, "check_existing_pr", return_value=None), \
-             patch.object(draft_pr, "discover", return_value=plugins), \
+             patch.object(draft_pr, "select_plugin", return_value=plugin_alpha), \
              patch.object(draft_pr, "resolve_jira", return_value=("CONS-1", None)), \
              patch.object(draft_pr, "select",
-                          side_effect=["Alpha", "Issue", "no"]) as mock_select, \
+                          side_effect=["Issue", "no"]) as mock_select, \
              patch.object(draft_pr, "run_ai_prompt",
                           return_value=MagicMock(ok=True, result={"title": "T"})), \
              patch.object(draft_pr, "write_create_script"), \
@@ -146,11 +146,8 @@ class TestMainMultiplePlugins(unittest.TestCase):
              patch("questionary.prompt", return_value=_STANDARD_ANSWERS), \
              patch("builtins.input", return_value="no"):
             draft_pr.main()
-        # First select() call should offer plugin names
-        first_call_choices = mock_select.call_args_list[0][1].get("choices") or \
-                             mock_select.call_args_list[0][0][1]
-        self.assertIn("Alpha", first_call_choices)
-        self.assertIn("Beta", first_call_choices)
+        # Verify that the plugin returned by select_plugin is used
+        plugin_alpha.build_prompt.assert_called_once()
 
 
 class TestMainPluginQuestions(unittest.TestCase):
@@ -162,7 +159,7 @@ class TestMainPluginQuestions(unittest.TestCase):
         with patch.object(draft_pr, "collect", return_value=_make_data()), \
              patch.object(draft_pr, "validate_state"), \
              patch.object(draft_pr, "check_existing_pr", return_value=None), \
-             patch.object(draft_pr, "discover", return_value=[plugin]), \
+             patch.object(draft_pr, "select_plugin", return_value=plugin), \
              patch.object(draft_pr, "resolve_jira", return_value=("CONS-1", None)), \
              patch.object(draft_pr, "select", return_value="Issue"), \
              patch("questionary.prompt", return_value={"component": "auth"}), \

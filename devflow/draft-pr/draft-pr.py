@@ -20,7 +20,8 @@ from config import DraftPrConfig, resolve_plugin
 from gather_pr_data import collect
 from prepare import validate_state
 from prompt_inputs import build_questions
-from plugin_loader import discover
+from devflow_sdk.plugin_loader import select_plugin
+from devflow_sdk.draft_pr_plugin import DraftPrPlugin
 from build_pr_body import write_create_script
 from orchestrate import check_existing_pr, run_create_script
 
@@ -93,31 +94,11 @@ def main():
         cwd_rel = os.getcwd()  # fallback: not in a git repo
     configured_plugin_name = resolve_plugin(draft_pr_cfg, cwd_rel)
 
-    plugins = discover(PLUGIN_DIR)
-    if not plugins:
+    plugin = select_plugin(PLUGIN_DIR, DraftPrPlugin, configured_plugin_name)
+    if plugin is None:
         print(f"Error: no plugins found in {PLUGIN_DIR}", file=sys.stderr)
         print("Install a plugin into the plugins directory to continue.", file=sys.stderr)
         sys.exit(1)
-
-    if configured_plugin_name:
-        plugin_names = [p.name or type(p).__name__ for p in plugins]
-        if configured_plugin_name in plugin_names:
-            plugin = plugins[plugin_names.index(configured_plugin_name)]
-        else:
-            print(
-                f"Warning: configured plugin '{configured_plugin_name}' not found. "
-                f"Available: {', '.join(plugin_names)}",
-                file=sys.stderr,
-            )
-            plugin = plugins[0] if len(plugins) == 1 else plugins[plugin_names.index(
-                select("Select format", choices=plugin_names)
-            )]
-    elif len(plugins) == 1:
-        plugin = plugins[0]
-    else:
-        plugin_names = [p.name or type(p).__name__ for p in plugins]
-        chosen_name = select("Select format", choices=plugin_names)
-        plugin = plugins[plugin_names.index(chosen_name)]
 
     # Standard inputs
     jira, github_issue = resolve_jira(data, args.github_issue)
