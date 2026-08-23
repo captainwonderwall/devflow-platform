@@ -26,7 +26,7 @@ DISPLAY_NAME="$(printf '%s' "$PLUGIN_NAME" | tr '-' '\n' \
     | tr '\n' ' ' | sed 's/ $//')"
 
 # Detect current devflow major for compatibility stamping (fallback to 0)
-DEVFLOW_MAJOR_STAMP="$(brew list --versions devflow 2>/dev/null | awk '{print $2}' | cut -d. -f1)"
+DEVFLOW_MAJOR_STAMP="$(brew list --versions devflow 2>/dev/null | awk '{print $2}' | cut -d. -f1)" || true
 DEVFLOW_MAJOR_STAMP="${DEVFLOW_MAJOR_STAMP:-0}"
 
 mkdir -p "$PLUGIN_NAME/tests" "$PLUGIN_NAME/.github/workflows" "$PLUGIN_NAME/scripts"
