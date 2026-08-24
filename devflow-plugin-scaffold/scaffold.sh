@@ -25,11 +25,11 @@ DISPLAY_NAME="$(printf '%s' "$PLUGIN_NAME" | tr '-' '\n' \
     | awk '{print toupper(substr($0,1,1)) tolower(substr($0,2))}' \
     | tr '\n' ' ' | sed 's/ $//')"
 
-# Detect current devflow major for compatibility stamping (fallback to 0)
-DEVFLOW_MAJOR_STAMP="$(brew list --versions devflow 2>/dev/null | awk '{print $2}' | cut -d. -f1)" || true
-DEVFLOW_MAJOR_STAMP="${DEVFLOW_MAJOR_STAMP:-0}"
+# Derive Ruby formula class name: DevflowPlugin<PascalCase of plugin-name>
+FORMULA_CLASS_NAME="DevflowPlugin$(printf '%s' "$PLUGIN_NAME" | tr '-' '\n' | \
+    awk '{print toupper(substr($0,1,1)) tolower(substr($0,2))}' | tr -d '\n')"
 
-mkdir -p "$PLUGIN_NAME/tests" "$PLUGIN_NAME/.github/workflows" "$PLUGIN_NAME/scripts"
+mkdir -p "$PLUGIN_NAME/tests" "$PLUGIN_NAME/.github/workflows" "$PLUGIN_NAME/scripts" "$PLUGIN_NAME/Formula"
 
 # ── Plugin stub ───────────────────────────────────────────────────────────────
 cat > "$PLUGIN_NAME/${MODULE_NAME}.py" << 'PYEOF'
@@ -121,54 +121,60 @@ dev = [
 EOF
 
 # ── install.sh ────────────────────────────────────────────────────────────────
-cat > "$PLUGIN_NAME/install.sh" << 'SHEOF'
+cat > "$PLUGIN_NAME/install.sh" << EOF
 #!/bin/bash
-set -e
-PLUGIN_FILE="$(cd "$(dirname "$0")" && pwd)/__MODULE_NAME__.py"
-DEVFLOW_PREFIX="$(brew --prefix devflow 2>/dev/null)" || { echo "ERROR: devflow not installed."; exit 1; }
-PLUGIN_LINK="$DEVFLOW_PREFIX/libexec/draft-pr/plugins"
-# plugins may be a symlink whose target doesn't exist yet; resolve to the real path
-if [ -L "$PLUGIN_LINK" ]; then
-  LINK_PARENT="$(cd "$(dirname "$PLUGIN_LINK")" && pwd)"
-  LINK_TARGET="$(readlink "$PLUGIN_LINK")"
-  PLUGIN_DIR="$(python3 -c "import os,sys; print(os.path.normpath(os.path.join(sys.argv[1], sys.argv[2])))" "$LINK_PARENT" "$LINK_TARGET")"
-else
-  PLUGIN_DIR="$PLUGIN_LINK"
-fi
-# Check devflow major version compatibility
-DEVFLOW_VERSION="$(brew list --versions devflow | awk '{print $2}')"
-DEVFLOW_MAJOR="${DEVFLOW_VERSION%%.*}"
-PLUGIN_MIN_MAJOR="__PLUGIN_MIN_MAJOR__"
-PLUGIN_MAX_MAJOR="__PLUGIN_MAX_MAJOR__"
-if [ "$DEVFLOW_MAJOR" -lt "$PLUGIN_MIN_MAJOR" ] || [ "$DEVFLOW_MAJOR" -gt "$PLUGIN_MAX_MAJOR" ]; then
-    echo "ERROR: incompatible devflow version — this plugin supports devflow ${PLUGIN_MIN_MAJOR}.x – ${PLUGIN_MAX_MAJOR}.x"
-    echo "Installed: devflow $DEVFLOW_VERSION"
-    echo "Run 'brew upgrade devflow' or check the plugin repo for an updated release."
-    exit 1
-fi
-mkdir -p "$PLUGIN_DIR"
-cp "$PLUGIN_FILE" "$PLUGIN_DIR/"
-echo "Installed."
-SHEOF
-sed -i.bak \
-    -e "s/__MODULE_NAME__/${MODULE_NAME}/g" \
-    -e "s/__PLUGIN_MIN_MAJOR__/${DEVFLOW_MAJOR_STAMP}/g" \
-    -e "s/__PLUGIN_MAX_MAJOR__/${DEVFLOW_MAJOR_STAMP}/g" \
-    "$PLUGIN_NAME/install.sh" && rm "$PLUGIN_NAME/install.sh.bak"
+# Development convenience install — for Homebrew distribution use Formula/ instead.
+set -euo pipefail
+PLUGIN_DIR="\$(cd "\$(dirname "\$0")" && pwd)"
+devflow-plugin register "${PLUGIN_NAME}" "\$PLUGIN_DIR/${MODULE_NAME}.py"
+echo "Installed ${PLUGIN_NAME}."
+EOF
 chmod +x "$PLUGIN_NAME/install.sh"
 
 # ── uninstall.sh ──────────────────────────────────────────────────────────────
-cat > "$PLUGIN_NAME/uninstall.sh" << 'SHEOF'
+cat > "$PLUGIN_NAME/uninstall.sh" << EOF
 #!/bin/bash
-set -e
-PLUGIN_FILE="$(brew --prefix devflow 2>/dev/null)/libexec/draft-pr/plugins/__MODULE_NAME__.py"
-[ -f "$PLUGIN_FILE" ] || { echo "Not installed."; exit 0; }
-rm "$PLUGIN_FILE"
-echo "Removed."
-SHEOF
-sed -i.bak "s/__MODULE_NAME__/${MODULE_NAME}/g" "$PLUGIN_NAME/uninstall.sh" \
-    && rm "$PLUGIN_NAME/uninstall.sh.bak"
+set -euo pipefail
+devflow-plugin unregister "${PLUGIN_NAME}"
+echo "Uninstalled ${PLUGIN_NAME}."
+EOF
 chmod +x "$PLUGIN_NAME/uninstall.sh"
+
+# ── Homebrew formula template ────────────────────────────────────────────────
+cat > "$PLUGIN_NAME/Formula/devflow-plugin-${PLUGIN_NAME}.rb" << 'RBEOF'
+class __FORMULA_CLASS_NAME__ < Formula
+  desc "devflow plugin: __DISPLAY_NAME__"
+  homepage "<your-plugin-homepage>"
+  url "<release-url-to-__MODULE_NAME__.py>"
+  sha256 "<sha256-of-__MODULE_NAME__.py>"
+  version "0.1.0"
+
+  depends_on "captainwonderwall/devflow/devflow"
+
+  def install
+    lib.install "__MODULE_NAME__.py"
+  end
+
+  def post_install
+    system "#{HOMEBREW_PREFIX}/bin/devflow-plugin",
+           "register", "__PLUGIN_NAME__",
+           "#{opt_lib}/__MODULE_NAME__.py",
+           "--formula", "<your-tap>/__PLUGIN_NAME__"
+  end
+
+  # To unregister before uninstalling: devflow-plugin unregister __PLUGIN_NAME__
+
+  test do
+    system "#{HOMEBREW_PREFIX}/bin/devflow-plugin", "list"
+  end
+end
+RBEOF
+sed -i.bak \
+    -e "s/__FORMULA_CLASS_NAME__/${FORMULA_CLASS_NAME}/g" \
+    -e "s/__DISPLAY_NAME__/${DISPLAY_NAME}/g" \
+    -e "s/__MODULE_NAME__/${MODULE_NAME}/g" \
+    -e "s/__PLUGIN_NAME__/${PLUGIN_NAME}/g" \
+    "$PLUGIN_NAME/Formula/devflow-plugin-${PLUGIN_NAME}.rb" && rm "$PLUGIN_NAME/Formula/devflow-plugin-${PLUGIN_NAME}.rb.bak"
 
 # ── GitHub Actions release workflow ───────────────────────────────────────────
 # Pass github.ref_name through an env var to avoid script injection.
@@ -320,13 +326,13 @@ fi
 
 VERSION_BARE="${VERSION#v}"
 
-# Warn on major bump so author updates install.sh compatibility range
+# Warn on major bump so author updates formula compatibility
 NEW_MAJOR="${VERSION_BARE%%.*}"
 OLD_MAJOR="${CURRENT_VERSION%%.*}"
 if [ "$NEW_MAJOR" -gt "$OLD_MAJOR" ] 2>/dev/null; then
-    echo "Major release detected. Before tagging, update install.sh:"
-    echo "  PLUGIN_MIN_MAJOR=\"$NEW_MAJOR\""
-    echo "  PLUGIN_MAX_MAJOR=\"$NEW_MAJOR\""
+    echo "Major release detected. Before tagging, update your Homebrew formula"
+    echo "to constrain the devflow dependency to the new major version."
+    echo "  depends_on \"captainwonderwall/devflow/devflow\" # ensure v$NEW_MAJOR compatibility"
     echo ""
 fi
 

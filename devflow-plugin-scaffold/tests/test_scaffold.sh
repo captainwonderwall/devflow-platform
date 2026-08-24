@@ -46,13 +46,18 @@ has_content "$D/.github/workflows/release.yml"    'GH_TOKEN: ${{ secrets.GITHUB_
 has_content "$D/.github/workflows/release.yml"    'TAG: ${{ github.ref_name }}'
 has_content "$D/.github/workflows/release.yml"    '"$TAG"'
 has_content "$D/scripts/release.sh"               "Major release detected"
-has_content "$D/scripts/release.sh"               "PLUGIN_MIN_MAJOR"
-has_content "$D/scripts/release.sh"               "PLUGIN_MAX_MAJOR"
-has_content "$D/install.sh"                       "acme_format.py"
-has_content "$D/install.sh"                       "PLUGIN_MIN_MAJOR="
-has_content "$D/install.sh"                       "PLUGIN_MAX_MAJOR="
-has_content "$D/install.sh"                       "incompatible"
-has_content "$D/uninstall.sh"                     "acme_format.py"
+has_content "$D/install.sh"                       "devflow-plugin"
+has_content "$D/install.sh"                       "register"
+has_content "$D/install.sh"                       "acme-format"
+has_content "$D/uninstall.sh"                     "devflow-plugin"
+has_content "$D/uninstall.sh"                     "unregister"
+has_content "$D/uninstall.sh"                     "acme-format"
+file_exists "$D/Formula/devflow-plugin-acme-format.rb"
+has_content "$D/Formula/devflow-plugin-acme-format.rb"  "DevflowPluginAcmeFormat"
+has_content "$D/Formula/devflow-plugin-acme-format.rb"  "depends_on"
+has_content "$D/Formula/devflow-plugin-acme-format.rb"  "devflow-plugin"
+has_content "$D/Formula/devflow-plugin-acme-format.rb"  "register"
+has_content "$D/Formula/devflow-plugin-acme-format.rb"  "post_install"
 
 # ── single-word name ──────────────────────────────────────────────────────────
 (cd "$WORK" && bash "$SCAFFOLD" acme)

@@ -18,18 +18,21 @@ class Devflow < Formula
       system "pip3", "install", "--no-deps", "--target=#{python_packages}", whl
     end
 
-    (lib/"devflow/plugins").mkpath
-    rm_rf(libexec/"draft-pr/plugins")
-    (libexec/"draft-pr/plugins").make_symlink(lib/"devflow/plugins")
-
     %w[draft-pr address-pr squash-commits finish-issue start-issue].each do |tool|
       (bin/tool).write <<~BASH
         #!/bin/bash
-        export PYTHONPATH="#{python_packages}${PYTHONPATH:+:$PYTHONPATH}"
+        export PYTHONPATH="#{libexec}/plugin-manager:#{python_packages}${PYTHONPATH:+:$PYTHONPATH}"
         exec python3 "#{libexec}/#{tool}/#{tool}.py" "$@"
       BASH
       (bin/tool).chmod 0755
     end
+
+    (bin/"devflow-plugin").write <<~BASH
+      #!/bin/bash
+      export PYTHONPATH="#{libexec}/plugin-manager:#{python_packages}${PYTHONPATH:+:$PYTHONPATH}"
+      exec python3 "#{libexec}/plugin-manager/plugin_loader.py" "$@"
+    BASH
+    (bin/"devflow-plugin").chmod 0755
   end
 
   def caveats
