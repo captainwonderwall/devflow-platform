@@ -84,6 +84,7 @@ def _atomic_update_registry(
             fcntl.flock(lock_file.fileno(), fcntl.LOCK_UN)
 
 
+
 class PluginLoader(PluginLoaderBase):
 
     def __init__(self, registry_path: Path = REGISTRY_PATH) -> None:

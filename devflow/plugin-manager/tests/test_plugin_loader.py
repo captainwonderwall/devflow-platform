@@ -115,6 +115,7 @@ class TestRegistryIO(unittest.TestCase):
             self.assertIn(name, plugins)
 
 
+
 class TestDiscover(unittest.TestCase):
     def setUp(self):
         self.tmpdir = tempfile.mkdtemp()
