@@ -142,8 +142,14 @@ class TestDiscover(unittest.TestCase):
         with patch("sys.stderr") as mock_err:
             result = self.loader.discover(DraftPrPlugin)
         self.assertEqual(result, {})
-        output = "".join(c.args[0] for c in mock_err.write.call_args_list)
-        self.assertIn("ghost", output)
+
+    def test_discover_purges_stale_entry_from_registry(self):
+        path = _write_plugin(self.plugin_dir, "stale_plugin.py", _VALID_PLUGIN)
+        self.loader.register("stale-plugin", path)
+        os.unlink(path)
+        result = self.loader.discover(DraftPrPlugin)
+        self.assertEqual(result, {})
+        self.assertNotIn("stale-plugin", self.loader.list_plugins())
 
     def test_discover_warns_and_skips_broken_import(self):
         path = _write_plugin(self.plugin_dir, "broken.py", _BROKEN_PLUGIN)

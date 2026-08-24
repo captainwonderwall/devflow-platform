@@ -162,8 +162,6 @@ class __FORMULA_CLASS_NAME__ < Formula
            "--formula", "<your-tap>/__PLUGIN_NAME__"
   end
 
-  # To unregister before uninstalling: devflow-plugin unregister __PLUGIN_NAME__
-
   test do
     system "#{HOMEBREW_PREFIX}/bin/devflow-plugin", "list"
   end
