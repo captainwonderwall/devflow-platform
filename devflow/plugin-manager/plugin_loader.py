@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import fcntl
 import importlib.util
 import inspect
 import json
@@ -63,21 +64,43 @@ def _save_registry(plugins: dict[str, PluginEntry], registry_path: Path = REGIST
         raise
 
 
+def _atomic_update_registry(
+    mutation_fn, registry_path: Path = REGISTRY_PATH
+) -> None:
+    """Apply a mutation to the registry atomically using file locking."""
+    lock_path = registry_path.parent / ".registry.lock"
+    lock_path.parent.mkdir(parents=True, exist_ok=True)
+
+    with open(lock_path, "a") as lock_file:
+        fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX)
+        try:
+            # Re-load under lock to get latest state
+            plugins = _load_registry(registry_path)
+            # Apply the mutation
+            mutation_fn(plugins)
+            # Save atomically
+            _save_registry(plugins, registry_path)
+        finally:
+            fcntl.flock(lock_file.fileno(), fcntl.LOCK_UN)
+
+
 class PluginLoader(PluginLoaderBase):
 
     def __init__(self, registry_path: Path = REGISTRY_PATH) -> None:
         self._registry_path = registry_path
 
     def register(self, name: str, path: str, formula: str | None = None) -> None:
-        plugins = _load_registry(self._registry_path)
-        plugins[name] = PluginEntry(name=name, path=path, formula=formula)
-        _save_registry(plugins, self._registry_path)
+        def mutate(plugins):
+            plugins[name] = PluginEntry(name=name, path=path, formula=formula)
+
+        _atomic_update_registry(mutate, self._registry_path)
 
     def unregister(self, name: str) -> None:
-        plugins = _load_registry(self._registry_path)
-        if name in plugins:
-            del plugins[name]
-            _save_registry(plugins, self._registry_path)
+        def mutate(plugins):
+            if name in plugins:
+                del plugins[name]
+
+        _atomic_update_registry(mutate, self._registry_path)
 
     def list_plugins(self) -> dict[str, PluginEntry]:
         return _load_registry(self._registry_path)

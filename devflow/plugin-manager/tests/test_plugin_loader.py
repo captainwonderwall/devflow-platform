@@ -99,6 +99,21 @@ class TestRegistryIO(unittest.TestCase):
             result = self.loader.list_plugins()
         self.assertEqual(result, {})
 
+    def test_concurrent_register_does_not_corrupt_registry(self):
+        import concurrent.futures
+        names = [f"plugin-{i}" for i in range(10)]
+        with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
+            futures = [
+                executor.submit(self.loader.register, name, f"/path/{name}.py")
+                for name in names
+            ]
+            for f in concurrent.futures.as_completed(futures):
+                f.result()
+        plugins = self.loader.list_plugins()
+        self.assertEqual(len(plugins), 10)
+        for name in names:
+            self.assertIn(name, plugins)
+
 
 class TestDiscover(unittest.TestCase):
     def setUp(self):

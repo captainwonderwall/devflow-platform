@@ -58,7 +58,6 @@ has_content "$D/Formula/devflow-plugin-acme-format.rb"  "depends_on"
 has_content "$D/Formula/devflow-plugin-acme-format.rb"  "devflow-plugin"
 has_content "$D/Formula/devflow-plugin-acme-format.rb"  "register"
 has_content "$D/Formula/devflow-plugin-acme-format.rb"  "post_install"
-has_content "$D/Formula/devflow-plugin-acme-format.rb"  "uninstall_formula"
 
 # ── single-word name ──────────────────────────────────────────────────────────
 (cd "$WORK" && bash "$SCAFFOLD" acme)

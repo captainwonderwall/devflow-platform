@@ -46,7 +46,7 @@ devflow
   plugin-registry.json  ← managed by devflow-plugin CLI, never hand-edited
 ```
 
-Plugin Homebrew formulas call `devflow-plugin register` in `post_install` and `devflow-plugin unregister` in `uninstall_formula`. devflow tools import the concrete `PluginLoader` (via PYTHONPATH) to discover and select plugins at runtime.
+Plugin Homebrew formulas call `devflow-plugin register` in `post_install`. Unregistration requires manually running `devflow-plugin unregister <name>` before `brew uninstall` — Homebrew Formula DSL has no uninstall lifecycle hook. devflow tools import the concrete `PluginLoader` (via PYTHONPATH) to discover and select plugins at runtime.
 
 ---
 
@@ -231,10 +231,7 @@ class DevflowPlugin<PluginNamePascal> < Formula
            "--formula", "<tap>/<plugin-name>"
   end
 
-  def uninstall_formula
-    system "#{HOMEBREW_PREFIX}/bin/devflow-plugin",
-           "unregister", "<plugin-name>"
-  end
+  # To unregister before uninstalling: devflow-plugin unregister <plugin-name>
 
   test do
     system "#{bin}/devflow-plugin", "list"
@@ -307,8 +304,8 @@ brew upgrade devflow-plugin-foo
   → no re-registration needed
 
 brew uninstall devflow-plugin-foo
-  → uninstall_formula calls: devflow-plugin unregister foo
-  → ~/.devflow/plugin-registry.json removes entry for "foo"
+  → plugin-registry.json retains the entry (no Formula uninstall hook exists)
+  → next run of draft-pr warns about stale entry; run 'devflow-plugin unregister foo' to clean up
 ```
 
 ---
