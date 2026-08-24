@@ -4,6 +4,7 @@ import fcntl
 import importlib.util
 import inspect
 import json
+import logging
 import os
 import sys
 import tempfile
@@ -107,16 +108,21 @@ class PluginLoader(PluginLoaderBase):
         return _load_registry(self._registry_path)
 
     def discover(self, base_cls: type[T]) -> dict[str, T]:
+        stale: list[str] = []
+
+        def _purge_stale(plugins: dict[str, PluginEntry]) -> None:
+            for name in list(plugins):
+                if not os.path.exists(plugins[name].path):
+                    stale.append(name)
+                    del plugins[name]
+
+        _atomic_update_registry(_purge_stale, self._registry_path)
+        for name in stale:
+            logging.warning("[devflow] plugin '%s' not found on disk — purging stale registry entry.", name)
+
         found: dict[str, T] = {}
         for name, entry in _load_registry(self._registry_path).items():
             path = Path(entry.path)
-            if not path.exists():
-                print(
-                    f"[devflow] Warning: plugin '{name}' not found at {path}. "
-                    f"Run 'devflow-plugin unregister {name}' to clean up.",
-                    file=sys.stderr,
-                )
-                continue
             try:
                 spec = importlib.util.spec_from_file_location(name, path)
                 mod = importlib.util.module_from_spec(spec)

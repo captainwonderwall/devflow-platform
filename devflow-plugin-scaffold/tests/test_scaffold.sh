@@ -12,8 +12,9 @@ PASS=0; FAIL=0
 ok()   { PASS=$((PASS + 1)); }
 fail() { echo "FAIL: $1" >&2; FAIL=$((FAIL + 1)); }
 
-file_exists() { [ -f "$1" ] && ok || fail "expected file: $1"; }
-has_content() { grep -q "$2" "$1" 2>/dev/null && ok || fail "expected '$2' in $1"; }
+file_exists()  { [ -f "$1" ] && ok || fail "expected file: $1"; }
+has_content()  { grep -q "$2" "$1" 2>/dev/null && ok || fail "expected '$2' in $1"; }
+no_content()   { ! grep -q "$2" "$1" 2>/dev/null && ok || fail "did not expect '$2' in $1"; }
 exits_nonzero() {
     if ! eval "$1" >/dev/null 2>&1; then ok
     else fail "expected nonzero exit from: $1"; fi
@@ -58,6 +59,7 @@ has_content "$D/Formula/devflow-plugin-acme-format.rb"  "depends_on"
 has_content "$D/Formula/devflow-plugin-acme-format.rb"  "devflow-plugin"
 has_content "$D/Formula/devflow-plugin-acme-format.rb"  "register"
 has_content "$D/Formula/devflow-plugin-acme-format.rb"  "post_install"
+no_content  "$D/Formula/devflow-plugin-acme-format.rb"  "devflow-plugin unregister"
 
 # ── single-word name ──────────────────────────────────────────────────────────
 (cd "$WORK" && bash "$SCAFFOLD" acme)
