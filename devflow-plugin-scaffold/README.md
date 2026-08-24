@@ -21,7 +21,7 @@ Running `scaffold.sh acme-format` creates:
 
 ```
 acme-format/
-  acme_format.py            ← stubbed PluginBase subclass (fill this in)
+  acme_format.py            ← stubbed DraftPrPlugin subclass (fill this in)
   tests/
     test_acme_format.py     ← 4 starter tests, no AI required
   install.sh                ← copies plugin to devflow's plugins dir

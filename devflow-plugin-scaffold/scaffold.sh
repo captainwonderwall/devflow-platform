@@ -111,7 +111,7 @@ build-backend = "setuptools.backends.legacy:build"
 [project]
 name = "${PLUGIN_NAME}"
 version = "0.1.0"
-requires-python = ">=3.9"
+requires-python = ">=3.11"
 
 [project.optional-dependencies]
 dev = [
