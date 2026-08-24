@@ -5,44 +5,8 @@ import unittest
 from unittest.mock import patch, MagicMock
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
-from gather_pr_data import extract_prefix, extract_jira_ticket, is_fix, PREFIX_TO_TYPE, validate_data, get_base_branch, get_behind_count
+from gather_pr_data import is_fix, PREFIX_TO_TYPE, validate_data, get_base_branch, get_behind_count, collect
 
-
-class TestExtractPrefix(unittest.TestCase):
-    def test_feature_prefix(self):
-        self.assertEqual(extract_prefix("feature/CONS-123-something"), "feature")
-
-    def test_fix_prefix(self):
-        self.assertEqual(extract_prefix("fix/CONS-123-something"), "fix")
-
-    def test_hotfix_prefix(self):
-        self.assertEqual(extract_prefix("hotfix/CONS-123-something"), "hotfix")
-
-    def test_no_slash_returns_none(self):
-        self.assertIsNone(extract_prefix("no-prefix-branch"))
-
-    def test_empty_string_returns_none(self):
-        self.assertIsNone(extract_prefix(""))
-
-    def test_uppercase_prefix_returns_none(self):
-        self.assertIsNone(extract_prefix("Feature/CONS-123"))
-
-
-class TestExtractJiraTicket(unittest.TestCase):
-    def test_extracts_ticket(self):
-        self.assertEqual(extract_jira_ticket("feature/CONS-123-something"), "CONS-123")
-
-    def test_no_ticket_returns_none(self):
-        self.assertIsNone(extract_jira_ticket("feature/no-ticket"))
-
-    def test_multiple_tickets_returns_first(self):
-        self.assertEqual(extract_jira_ticket("feature/CONS-123-and-CONS-456"), "CONS-123")
-
-    def test_empty_returns_none(self):
-        self.assertIsNone(extract_jira_ticket(""))
-
-    def test_lowercase_ticket_returns_none(self):
-        self.assertIsNone(extract_jira_ticket("feature/cons-123"))
 
 
 class TestIsFix(unittest.TestCase):
@@ -164,6 +128,47 @@ class TestGetBehindCount(unittest.TestCase):
     def test_returns_0_when_git_fails(self):
         with patch("gather_pr_data.run_git", return_value=None):
             self.assertEqual(get_behind_count("main"), 0)
+
+
+class TestCollect(unittest.TestCase):
+    def _collect_with_branch(self, branch):
+        def _git(args):
+            if args == ["branch", "--show-current"]:
+                return branch
+            return ""
+        with patch("gather_pr_data.run_git", side_effect=_git), \
+             patch("gather_pr_data.get_base_branch", return_value="main"), \
+             patch("gather_pr_data.get_behind_count", return_value=0):
+            return collect()
+
+    def test_github_branch_sets_github_issue(self):
+        data = self._collect_with_branch("fix/wt/gh6-some-fix")
+        self.assertEqual(data["github_issue"], "6")
+
+    def test_github_branch_clears_jira_ticket(self):
+        data = self._collect_with_branch("fix/wt/gh6-some-fix")
+        self.assertIsNone(data["jira_ticket"])
+
+    def test_jira_branch_sets_jira_ticket(self):
+        data = self._collect_with_branch("feat/jira-CONS-123-some-feature")
+        self.assertEqual(data["jira_ticket"], "CONS-123")
+
+    def test_jira_branch_clears_github_issue(self):
+        data = self._collect_with_branch("feat/jira-CONS-123-some-feature")
+        self.assertIsNone(data["github_issue"])
+
+    def test_non_standard_branch_clears_both(self):
+        data = self._collect_with_branch("my-custom-branch")
+        self.assertIsNone(data["github_issue"])
+        self.assertIsNone(data["jira_ticket"])
+
+    def test_github_branch_sets_prefix_from_branch_type(self):
+        data = self._collect_with_branch("fix/wt/gh6-some-fix")
+        self.assertEqual(data["prefix"], "fix")
+
+    def test_non_standard_branch_sets_prefix_to_none(self):
+        data = self._collect_with_branch("my-custom-branch")
+        self.assertIsNone(data["prefix"])
 
 
 if __name__ == "__main__":

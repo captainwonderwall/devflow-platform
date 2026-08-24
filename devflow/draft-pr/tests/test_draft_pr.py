@@ -17,8 +17,10 @@ _spec.loader.exec_module(draft_pr)
 
 def _make_data(**kw):
     base = {
-        "branch": "feat/CONS-123-my-feature",
+        "branch": "feat/jira-CONS-123-my-feature",
         "base": "main",
+        "jira_ticket": "CONS-123",
+        "github_issue": None,
         "git_log": "add feature",
         "diff_stat": "1 file changed",
         "changed_files": ["foo.py"],
@@ -38,26 +40,23 @@ def _make_plugin(name="Test", questions=None, prompt_str="prompt", body_str="bod
     return p
 
 
-_STANDARD_ANSWERS = {"issue_type": "Issue", "customer_visible": "no"}
+_STANDARD_ANSWERS = {"issue_type": "Issue"}
 
-
-class TestDetectIssueRefs(unittest.TestCase):
-    def test_extracts_jira_key(self):
-        refs = draft_pr.detect_issue_refs("feat/CONS-456-something")
-        self.assertIn("CONS-456", refs)
-
-    def test_returns_empty_for_no_refs(self):
-        refs = draft_pr.detect_issue_refs("feat/no-ticket")
-        self.assertEqual(refs, [])
 
 
 class TestResolveJira(unittest.TestCase):
-    def test_returns_jira_key_from_branch(self):
-        data = _make_data(branch="feat/CONS-123-foo")
+    def test_returns_jira_key_from_data(self):
+        data = _make_data(jira_ticket="CONS-123", github_issue=None)
         with patch.object(draft_pr, "select") as mock_select:
             mock_select.return_value = "CONS-123"
             result, _ = draft_pr.resolve_jira(data, None)
         self.assertEqual(result, "CONS-123")
+
+    def test_returns_github_issue_from_data_when_no_jira(self):
+        data = _make_data(branch="fix/wt/gh6-some-fix", jira_ticket=None, github_issue="6")
+        result, github = draft_pr.resolve_jira(data, None)
+        self.assertEqual(result, "#6")
+        self.assertEqual(github, "6")
 
 
 class TestMainNoPlugins(unittest.TestCase):
@@ -81,6 +80,7 @@ class TestMainSinglePlugin(unittest.TestCase):
              patch.object(draft_pr, "select_plugin", return_value=plugin), \
              patch.object(draft_pr, "resolve_jira", return_value=("CONS-123", None)), \
              patch.object(draft_pr, "select", return_value="Issue"), \
+             patch.object(draft_pr, "checkbox", return_value=[]), \
              patch.object(draft_pr, "run_ai_prompt", return_value=ai_result), \
              patch.object(draft_pr, "write_create_script"), \
              patch.object(draft_pr, "run_create_script", return_value=(None, None)), \
@@ -96,6 +96,7 @@ class TestMainSinglePlugin(unittest.TestCase):
              patch.object(draft_pr, "select_plugin", return_value=plugin), \
              patch.object(draft_pr, "resolve_jira", return_value=("CONS-123", None)), \
              patch.object(draft_pr, "select") as mock_select, \
+             patch.object(draft_pr, "checkbox", return_value=[]), \
              patch.object(draft_pr, "run_ai_prompt",
                           return_value=MagicMock(ok=True, result={"title": "T"})), \
              patch.object(draft_pr, "write_create_script"), \
@@ -139,6 +140,7 @@ class TestMainMultiplePlugins(unittest.TestCase):
              patch.object(draft_pr, "resolve_jira", return_value=("CONS-1", None)), \
              patch.object(draft_pr, "select",
                           side_effect=["Issue", "no"]) as mock_select, \
+             patch.object(draft_pr, "checkbox", return_value=[]), \
              patch.object(draft_pr, "run_ai_prompt",
                           return_value=MagicMock(ok=True, result={"title": "T"})), \
              patch.object(draft_pr, "write_create_script"), \
@@ -162,6 +164,7 @@ class TestMainPluginQuestions(unittest.TestCase):
              patch.object(draft_pr, "select_plugin", return_value=plugin), \
              patch.object(draft_pr, "resolve_jira", return_value=("CONS-1", None)), \
              patch.object(draft_pr, "select", return_value="Issue"), \
+             patch.object(draft_pr, "checkbox", return_value=[]), \
              patch("questionary.prompt", return_value={"component": "auth"}), \
              patch.object(draft_pr, "run_ai_prompt", return_value=ai), \
              patch.object(draft_pr, "write_create_script"), \
@@ -180,6 +183,41 @@ class TestMainBehindBaseCheck(unittest.TestCase):
                           side_effect=SystemExit(1)):
             with self.assertRaises(SystemExit):
                 draft_pr.main()
+
+
+def _run_main_with_checkbox(plugin, checkbox_return):
+    ai = MagicMock(ok=True, result={"title": "T"})
+    with patch.object(draft_pr, "collect", return_value=_make_data()), \
+         patch.object(draft_pr, "validate_state"), \
+         patch.object(draft_pr, "check_existing_pr", return_value=None), \
+         patch.object(draft_pr, "select_plugin", return_value=plugin), \
+         patch.object(draft_pr, "resolve_jira", return_value=("CONS-123", None)), \
+         patch.object(draft_pr, "checkbox", return_value=checkbox_return) as mock_cb, \
+         patch.object(draft_pr, "run_ai_prompt", return_value=ai), \
+         patch.object(draft_pr, "write_create_script"), \
+         patch.object(draft_pr, "run_create_script", return_value=(None, None)), \
+         patch("questionary.prompt", return_value=_STANDARD_ANSWERS):
+        draft_pr.main()
+    return mock_cb, plugin
+
+
+class TestMainCustomerVisible(unittest.TestCase):
+    def test_checkbox_called_for_customer_visible(self):
+        mock_cb, _ = _run_main_with_checkbox(_make_plugin(), [])
+        mock_cb.assert_called_once()
+        _, kwargs = mock_cb.call_args
+        self.assertIn("Yes", kwargs["choices"])
+        self.assertIn("No", kwargs["choices"])
+
+    def test_customer_visible_yes_when_yes_checked(self):
+        _, plugin = _run_main_with_checkbox(_make_plugin(), ["Yes"])
+        _, user_inputs_arg = plugin.build_prompt.call_args[0]
+        self.assertEqual(user_inputs_arg["customer_visible"], "yes")
+
+    def test_customer_visible_no_when_unchecked(self):
+        _, plugin = _run_main_with_checkbox(_make_plugin(), [])
+        _, user_inputs_arg = plugin.build_prompt.call_args[0]
+        self.assertEqual(user_inputs_arg["customer_visible"], "no")
 
 
 if __name__ == "__main__":

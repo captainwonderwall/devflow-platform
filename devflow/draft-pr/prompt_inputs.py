@@ -18,11 +18,6 @@ def build_questions(data):
             "text": "What type of change is this? Pick one: Issue / Feature / Enhancement / Other",
         })
 
-    questions.append({
-        "id": "customer_visible",
-        "text": "Is this a customer visible change? (Yes/No)",
-    })
-
     return questions
 
 
