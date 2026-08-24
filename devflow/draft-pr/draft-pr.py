@@ -6,8 +6,6 @@ import sys
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 REPO_ROOT = os.path.dirname(SCRIPT_DIR)
 VENDOR_DIR = os.path.join(REPO_ROOT, "vendor")
-PLUGIN_MANAGER_DIR = os.path.join(REPO_ROOT, "plugin-manager")
-DEVFLOW_SDK_DIR = os.path.join(REPO_ROOT, "..", "devflow-sdk")
 sys.path.insert(0, SCRIPT_DIR)
 import glob as _glob
 for _whl in sorted(_glob.glob(os.path.join(VENDOR_DIR, "*.whl"))):
