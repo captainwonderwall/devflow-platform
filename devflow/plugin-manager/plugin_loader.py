@@ -11,8 +11,7 @@ import tempfile
 from pathlib import Path
 from typing import TypeVar
 
-from devflow_sdk.plugin_loader import PluginLoaderBase
-from devflow_sdk.plugin_registry import PluginEntry
+from devflow_sdk.plugin import PluginLoaderBase, PluginEntry
 from devflow_sdk.prompts import select
 
 REGISTRY_PATH = Path.home() / ".devflow" / "plugin-registry.json"

@@ -1,6 +1,6 @@
 from abc import abstractmethod
 
-from devflow_sdk.plugin_base import PluginBase
+from devflow_sdk.plugin.plugin_base import PluginBase
 
 
 class DraftPrPlugin(PluginBase):

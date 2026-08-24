@@ -23,7 +23,7 @@ from gather_pr_data import collect
 from prepare import validate_state
 from prompt_inputs import build_questions
 from plugin_loader import select_plugin
-from devflow_sdk.draft_pr_plugin import DraftPrPlugin
+from devflow_sdk.plugin import DraftPrPlugin
 from build_pr_body import write_create_script
 from orchestrate import check_existing_pr, run_create_script
 
