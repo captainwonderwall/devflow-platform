@@ -1,5 +1,5 @@
 import unittest
-from devflow_sdk.plugin_loader import PluginLoaderBase
+from devflow_sdk.plugin import PluginLoaderBase
 
 
 class TestPluginLoaderBase(unittest.TestCase):

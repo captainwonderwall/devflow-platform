@@ -11,10 +11,10 @@ from unittest.mock import patch
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 from plugin_loader import PluginLoader
 
-from devflow_sdk.draft_pr_plugin import DraftPrPlugin
+from devflow_sdk.plugin import DraftPrPlugin
 
 _VALID_PLUGIN = textwrap.dedent("""\
-    from devflow_sdk.draft_pr_plugin import DraftPrPlugin
+    from devflow_sdk.plugin import DraftPrPlugin
 
     class TestPlugin(DraftPrPlugin):
         name = "Test"

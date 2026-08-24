@@ -1,6 +1,5 @@
 import pytest
-from devflow_sdk.draft_pr_plugin import DraftPrPlugin
-from devflow_sdk.plugin_base import PluginBase
+from devflow_sdk.plugin import DraftPrPlugin, PluginBase
 
 
 def test_draft_pr_plugin_is_subclass_of_plugin_base():
