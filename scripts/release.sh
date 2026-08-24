@@ -103,6 +103,14 @@ if has_changes_since "$SCAFFOLD_LAST" "devflow-plugin-scaffold/"; then
   SCAFFOLD_NEXT=$(apply_bump "$SCAFFOLD_CURRENT" "$(semver_bump_for "$SCAFFOLD_LAST" "devflow-plugin-scaffold/")")
 fi
 
+# ── preflight checks ─────────────────────────────────────────────────────────
+
+if $DEVFLOW_RELEASE && ! git remote get-url "$TAP_REMOTE" &>/dev/null; then
+  echo "ERROR: remote '$TAP_REMOTE' not found. Add it before releasing devflow:" >&2
+  echo "  git remote add $TAP_REMOTE https://github.com/captainwonderwall/homebrew-devflow.git" >&2
+  exit 1
+fi
+
 # ── summary + confirm ─────────────────────────────────────────────────────────
 
 if ! $SDK_RELEASE && ! $DEVFLOW_RELEASE && ! $SCAFFOLD_RELEASE; then
@@ -170,7 +178,15 @@ fi
 
 if $DEVFLOW_RELEASE; then
   echo "==> Syncing homebrew tap via git subtree push..."
-  git subtree push --prefix=homebrew-devflow "$TAP_REMOTE" main
+  TAP_BRANCH="release/devflow-v${DEVFLOW_NEXT}"
+  git subtree push --prefix=homebrew-devflow "$TAP_REMOTE" "$TAP_BRANCH"
+  echo "==> Opening PR to homebrew tap..."
+  gh pr create \
+    --repo captainwonderwall/homebrew-devflow \
+    --base main \
+    --head "$TAP_BRANCH" \
+    --title "chore: update formula for devflow/v${DEVFLOW_NEXT}" \
+    --body "Automated formula update from devflow-platform release script for devflow v${DEVFLOW_NEXT}."
 fi
 
 # ── push commits and tags ─────────────────────────────────────────────────────
