@@ -81,6 +81,7 @@ class TestMainDirtyWorktreeHandling(unittest.TestCase):
              unittest.mock.patch.object(finish_issue, "_persist_branch_for_shell", return_value=True), \
              unittest.mock.patch.object(finish_issue, "_persist_worktree_for_shell", return_value=True), \
              unittest.mock.patch.object(finish_issue, "_persist_force_for_shell", return_value=True) as mock_force, \
+             unittest.mock.patch.object(finish_issue, "_persist_worktree_path_for_shell", return_value=True), \
              unittest.mock.patch.object(finish_issue, "_clear_force_marker_for_shell", return_value=True) as mock_clear, \
              unittest.mock.patch.object(finish_issue, "_cwd_inside_worktree", return_value=False), \
              unittest.mock.patch.object(finish_issue.subprocess, "run",
