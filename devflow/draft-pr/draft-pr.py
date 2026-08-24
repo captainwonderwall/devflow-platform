@@ -6,10 +6,16 @@ import sys
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 REPO_ROOT = os.path.dirname(SCRIPT_DIR)
 VENDOR_DIR = os.path.join(REPO_ROOT, "vendor")
+PLUGIN_MANAGER_DIR = os.path.join(REPO_ROOT, "plugin-manager")
+DEVFLOW_SDK_DIR = os.path.join(REPO_ROOT, "..", "devflow-sdk")
 sys.path.insert(0, SCRIPT_DIR)
 import glob as _glob
 for _whl in sorted(_glob.glob(os.path.join(VENDOR_DIR, "*.whl"))):
     sys.path.insert(0, _whl)
+
+# Add devflow-sdk and plugin-manager AFTER vendor wheels so they take precedence
+sys.path.insert(0, DEVFLOW_SDK_DIR)
+sys.path.insert(0, PLUGIN_MANAGER_DIR)
 
 from devflow_sdk.ai import run_ai_prompt
 from devflow_sdk.prompts import select, prompt, checkbox
@@ -19,13 +25,12 @@ from config import DraftPrConfig, resolve_plugin
 from gather_pr_data import collect
 from prepare import validate_state
 from prompt_inputs import build_questions
-from devflow_sdk.plugin_loader import select_plugin
+from plugin_loader import select_plugin
 from devflow_sdk.draft_pr_plugin import DraftPrPlugin
 from build_pr_body import write_create_script
 from orchestrate import check_existing_pr, run_create_script
 
 
-PLUGIN_DIR = os.path.join(SCRIPT_DIR, "plugins")
 TMP_DIR = os.path.join(SCRIPT_DIR, ".tmp")
 
 
@@ -73,10 +78,11 @@ def main():
         cwd_rel = os.getcwd()  # fallback: not in a git repo
     configured_plugin_name = resolve_plugin(draft_pr_cfg, cwd_rel)
 
-    plugin = select_plugin(PLUGIN_DIR, DraftPrPlugin, configured_plugin_name)
+    plugin = select_plugin(DraftPrPlugin, configured_plugin_name)
     if plugin is None:
-        print(f"Error: no plugins found in {PLUGIN_DIR}", file=sys.stderr)
-        print("Install a plugin into the plugins directory to continue.", file=sys.stderr)
+        print("Error: no plugins registered.", file=sys.stderr)
+        print("Install a plugin with: brew install <plugin-formula>", file=sys.stderr)
+        print("Or run 'devflow-plugin list' to see what is installed.", file=sys.stderr)
         sys.exit(1)
 
     # Standard inputs
