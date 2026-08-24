@@ -16,11 +16,13 @@ from devflow_sdk.ticket_info import fetch
 from devflow_sdk.prompts import select, text
 from devflow_sdk.issue_context import remove_issue_context, read_issue_context
 from devflow_sdk.shell_function_check import check_shell_function
-from worktree_finder import (
-    check_worktrunk, list_worktrees, find_matching_worktrees,
-    _persist_branch_for_shell, _persist_worktree_for_shell,
-    is_dirty, _persist_force_for_shell, _clear_force_marker_for_shell,
+from devflow_sdk.worktrunk import check_worktrunk, list_worktrees, find_matching_worktrees, is_dirty
+from shell_state import (
+    _persist_branch_for_shell,
+    _persist_worktree_for_shell,
+    _persist_force_for_shell,
     _persist_worktree_path_for_shell,
+    _clear_force_marker_for_shell,
 )
 from merge_check import get_main_branch, is_merged
 
