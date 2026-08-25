@@ -48,12 +48,12 @@ class TestResolveDirtyChoice(unittest.TestCase):
 class TestPromptDirtyTreeChoice(unittest.TestCase):
     def test_delegates_to_shared_select(self):
         import unittest.mock
-        with unittest.mock.patch("devflow_sdk.prompts.questionary.select") as mock_select:
-            mock_select.return_value.ask.return_value = DIRTY_DROP
+        with unittest.mock.patch("devflow_sdk.prompts.questionary.checkbox") as mock_checkbox:
+            mock_checkbox.return_value.ask.return_value = [DIRTY_DROP]
             result = finish_issue.prompt_dirty_tree_choice("feat/gh65-something")
         self.assertEqual(result, DIRTY_DROP)
-        mock_select.assert_called_once()
-        message = mock_select.call_args[0][0]
+        mock_checkbox.assert_called_once()
+        message = mock_checkbox.call_args[0][0]
         self.assertIn("feat/gh65-something", message)
 
 
