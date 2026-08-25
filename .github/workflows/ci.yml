@@ -20,17 +20,12 @@ jobs:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v4
       - run: uv venv
-      - name: Install SDK dev deps
-        run: uv pip install -e "devflow-sdk/[dev]"
-      - name: Rebuild vendor wheel from local SDK source
-        run: |
-          uv build --wheel --out-dir devflow-sdk/dist devflow-sdk/
-          rm -f devflow/vendor/devflow_sdk-*.whl
-          cp devflow-sdk/dist/devflow_sdk-*.whl devflow/vendor/
+      - run: uv pip install -e "devflow-sdk/[dev]"
       - run: uv run --no-project pytest devflow/
 
   scaffold-tests:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - run: bash devflow-plugin-scaffold/tests/test_scaffold.sh
+      - uses: astral-sh/setup-uv@v4
+      - run: DEVFLOW_SDK="${{ github.workspace }}/devflow-sdk" bash devflow-plugin-scaffold/tests/test_scaffold.sh

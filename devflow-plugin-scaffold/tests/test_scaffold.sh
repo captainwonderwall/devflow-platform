@@ -40,9 +40,8 @@ has_content "$D/acme_format.py"                   "class AcmePlugin(DraftPrPlugi
 has_content "$D/tests/test_acme_format.py"        "from acme_format import AcmePlugin"
 has_content "$D/tests/test_acme_format.py"        "def test_build_body_contains_title"
 has_content "$D/tests/test_acme_format.py"        "def test_build_prompt_returns_string"
-has_content "$D/pyproject.toml"                   "devflow-sdk>=0.1.0,<1.0"
-has_content "$D/pyproject.toml"                   "pytest>=7.0"
-has_content "$D/.github/workflows/release.yml"    "acme_format.py"
+has_content "$D/pyproject.toml"                   "pytest>=8"
+no_content  "$D/.github/workflows/release.yml"    "acme_format.py"
 has_content "$D/.github/workflows/release.yml"    'GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}'
 has_content "$D/.github/workflows/release.yml"    'TAG: ${{ github.ref_name }}'
 has_content "$D/.github/workflows/release.yml"    '"$TAG"'
@@ -60,6 +59,43 @@ has_content "$D/Formula/devflow-plugin-acme-format.rb"  "devflow-plugin"
 has_content "$D/Formula/devflow-plugin-acme-format.rb"  "register"
 has_content "$D/Formula/devflow-plugin-acme-format.rb"  "post_install"
 no_content  "$D/Formula/devflow-plugin-acme-format.rb"  "devflow-plugin unregister"
+
+# ── new assertions: justfile ───────────────────────────────────────────────────
+file_exists  "$D/justfile"
+has_content  "$D/justfile"                                     "test:"
+has_content  "$D/justfile"                                     "vendor:"
+has_content  "$D/justfile"                                     "uv run --extra dev pytest"
+
+# ── new assertions: ci.yml ────────────────────────────────────────────────────
+file_exists  "$D/.github/workflows/ci.yml"
+has_content  "$D/.github/workflows/ci.yml"                     "uv run --extra dev pytest"
+has_content  "$D/.github/workflows/ci.yml"                     "astral-sh/setup-uv"
+
+# ── new assertions: release.yml test gate ────────────────────────────────────
+has_content  "$D/.github/workflows/release.yml"                "needs: test"
+no_content   "$D/.github/workflows/release.yml"                "acme_format.py"
+
+# ── new assertions: conftest.py ───────────────────────────────────────────────
+file_exists  "$D/conftest.py"
+has_content  "$D/conftest.py"                                  "sys.path.insert"
+
+# ── new assertions: vendor/ ───────────────────────────────────────────────────
+file_exists  "$D/vendor/.gitkeep"
+
+# ── new assertions: update-vendor.sh ─────────────────────────────────────────
+file_exists  "$D/scripts/update-vendor.sh"
+has_content  "$D/scripts/update-vendor.sh"                     "uv pip download"
+
+# ── new assertions: pyproject.toml git URL ───────────────────────────────────
+has_content  "$D/pyproject.toml"   "git+https://github.com/captainwonderwall/devflow-platform"
+no_content   "$D/pyproject.toml"   "devflow-sdk>="
+
+# ── new assertions: .gitignore ────────────────────────────────────────────────
+has_content  "$D/.gitignore"                                   ".venv/"
+
+# ── new assertions: formula uses tarball URL and installs vendor/ ─────────────
+has_content  "$D/Formula/devflow-plugin-acme-format.rb"        "archive/refs/tags"
+has_content  "$D/Formula/devflow-plugin-acme-format.rb"        "vendor"
 
 # ── single-word name ──────────────────────────────────────────────────────────
 (cd "$WORK" && bash "$SCAFFOLD" acme)
@@ -94,7 +130,7 @@ if [ -z "$DEVFLOW_SDK" ] || ! python3 -c "import sys; sys.path.insert(0, '$DEVFL
     echo "SKIP: integration test skipped (set DEVFLOW_SDK=/path/to/devflow-sdk to enable)"
     ok
 else
-    if PYTHONPATH="$DEVFLOW_SDK:$D" python3 -m pytest "$D/tests/" -q 2>&1; then
+    if (cd "$DEVFLOW_SDK" && PYTHONPATH="$D" uv run --extra dev pytest "$D/tests/" -q) 2>&1; then
         ok
     else
         fail "generated tests did not pass for acme-format (check DEVFLOW_SDK=$DEVFLOW_SDK)"
