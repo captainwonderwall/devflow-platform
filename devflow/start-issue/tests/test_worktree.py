@@ -9,7 +9,7 @@ from unittest.mock import patch, MagicMock
 _HERE = os.path.dirname(__file__)
 sys.path.insert(0, os.path.join(_HERE, ".."))
 
-from worktree import check_worktrunk, create_worktree, _persist_branch_for_shell
+from worktree import check_worktrunk, create_worktree, _persist_branch_for_shell, _detect_incoming_commits
 
 _WORKTREE_LIST_JSON = json.dumps([
     {"branch": "main", "path": "/repos/main"},
@@ -18,11 +18,13 @@ _WORKTREE_LIST_JSON = json.dumps([
 _WORKTREE_LIST = json.loads(_WORKTREE_LIST_JSON)
 
 
-def _make_run(create_rc=0, create_stderr="", switch_rc=0, switch_stderr="", branch_exists=False):
+def _make_run(create_rc=0, create_stderr="", switch_rc=0, switch_stderr="", branch_exists=False, incoming_commits=0):
     def side_effect(cmd, **kwargs):
         if cmd[0] == "git" and "--list" in cmd:
             stdout = "  feat/my-branch" if branch_exists else ""
             return MagicMock(returncode=0, stdout=stdout)
+        if cmd[0] == "git" and "rev-list" in cmd:
+            return MagicMock(returncode=0, stdout=f"{incoming_commits}\n")
         if cmd[0] == "wt" and "--create" in cmd:
             assert "--no-cd" in cmd, f"wt switch --create must include --no-cd, got: {cmd}"
             return MagicMock(returncode=create_rc, stderr=create_stderr)
@@ -32,7 +34,7 @@ def _make_run(create_rc=0, create_stderr="", switch_rc=0, switch_stderr="", bran
             if "switch" in cmd:
                 assert "--no-cd" in cmd, f"wt switch must include --no-cd, got: {cmd}"
             return MagicMock(returncode=switch_rc, stderr=switch_stderr)
-        return MagicMock(returncode=0)
+        return MagicMock(returncode=0, stdout="")
     return side_effect
 
 
@@ -111,6 +113,71 @@ class TestPersistBranchForShell(unittest.TestCase):
              patch("sys.stderr") as mock_stderr:
             _persist_branch_for_shell("feat/my-branch")
         mock_stderr.write.assert_called()
+
+
+class TestDetectIncomingCommits(unittest.TestCase):
+    def test_no_prompt_when_no_incoming_commits(self):
+        with patch("worktree.subprocess.run", side_effect=_make_run()), \
+             patch("worktree.select") as mock_select:
+            _detect_incoming_commits("feat/my-branch")
+        mock_select.assert_not_called()
+
+    def test_prompts_when_incoming_commits_exist(self):
+        with patch("worktree.subprocess.run", side_effect=_make_run(incoming_commits=3)), \
+             patch("worktree.select", return_value="skip") as mock_select:
+            _detect_incoming_commits("feat/my-branch")
+        mock_select.assert_called_once()
+
+    def test_pulls_when_user_selects_pull(self):
+        called_cmds = []
+
+        def capturing_run(cmd, **kwargs):
+            called_cmds.append(list(cmd))
+            return _make_run(incoming_commits=2)(cmd, **kwargs)
+
+        with patch("worktree.subprocess.run", side_effect=capturing_run), \
+             patch("worktree.select", return_value="pull"):
+            _detect_incoming_commits("feat/my-branch")
+
+        self.assertIn(
+            ["git", "fetch", "origin", "feat/my-branch:feat/my-branch"],
+            called_cmds,
+        )
+
+    def test_no_pull_when_user_selects_skip(self):
+        called_cmds = []
+
+        def capturing_run(cmd, **kwargs):
+            called_cmds.append(list(cmd))
+            return _make_run(incoming_commits=2)(cmd, **kwargs)
+
+        with patch("worktree.subprocess.run", side_effect=capturing_run), \
+             patch("worktree.select", return_value="skip"):
+            _detect_incoming_commits("feat/my-branch")
+
+        self.assertNotIn(
+            ["git", "fetch", "origin", "feat/my-branch:feat/my-branch"],
+            called_cmds,
+        )
+
+    def test_no_prompt_when_rev_list_fails(self):
+        def run_side_effect(cmd, **kwargs):
+            if "rev-list" in cmd:
+                return MagicMock(returncode=128, stdout="")
+            return MagicMock(returncode=0, stdout="")
+
+        with patch("worktree.subprocess.run", side_effect=run_side_effect), \
+             patch("worktree.select") as mock_select:
+            _detect_incoming_commits("feat/my-branch")
+        mock_select.assert_not_called()
+
+    def test_create_worktree_detects_incoming_commits_for_existing_branch(self):
+        with patch("worktree.subprocess.run", side_effect=_make_run(branch_exists=True, incoming_commits=2)), \
+             patch("worktree.query_worktrees", return_value=_WORKTREE_LIST), \
+             patch("worktree.confirm", return_value=True), \
+             patch("worktree.select", return_value="skip") as mock_select:
+            create_worktree("feat/my-branch")
+        mock_select.assert_called_once()
 
 
 if __name__ == "__main__":

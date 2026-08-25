@@ -4,7 +4,7 @@ import subprocess
 import sys
 
 from devflow_sdk.worktrunk import check_worktrunk, query_worktrees
-from devflow_sdk.prompts import confirm
+from devflow_sdk.prompts import confirm, select, Choice
 
 
 def get_repo_root():
@@ -54,6 +54,38 @@ def _persist_branch_for_shell(branch):
         )
 
 
+def _detect_incoming_commits(branch):
+    subprocess.run(
+        ["git", "fetch", "origin", branch],
+        capture_output=True, text=True,
+    )
+    result = subprocess.run(
+        ["git", "rev-list", "--count", f"{branch}..origin/{branch}"],
+        capture_output=True, text=True,
+    )
+    if result.returncode != 0:
+        return
+    try:
+        count = int(result.stdout.strip())
+    except ValueError:
+        return
+    if count == 0:
+        return
+    print(f"Remote has {count} commit(s) that '{branch}' does not have.")
+    choice = select(
+        "What would you like to do?",
+        choices=[
+            Choice("Pull latest changes", value="pull"),
+            Choice("Continue without pulling", value="skip"),
+        ],
+    )
+    if choice == "pull":
+        subprocess.run(
+            ["git", "fetch", "origin", f"{branch}:{branch}"],
+            capture_output=True, text=True,
+        )
+
+
 def _branch_exists_locally(branch):
     result = subprocess.run(
         ["git", "branch", "--list", branch],
@@ -67,6 +99,7 @@ def _branch_exists_locally(branch):
 
 def create_worktree(branch):
     if _branch_exists_locally(branch):
+        _detect_incoming_commits(branch)
         print(f"Branch '{branch}' already exists.")
         if not confirm(f"Switch to existing branch '{branch}'?"):
             print("Aborted.")
