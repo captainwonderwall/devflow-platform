@@ -134,16 +134,45 @@ if $SDK_RELEASE; then
   echo "==> Releasing devflow-sdk v${SDK_NEXT}..."
   (cd devflow-sdk && bash scripts/release.sh "v${SDK_NEXT}")
 
-  echo "==> Updating devflow vendor wheel..."
-  bash devflow/scripts/update-vendor.sh "v${SDK_NEXT}"
-  git add devflow/vendor/
-  if ! git diff --cached --quiet -- devflow/vendor/; then
-    git commit -m "chore: update devflow-sdk vendor wheel to v${SDK_NEXT}"
-    # Re-evaluate devflow release: vendor wheels changed, so devflow needs a
-    # new tag and formula update even if it had no prior unreleased commits.
+  echo "==> Updating devflow-sdk resource block in Homebrew formula..."
+  WHEEL_FILENAME="devflow_sdk-${SDK_NEXT}-py3-none-any.whl"
+  WHEEL_URL="https://github.com/captainwonderwall/devflow-platform/releases/download/devflow-sdk%2Fv${SDK_NEXT}/${WHEEL_FILENAME}"
+  TMPWHL="${TMPDIR:-/tmp}/devflow_sdk_update_${SDK_NEXT}.whl"
+  gh release download "devflow-sdk/v${SDK_NEXT}" \
+    --repo captainwonderwall/devflow-platform \
+    --pattern "${WHEEL_FILENAME}" \
+    --output "$TMPWHL" \
+    --clobber
+  WHEEL_SHA256=$(shasum -a 256 "$TMPWHL" | awk '{print $1}')
+  rm -f "$TMPWHL"
+
+  FORMULA="homebrew-devflow/Formula/devflow.rb"
+  python3 - "$FORMULA" "$WHEEL_URL" "$WHEEL_SHA256" <<'PYEOF'
+import sys, re
+path, url, sha256 = sys.argv[1], sys.argv[2], sys.argv[3]
+with open(path) as f:
+    content = f.read()
+content = re.sub(
+    r'(resource "devflow-sdk" do\s+url ")[^"]*(")',
+    lambda m: m.group(1) + url + m.group(2),
+    content,
+)
+content = re.sub(
+    r'(resource "devflow-sdk" do.*?sha256 ")[^"]*(")',
+    lambda m: m.group(1) + sha256 + m.group(2),
+    content,
+    flags=re.DOTALL,
+)
+with open(path, "w") as f:
+    f.write(content)
+PYEOF
+
+  git add homebrew-devflow/
+  if ! git diff --cached --quiet -- homebrew-devflow/; then
+    git commit -m "chore: update devflow-sdk resource to v${SDK_NEXT} in homebrew formula"
     if ! $DEVFLOW_RELEASE; then
       DEVFLOW_RELEASE=true
-      DEVFLOW_NEXT=$(apply_bump "${DEVFLOW_CURRENT:-0.0.0}" "$(semver_bump_for "$DEVFLOW_LAST" "devflow/")")
+      DEVFLOW_NEXT=$(apply_bump "${DEVFLOW_CURRENT:-0.0.0}" "patch")
     fi
   fi
 fi

@@ -9,13 +9,35 @@ class Devflow < Formula
 
   depends_on "python@3"
 
+  resource "devflow-sdk" do
+    url "https://github.com/captainwonderwall/devflow-platform/releases/download/devflow-sdk%2Fv0.3.2/devflow_sdk-0.3.2-py3-none-any.whl"
+    sha256 "d5fc057864ae20ebf53a75d44e0e6fe4198aae72de45d2915b9638e954fb8352"
+  end
+
+  resource "questionary" do
+    url "https://files.pythonhosted.org/packages/3c/26/1062c7ec1b053db9e499b4d2d5bc231743201b74051c973dadeac80a8f43/questionary-2.1.1-py3-none-any.whl"
+    sha256 "a51af13f345f1cdea62347589fbb6df3b290306ab8930713bfae4d475a7d4a59"
+  end
+
+  resource "prompt_toolkit" do
+    url "https://files.pythonhosted.org/packages/54/6f/84908cad2d6aa5144abcf7b42709fe4fdb459bc640ec7ac5786e7693dabc/prompt_toolkit-3.0.53-py3-none-any.whl"
+    sha256 "01c0891d7f9237d5e339f7d3e42cdae80b7534abb1c7c0e3352efba6231492f2"
+  end
+
+  resource "wcwidth" do
+    url "https://files.pythonhosted.org/packages/96/42/3e5985a0a7e57de470b320c6d6a1a67c844f6737a587f3d44dd13d1819e7/wcwidth-0.8.2-py3-none-any.whl"
+    sha256 "d63947694a0539a1d51e01eda7caf800c291020e6cdd7e28ad7b14dd33ad4f85"
+  end
+
   def install
     libexec.install Dir["devflow/*"]
 
     python_packages = libexec/"python-packages"
     python_packages.mkpath
-    Dir["#{libexec}/vendor/*.whl"].each do |whl|
-      system "pip3", "install", "--no-deps", "--target=#{python_packages}", whl
+    resources.each do |r|
+      r.stage do
+        system "pip3", "install", "--no-deps", "--target=#{python_packages}", Pathname.pwd
+      end
     end
 
     %w[draft-pr address-pr squash-commits finish-issue start-issue].each do |tool|

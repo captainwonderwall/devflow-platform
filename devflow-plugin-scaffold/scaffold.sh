@@ -33,6 +33,13 @@ mkdir -p "$PLUGIN_NAME/tests" "$PLUGIN_NAME/.github/workflows" "$PLUGIN_NAME/scr
 
 # ── Plugin stub ───────────────────────────────────────────────────────────────
 cat > "$PLUGIN_NAME/${MODULE_NAME}.py" << 'PYEOF'
+import glob as _glob, os as _os, sys as _sys
+_vendor = _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), "vendor")
+for _whl in _glob.glob(_os.path.join(_vendor, "*.whl")):
+    if _whl not in _sys.path:
+        _sys.path.insert(0, _whl)
+del _glob, _os, _sys, _vendor
+
 from devflow_sdk.draft_pr_plugin import DraftPrPlugin
 
 
@@ -103,22 +110,29 @@ sed -i.bak \
     "$PLUGIN_NAME/tests/test_${MODULE_NAME}.py" && rm "$PLUGIN_NAME/tests/test_${MODULE_NAME}.py.bak"
 
 # ── pyproject.toml ────────────────────────────────────────────────────────────
-cat > "$PLUGIN_NAME/pyproject.toml" << EOF
+cat > "$PLUGIN_NAME/pyproject.toml" << 'EOF'
 [build-system]
 requires = ["setuptools>=68"]
 build-backend = "setuptools.backends.legacy:build"
 
 [project]
-name = "${PLUGIN_NAME}"
+name = "PLUGIN_NAME_PLACEHOLDER"
 version = "0.1.0"
 requires-python = ">=3.11"
+dependencies = [
+    # Plugin-specific runtime extras (PyPI packages).
+    # devflow-sdk is NOT here — devflow provides it at runtime.
+]
 
 [project.optional-dependencies]
 dev = [
-    "devflow-sdk>=0.1.0,<1.0",
-    "pytest>=7.0",
+    "devflow-sdk @ git+https://github.com/captainwonderwall/devflow-platform@devflow-sdk/v0.3.2#subdirectory=devflow-sdk",
+    "pytest>=8",
+    "build>=1.0",
 ]
 EOF
+sed -i.bak "s/PLUGIN_NAME_PLACEHOLDER/${PLUGIN_NAME}/g" "$PLUGIN_NAME/pyproject.toml" \
+    && rm "$PLUGIN_NAME/pyproject.toml.bak"
 
 # ── install.sh ────────────────────────────────────────────────────────────────
 cat > "$PLUGIN_NAME/install.sh" << EOF
@@ -145,14 +159,17 @@ cat > "$PLUGIN_NAME/Formula/devflow-plugin-${PLUGIN_NAME}.rb" << 'RBEOF'
 class __FORMULA_CLASS_NAME__ < Formula
   desc "devflow plugin: __DISPLAY_NAME__"
   homepage "<your-plugin-homepage>"
-  url "<release-url-to-__MODULE_NAME__.py>"
-  sha256 "<sha256-of-__MODULE_NAME__.py>"
+  url "https://github.com/<your-org>/__PLUGIN_NAME__/archive/refs/tags/v0.1.0.tar.gz"
+  sha256 "<sha256-of-tarball>"
   version "0.1.0"
 
   depends_on "captainwonderwall/devflow/devflow"
 
   def install
     lib.install "__MODULE_NAME__.py"
+    vendor = lib/"vendor"
+    vendor.mkpath
+    Dir["vendor/*.whl"].each { |whl| vendor.install whl }
   end
 
   def post_install
@@ -175,7 +192,6 @@ sed -i.bak \
     "$PLUGIN_NAME/Formula/devflow-plugin-${PLUGIN_NAME}.rb" && rm "$PLUGIN_NAME/Formula/devflow-plugin-${PLUGIN_NAME}.rb.bak"
 
 # ── GitHub Actions release workflow ───────────────────────────────────────────
-# Pass github.ref_name through an env var to avoid script injection.
 cat > "$PLUGIN_NAME/.github/workflows/release.yml" << 'YAMEOF'
 name: Release
 
@@ -185,13 +201,20 @@ on:
       - "v*"
 
 jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v4
+      - run: uv run --extra dev pytest tests/
+
   release:
+    needs: test
     runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
       - uses: actions/checkout@v4
-
       - name: Create GitHub Release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -199,11 +222,8 @@ jobs:
         run: |
           gh release create "$TAG" \
             --title "$TAG" \
-            --generate-notes \
-            __MODULE_NAME__.py
+            --generate-notes
 YAMEOF
-sed -i.bak "s/__MODULE_NAME__/${MODULE_NAME}/g" "$PLUGIN_NAME/.github/workflows/release.yml" \
-    && rm "$PLUGIN_NAME/.github/workflows/release.yml.bak"
 
 # ── Generated README ──────────────────────────────────────────────────────────
 cat > "$PLUGIN_NAME/README.md" << EOF
@@ -223,25 +243,46 @@ bash install.sh
 bash uninstall.sh
 \`\`\`
 
-## Develop
+## Prerequisites
+
+Install once per machine:
 
 \`\`\`bash
-# Install dev dependencies (or point PYTHONPATH at a local devflow-sdk clone)
-pip install devflow-sdk pytest
-
-# Run tests — no AI required
-PYTHONPATH=. pytest tests/
+brew install uv just
 \`\`\`
+
+## Develop
+
+Install dev dependencies (one-time per repo):
+
+\`\`\`bash
+just dev
+\`\`\`
+
+Run tests:
+
+\`\`\`bash
+just test
+\`\`\`
+
+If your plugin has runtime extras beyond devflow-sdk, add them to
+\`[project.dependencies]\` in \`pyproject.toml\` and run:
+
+\`\`\`bash
+just vendor
+\`\`\`
+
+This downloads the wheels into \`vendor/\` — commit the result.
 
 ## Publish a release
 
 1. Fill in \`build_prompt\` and \`build_body\` in \`${MODULE_NAME}.py\`.
-2. Run tests: \`PYTHONPATH=. pytest tests/\`.
+2. Run tests: \`just test\`.
 3. Commit your changes, then run:
    \`\`\`bash
    bash scripts/release.sh
    \`\`\`
-   This bumps the version, tags, and pushes. GitHub Actions creates a release and attaches \`${MODULE_NAME}.py\` as an asset.
+   This bumps the version, tags, and pushes. GitHub Actions runs tests and creates a GitHub release (the Homebrew formula downloads the source tarball directly from the tag).
 EOF
 
 # ── scripts/release.sh ───────────────────────────────────────────────────────
@@ -407,7 +448,94 @@ __pycache__/
 *.egg-info/
 dist/
 build/
+.venv/
 EOF
+
+# ── justfile ──────────────────────────────────────────────────────────────────
+cat > "$PLUGIN_NAME/justfile" << 'EOF'
+# List available recipes
+default:
+    just --list
+
+# Install dev dependencies into a local venv
+dev:
+    uv sync --extra dev
+
+# Run tests
+test:
+    uv run --extra dev pytest tests/
+
+# Build wheel
+build:
+    uv build --wheel
+
+# Refresh vendor/ from declared runtime deps in pyproject.toml
+vendor:
+    bash scripts/update-vendor.sh
+EOF
+
+# ── GitHub Actions CI workflow ────────────────────────────────────────────────
+mkdir -p "$PLUGIN_NAME/.github/workflows"
+cat > "$PLUGIN_NAME/.github/workflows/ci.yml" << 'YAMEOF'
+name: CI
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v4
+      - run: uv run --extra dev pytest tests/
+YAMEOF
+
+# ── conftest.py ───────────────────────────────────────────────────────────────
+cat > "$PLUGIN_NAME/conftest.py" << 'PYEOF'
+import glob, os, sys
+_vendor = os.path.join(os.path.dirname(os.path.abspath(__file__)), "vendor")
+for _whl in sorted(glob.glob(os.path.join(_vendor, "*.whl"))):
+    if _whl not in sys.path:
+        sys.path.insert(0, _whl)
+PYEOF
+
+# ── vendor/ directory ─────────────────────────────────────────────────────────
+mkdir -p "$PLUGIN_NAME/vendor"
+touch "$PLUGIN_NAME/vendor/.gitkeep"
+
+# ── scripts/update-vendor.sh ─────────────────────────────────────────────────
+mkdir -p "$PLUGIN_NAME/scripts"
+cat > "$PLUGIN_NAME/scripts/update-vendor.sh" << 'SHEOF'
+#!/bin/bash
+# Downloads wheel files for this plugin's runtime deps into vendor/.
+# Run after changing [project.dependencies] in pyproject.toml.
+# Commit the resulting vendor/ changes.
+set -euo pipefail
+REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+VENDOR="$REPO_ROOT/vendor"
+mkdir -p "$VENDOR"
+
+deps=$(python3 -c "
+import tomllib, sys
+with open(sys.argv[1], 'rb') as f:
+    data = tomllib.load(f)
+deps = data.get('project', {}).get('dependencies', [])
+if deps:
+    print(' '.join(deps))
+" "$REPO_ROOT/pyproject.toml")
+
+if [[ -z "$deps" ]]; then
+    echo "No runtime dependencies declared — vendor/ stays empty."
+    exit 0
+fi
+
+rm -f "$VENDOR"/*.whl
+uv pip download --no-deps --output-dir "$VENDOR" $deps
+echo "vendor/ updated."
+SHEOF
+chmod +x "$PLUGIN_NAME/scripts/update-vendor.sh"
 
 printf '\nCreated scaffold at ./%s/\n' "$PLUGIN_NAME"
 printf '\nNext steps:\n'

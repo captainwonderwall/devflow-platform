@@ -1,0 +1,15 @@
+# List available recipes
+default:
+    just --list
+
+# Install dev dependencies into a local venv
+dev:
+    uv sync --extra dev
+
+# Run tests
+test:
+    uv run --extra dev pytest
+
+# Build wheel
+build:
+    uv build --wheel
