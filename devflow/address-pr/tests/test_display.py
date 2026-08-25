@@ -10,26 +10,6 @@ from fetch_comments import Comment
 
 
 class TestResolveSelection(unittest.TestCase):
-    def test_all_and_none_both_checked_is_error(self):
-        indices, error = resolve_selection(["all", "none"], 5)
-        self.assertIsNone(indices)
-        self.assertEqual(error, 'Cannot select both "all" and "none" — pick one.')
-
-    def test_all_and_none_with_individual_items_is_still_error(self):
-        indices, error = resolve_selection(["1", "all", "none"], 5)
-        self.assertIsNone(indices)
-        self.assertEqual(error, 'Cannot select both "all" and "none" — pick one.')
-
-    def test_nothing_checked_is_error(self):
-        indices, error = resolve_selection([], 5)
-        self.assertIsNone(indices)
-        self.assertEqual(error, "Select at least one option.")
-
-    def test_none_alone_signals_quit(self):
-        indices, error = resolve_selection(["none"], 5)
-        self.assertIsNone(indices)
-        self.assertIsNone(error)
-
     def test_all_alone_selects_full_range(self):
         indices, error = resolve_selection(["all"], 3)
         self.assertEqual(indices, [0, 1, 2])
@@ -83,14 +63,6 @@ class TestPromptSelection(unittest.TestCase):
         result = prompt_selection(comments)
         self.assertEqual(result, [0, 1, 2])
 
-    @patch("devflow_sdk.prompts.questionary.checkbox")
-    def test_none_returns_none(self, mock_checkbox):
-        mock_checkbox.return_value.ask.return_value = ["none"]
-        from display import prompt_selection
-        comments = [_make_comment()]
-        result = prompt_selection(comments)
-        self.assertIsNone(result)
-
     @patch("builtins.print")
     @patch("devflow_sdk.prompts.questionary.checkbox")
     def test_ctrl_c_returns_none_immediately(self, mock_checkbox, mock_print):
@@ -100,17 +72,6 @@ class TestPromptSelection(unittest.TestCase):
         result = prompt_selection(comments)
         self.assertIsNone(result)
         mock_checkbox.return_value.ask.assert_called_once()
-
-    @patch("builtins.print")
-    @patch("devflow_sdk.prompts.questionary.checkbox")
-    def test_invalid_combo_reprompts_then_succeeds(self, mock_checkbox, mock_print):
-        mock_checkbox.return_value.ask.side_effect = [["all", "none"], ["1"]]
-        from display import prompt_selection
-        comments = [_make_comment(), _make_comment()]
-        result = prompt_selection(comments)
-        self.assertEqual(result, [0])
-        self.assertEqual(mock_checkbox.return_value.ask.call_count, 2)
-        mock_print.assert_any_call('Cannot select both "all" and "none" — pick one.')
 
     @patch("devflow_sdk.prompts.questionary.checkbox")
     def test_choice_labels_include_author_and_location(self, mock_checkbox):
@@ -123,7 +84,7 @@ class TestPromptSelection(unittest.TestCase):
         choice_titles = [c.title for c in kwargs["choices"]]
         self.assertIn("[1] @bob (bot) — inline: bar.py:42", choice_titles)
         self.assertIn("all", choice_titles)
-        self.assertIn("none", choice_titles)
+        self.assertNotIn("none", choice_titles)
 
     @patch("devflow_sdk.prompts.questionary.checkbox")
     def test_pr_comment_location_label(self, mock_checkbox):

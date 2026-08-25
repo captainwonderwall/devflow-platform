@@ -19,16 +19,34 @@ class TestText:
 
 
 class TestSelect:
-    @patch("devflow_sdk.prompts.questionary.select")
-    def test_returns_questionary_result(self, mock_select):
-        mock_select.return_value.ask.return_value = "Yes"
+    @patch("devflow_sdk.prompts.questionary.checkbox")
+    def test_returns_the_single_selected_value(self, mock_checkbox):
+        mock_checkbox.return_value.ask.return_value = ["Yes"]
         result = select("Pick one", ["Yes", "No"])
         assert result == "Yes"
-        mock_select.assert_called_once_with("Pick one", choices=["Yes", "No"])
+        mock_checkbox.assert_called_once_with("Pick one", choices=["Yes", "No"])
 
-    @patch("devflow_sdk.prompts.questionary.select")
-    def test_returns_none_on_cancel(self, mock_select):
-        mock_select.return_value.ask.return_value = None
+    @patch("builtins.print")
+    @patch("devflow_sdk.prompts.questionary.checkbox")
+    def test_reprompts_when_nothing_selected(self, mock_checkbox, mock_print):
+        mock_checkbox.return_value.ask.side_effect = [[], ["Yes"]]
+        result = select("Pick one", ["Yes", "No"])
+        assert result == "Yes"
+        assert mock_checkbox.return_value.ask.call_count == 2
+        mock_print.assert_any_call("Select one option.")
+
+    @patch("builtins.print")
+    @patch("devflow_sdk.prompts.questionary.checkbox")
+    def test_reprompts_when_multiple_selected(self, mock_checkbox, mock_print):
+        mock_checkbox.return_value.ask.side_effect = [["Yes", "No"], ["Yes"]]
+        result = select("Pick one", ["Yes", "No"])
+        assert result == "Yes"
+        assert mock_checkbox.return_value.ask.call_count == 2
+        mock_print.assert_any_call("Select only one option.")
+
+    @patch("devflow_sdk.prompts.questionary.checkbox")
+    def test_returns_none_on_cancel(self, mock_checkbox):
+        mock_checkbox.return_value.ask.return_value = None
         result = select("Pick one", ["Yes", "No"])
         assert result is None
 
@@ -79,10 +97,19 @@ class TestPrompt:
 
 class TestCheckboxWithoutResolve:
     @patch("devflow_sdk.prompts.questionary.checkbox")
-    def test_returns_raw_checked_list(self, mock_checkbox):
+    def test_returns_checked_list(self, mock_checkbox):
         mock_checkbox.return_value.ask.return_value = ["a", "b"]
         result = checkbox("Pick some", [Choice(title="a", value="a")])
         assert result == ["a", "b"]
+
+    @patch("builtins.print")
+    @patch("devflow_sdk.prompts.questionary.checkbox")
+    def test_reprompts_when_nothing_selected(self, mock_checkbox, mock_print):
+        mock_checkbox.return_value.ask.side_effect = [[], ["a"]]
+        result = checkbox("Pick some", [Choice(title="a", value="a")])
+        assert result == ["a"]
+        assert mock_checkbox.return_value.ask.call_count == 2
+        mock_print.assert_any_call("Select at least one option.")
 
     @patch("devflow_sdk.prompts.questionary.checkbox")
     def test_returns_none_on_cancel(self, mock_checkbox):
