@@ -113,7 +113,7 @@ sed -i.bak \
 cat > "$PLUGIN_NAME/pyproject.toml" << 'EOF'
 [build-system]
 requires = ["setuptools>=68"]
-build-backend = "setuptools.backends.legacy:build"
+build-backend = "setuptools.build_meta"
 
 [project]
 name = "PLUGIN_NAME_PLACEHOLDER"
