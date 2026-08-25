@@ -13,7 +13,7 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = [
-    "devflow-sdk @ git+https://github.com/captainwonderwall/devflow-platform@devflow-sdk/v0.3.2#subdirectory=devflow-sdk",
+    "devflow-sdk @ git+https://github.com/captainwonderwall/devflow-platform@devflow-sdk/v1.0.0#subdirectory=devflow-sdk",
     "pytest>=8",
     "build>=1.0",
 ]

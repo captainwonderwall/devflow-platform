@@ -22,12 +22,12 @@ gh release list --repo captainwonderwall/devflow-platform | grep devflow-sdk
 
 ## Plugin interface
 
-Subclass `PluginBase` to build a devflow plugin:
+Subclass `DraftPrPlugin` to build a devflow plugin:
 
 ```python
-from devflow_sdk.plugin_base import PluginBase
+from devflow_sdk.draft_pr_plugin import DraftPrPlugin
 
-class MyPlugin(PluginBase):
+class MyPlugin(DraftPrPlugin):
     name = "My Format"
 
     def get_questions(self, data: dict) -> list[dict]:

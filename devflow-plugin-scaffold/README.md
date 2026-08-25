@@ -36,7 +36,7 @@ acme-format/
   pyproject.toml            ← dev deps: devflow-sdk, pytest
   .github/
     workflows/
-      release.yml           ← on git tag push, attaches .py to a GitHub Release
+      release.yml           ← on git tag push, runs tests and creates a GitHub Release
   README.md                 ← per-plugin usage and publish guide
   .gitignore
   Formula/
@@ -196,8 +196,8 @@ PYTHONPATH=. pytest tests/
 2. Run tests: `PYTHONPATH=. pytest tests/`.
 3. Create a Homebrew tap repo (`acme-org/homebrew-tap`) and add the generated formula from `Formula/devflow-plugin-acme-format.rb`, filling in the `url` and `sha256` after your first release.
 4. Run `bash scripts/release.sh` to bump the version, tag, and push.
-   GitHub Actions creates a release and attaches `acme_format.py`.
-5. Update the formula `url` and `sha256` with the release asset URL.
+   GitHub Actions runs tests and creates a GitHub Release from the source tarball.
+5. Update the formula `url` and `sha256` with the release tarball URL and its SHA256.
 6. Users install: `brew tap acme-org/tap && brew install devflow-plugin-acme-format`.
 
 ## Publishing via direct download (private plugins)
@@ -205,5 +205,5 @@ PYTHONPATH=. pytest tests/
 1. Fill in `build_prompt` and `build_body`.
 2. Run tests: `PYTHONPATH=. pytest tests/`.
 3. Commit your changes, then run `bash scripts/release.sh`.
-   GitHub Actions creates a release and attaches `acme_format.py`.
+   GitHub Actions runs tests and creates a GitHub Release.
 4. Users install by cloning the repo and running `bash install.sh`.
