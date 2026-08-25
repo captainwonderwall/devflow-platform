@@ -6,7 +6,7 @@ import sys
 def build_questions(data):
     questions = []
 
-    if not data.get("jira_ticket"):
+    if not data.get("jira_ticket") and not data.get("github_issue"):
         questions.append({
             "id": "jira_ticket",
             "text": "What is the Jira ticket number? (e.g. CONS-123)",
