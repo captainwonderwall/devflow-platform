@@ -301,6 +301,7 @@ class TestCheckShellFunctionCalledInFinishIssue(unittest.TestCase):
         fragments = [required_content_kwarg] if isinstance(required_content_kwarg, str) else required_content_kwarg
         self.assertTrue(any("--prepare" in f for f in fragments))
         self.assertTrue(any(".finish-issue-force" in f for f in fragments))
+        self.assertTrue(any("finish-issue-worktree-path" in f for f in fragments))
 
 
 if __name__ == "__main__":
