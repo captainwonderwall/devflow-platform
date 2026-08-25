@@ -10,8 +10,8 @@ class Devflow < Formula
   depends_on "python@3"
 
   resource "devflow-sdk" do
-    url "https://github.com/captainwonderwall/devflow-platform/releases/download/devflow-sdk%2Fv1.0.0/devflow_sdk-1.0.0-py3-none-any.whl"
-    sha256 "42b0f967ffc1fac77f390299f5bac56e59a27f0c59eb2fbff3eb255e66cfce3e"
+    url "https://github.com/captainwonderwall/devflow-platform/releases/download/devflow-sdk%2Fv1.0.1/devflow_sdk-1.0.1-py3-none-any.whl"
+    sha256 "ee9dd61cb859b4b7d6b1d9ac6e0ad1794e30f98012b5b959526cf13ba829869f"
   end
 
   resource "questionary" do
