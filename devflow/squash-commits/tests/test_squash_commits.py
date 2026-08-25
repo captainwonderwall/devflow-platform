@@ -32,15 +32,15 @@ class TestPromptsMigration(unittest.TestCase):
         from devflow_sdk.prompts import select
         self.assertIs(squash_commits.select, select)
 
-    @unittest.mock.patch("devflow_sdk.prompts.questionary.select")
-    def test_prompt_dirty_tree_choice_delegates_to_shared_select(self, mock_select):
-        mock_select.return_value.ask.return_value = squash_commits.DIRTY_STASH
+    @unittest.mock.patch("devflow_sdk.prompts.questionary.checkbox")
+    def test_prompt_dirty_tree_choice_delegates_to_shared_select(self, mock_checkbox):
+        mock_checkbox.return_value.ask.return_value = [squash_commits.DIRTY_STASH]
         result = squash_commits.prompt_dirty_tree_choice()
         self.assertEqual(result, squash_commits.DIRTY_STASH)
 
-    @unittest.mock.patch("devflow_sdk.prompts.questionary.select")
-    def test_prompt_push_choice_delegates_to_shared_select(self, mock_select):
-        mock_select.return_value.ask.return_value = squash_commits.PUSH_YES
+    @unittest.mock.patch("devflow_sdk.prompts.questionary.checkbox")
+    def test_prompt_push_choice_delegates_to_shared_select(self, mock_checkbox):
+        mock_checkbox.return_value.ask.return_value = [squash_commits.PUSH_YES]
         result = squash_commits.prompt_push_choice("main")
         self.assertEqual(result, squash_commits.PUSH_YES)
 

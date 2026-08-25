@@ -15,7 +15,7 @@ PLUGIN_MANAGER_DIR = os.path.join(REPO_ROOT, "plugin-manager")
 sys.path.insert(0, PLUGIN_MANAGER_DIR)
 
 from devflow_sdk.ai import run_ai_prompt
-from devflow_sdk.prompts import select, prompt, checkbox
+from devflow_sdk.prompts import select, prompt
 from devflow_sdk.config import load_config, load_tool_config
 from config import DraftPrConfig, resolve_plugin
 
@@ -87,8 +87,8 @@ def main():
     standard_answers = prompt(build_questions(data))
     jira = standard_answers.get("jira_ticket") or jira   # user may have typed it
     issue_type = standard_answers.get("issue_type") or data.get("issue_type", "Issue")
-    checked = checkbox("Is this a customer-visible change?", choices=["Yes", "No"])
-    customer_visible = "yes" if "Yes" in (checked or []) else "no"
+    answer = select("Is this a customer-visible change?", choices=["Yes", "No"])
+    customer_visible = "yes" if answer == "Yes" else "no"
 
     user_inputs = {
         "jira_ticket": jira,

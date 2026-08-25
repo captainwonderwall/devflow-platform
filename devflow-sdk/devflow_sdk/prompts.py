@@ -15,9 +15,20 @@ def text(message):
 
 
 def select(message, choices):
-    """Single-select prompt. Returns the chosen value, or None if the
-    user cancelled (Ctrl+C)."""
-    return questionary.select(message, choices=choices).ask()
+    """Single-select prompt using checkbox UI. Exactly one item must be
+    chosen. Re-prompts on empty or multi-selection. Returns the chosen
+    value, or None if the user cancelled (Ctrl+C)."""
+    while True:
+        checked = questionary.checkbox(message, choices=choices).ask()
+        if checked is None:
+            return None
+        if len(checked) == 0:
+            print("Select one option.")
+            continue
+        if len(checked) > 1:
+            print("Select only one option.")
+            continue
+        return checked[0]
 
 
 def confirm(message, default=False):
@@ -34,23 +45,23 @@ def prompt(questions):
 
 
 def checkbox(message, choices, resolve=None):
-    """Multi-select checkbox prompt.
+    """Multi-select checkbox prompt. At least one item must be chosen.
+    Re-prompts on empty selection. Returns the list of checked values,
+    or None if the user cancelled (Ctrl+C).
 
-    Without `resolve`: asks once and returns the raw list of checked
-    values (or None if the user cancelled).
-
-    With `resolve`: loops -- ask, then call `resolve(checked)`, which
-    must return a (result, error) tuple. If error is not None, it is
-    printed and the prompt repeats. Otherwise `result` is returned. If
-    the user cancels (Ctrl+C, raw value is None), returns None
-    immediately without calling `resolve`.
+    With `resolve`: after a non-empty selection, calls
+    `resolve(checked)`, which must return a (result, error) tuple.
+    If error is not None it is printed and the prompt repeats.
     """
     while True:
         checked = questionary.checkbox(message, choices=choices).ask()
-        if resolve is None:
-            return checked
         if checked is None:
             return None
+        if not checked:
+            print("Select at least one option.")
+            continue
+        if resolve is None:
+            return checked
         result, error = resolve(checked)
         if error is not None:
             print(error)

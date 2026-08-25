@@ -37,21 +37,10 @@ def resolve_selection(
 
     Returns (indices, error):
       - error is not None: caller should print it and re-prompt.
-      - error is None and indices is None: caller should quit gracefully
-        (explicit "none" selection, equivalent to Ctrl+C).
       - error is None and indices is a list: the resolved 0-based indices
         of comments to address.
     """
-    has_all = "all" in checked
-    has_none = "none" in checked
-
-    if has_all and has_none:
-        return None, 'Cannot select both "all" and "none" — pick one.'
-    if not checked:
-        return None, "Select at least one option."
-    if has_none:
-        return None, None
-    if has_all:
+    if "all" in checked:
         return list(range(count)), None
     return sorted(int(v) - 1 for v in checked), None
 
@@ -75,7 +64,6 @@ def prompt_selection(comments: List[Comment]) -> Optional[List[int]]:
             )
         )
     choices.append(Choice(title="all", value="all"))
-    choices.append(Choice(title="none", value="none"))
 
     return checkbox(
         "Select comments to address",
