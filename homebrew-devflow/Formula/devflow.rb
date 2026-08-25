@@ -36,7 +36,8 @@ class Devflow < Formula
     python_packages.mkpath
     resources.each do |r|
       r.stage do
-        system "pip3", "install", "--no-deps", "--target=#{python_packages}", Pathname.pwd
+        whl = Dir["*.whl"].first
+        system "pip3", "install", "--no-deps", "--target=#{python_packages}", whl || Pathname.pwd
       end
     end
 
