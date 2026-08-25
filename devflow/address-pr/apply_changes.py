@@ -213,12 +213,13 @@ def build_apply_prompt(pr_title: str, pr_description: str,
 
 def _build_retry_prompt(error: str) -> str:
     return (
-        "Your previous edit could not be applied for this reason:\n"
+        "Your previous <edits> block could not be applied for this reason:\n"
         f"{error}\n\n"
-        "Re-read the affected file(s) to get their exact current content, "
-        "then output a corrected <edits> block using the same format as "
-        "before. Make sure every <old> block is copied verbatim from the "
-        "file (matching whitespace and indentation exactly) and appears "
+        "Re-read ALL the files involved in ALL the review comments above, "
+        "then output a COMPLETE corrected <edits> block that addresses "
+        "every comment — not just the one that failed. Make sure every "
+        "<old> block is copied verbatim from the file's actual current "
+        "content (matching whitespace and indentation exactly) and appears "
         "exactly once."
     )
 
