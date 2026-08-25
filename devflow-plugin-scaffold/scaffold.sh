@@ -130,9 +130,14 @@ dev = [
     "pytest>=8",
     "build>=1.0",
 ]
+
+[tool.setuptools]
+py-modules = ["MODULE_NAME_PLACEHOLDER"]
 EOF
-sed -i.bak "s/PLUGIN_NAME_PLACEHOLDER/${PLUGIN_NAME}/g" "$PLUGIN_NAME/pyproject.toml" \
-    && rm "$PLUGIN_NAME/pyproject.toml.bak"
+sed -i.bak \
+    -e "s/PLUGIN_NAME_PLACEHOLDER/${PLUGIN_NAME}/g" \
+    -e "s/MODULE_NAME_PLACEHOLDER/${MODULE_NAME}/g" \
+    "$PLUGIN_NAME/pyproject.toml" && rm "$PLUGIN_NAME/pyproject.toml.bak"
 
 # ── install.sh ────────────────────────────────────────────────────────────────
 cat > "$PLUGIN_NAME/install.sh" << EOF
