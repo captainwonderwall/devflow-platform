@@ -130,7 +130,7 @@ if [ -z "$DEVFLOW_SDK" ] || ! python3 -c "import sys; sys.path.insert(0, '$DEVFL
     echo "SKIP: integration test skipped (set DEVFLOW_SDK=/path/to/devflow-sdk to enable)"
     ok
 else
-    if PYTHONPATH="$DEVFLOW_SDK:$D" python3 -m pytest "$D/tests/" -q 2>&1; then
+    if (cd "$DEVFLOW_SDK" && PYTHONPATH="$D" uv run --extra dev pytest "$D/tests/" -q) 2>&1; then
         ok
     else
         fail "generated tests did not pass for acme-format (check DEVFLOW_SDK=$DEVFLOW_SDK)"
