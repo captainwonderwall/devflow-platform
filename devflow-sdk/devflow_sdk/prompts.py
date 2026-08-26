@@ -8,10 +8,10 @@ except ImportError as e:
 Choice = questionary.Choice
 
 
-def text(message):
+def text(message, default=""):
     """Free-text prompt. Returns the entered string, or None if the user
     cancelled (Ctrl+C)."""
-    return questionary.text(message).ask()
+    return questionary.text(message, default=default).ask()
 
 
 def select(message, choices):
@@ -44,10 +44,11 @@ def prompt(questions):
     return questionary.prompt(qs) or {}
 
 
-def checkbox(message, choices, resolve=None):
-    """Multi-select checkbox prompt. At least one item must be chosen.
-    Re-prompts on empty selection. Returns the list of checked values,
-    or None if the user cancelled (Ctrl+C).
+def checkbox(message, choices, resolve=None, allow_empty=False):
+    """Multi-select checkbox prompt. By default at least one item must be
+    chosen; pass allow_empty=True to accept zero selections. Re-prompts on
+    empty selection when allow_empty is False. Returns the list of checked
+    values, or None if the user cancelled (Ctrl+C).
 
     With `resolve`: after a non-empty selection, calls
     `resolve(checked)`, which must return a (result, error) tuple.
@@ -57,7 +58,7 @@ def checkbox(message, choices, resolve=None):
         checked = questionary.checkbox(message, choices=choices).ask()
         if checked is None:
             return None
-        if not checked:
+        if not checked and not allow_empty:
             print("Select at least one option.")
             continue
         if resolve is None:

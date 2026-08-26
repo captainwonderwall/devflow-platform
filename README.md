@@ -1,6 +1,6 @@
 # devflow-platform
 
-Monorepo for the devflow toolchain — a CLI for generating AI-assisted pull requests, with a plugin system for custom PR formats.
+Monorepo for the devflow toolchain — a CLI for generating AI-assisted pull requests, with a plugin system for custom PR formats and an interactive wizard for configuration.
 
 ## Subprojects
 
@@ -10,6 +10,54 @@ Monorepo for the devflow toolchain — a CLI for generating AI-assisted pull req
 | [`devflow-sdk/`](devflow-sdk/) | Shared plugin interface (`PluginBase`) and utilities. Distributed as a wheel attached to GitHub Releases. |
 | [`devflow-plugin-scaffold/`](devflow-plugin-scaffold/) | One-liner scaffold for building new devflow plugins. |
 | [`homebrew-devflow/`](homebrew-devflow/) | Homebrew tap formulae. Managed here via git subtree; synced to [`captainwonderwall/homebrew-devflow`](https://github.com/captainwonderwall/homebrew-devflow) on release. |
+
+## Configuring devflow
+
+devflow reads `~/.devflow/config.json`. Use the interactive wizard to create or update it:
+
+```bash
+devflow-config
+```
+
+The wizard walks through every setting pre-populated with your current values, so re-running it is how you update any setting.
+
+**What it configures:**
+
+- **AI provider** — choose between `claude` and `opencode`
+- **Model tiers** — set the model name and token pricing for `fast` and `capable` tiers
+- **draft-pr plugin routing** — set a default plugin and add path-based rules that map directories to specific plugins
+
+**Example `~/.devflow/config.json`** (produced by the wizard):
+
+```json
+{
+  "global": {
+    "ai_provider": "claude",
+    "models": {
+      "fast": {
+        "name": "claude-haiku-4-5-20251001",
+        "pricing": { "input": 0.8, "output": 4.0, "cache_read": 0.08, "cache_write": 1.0 }
+      },
+      "capable": {
+        "name": "claude-sonnet-4-6",
+        "pricing": { "input": 3.0, "output": 15.0, "cache_read": 0.3, "cache_write": 3.75 }
+      }
+    }
+  },
+  "tools": {
+    "draft-pr": {
+      "plugin": {
+        "default": "smoke-check",
+        "rules": [
+          { "paths": ["/work/mobile"], "plugin": "mobile-format" }
+        ]
+      }
+    }
+  }
+}
+```
+
+Any keys you add manually outside the wizard's scope are preserved on the next save.
 
 ## Getting started (contributors)
 

@@ -9,13 +9,28 @@ class TestText:
         mock_text.return_value.ask.return_value = "VDP-123"
         result = text("Enter issue:")
         assert result == "VDP-123"
-        mock_text.assert_called_once_with("Enter issue:")
+        mock_text.assert_called_once_with("Enter issue:", default="")
 
     @patch("devflow_sdk.prompts.questionary.text")
     def test_returns_none_on_cancel(self, mock_text):
         mock_text.return_value.ask.return_value = None
         result = text("Enter issue:")
         assert result is None
+
+    def test_text_passes_default_to_questionary(self, monkeypatch):
+        calls = []
+
+        class FakeText:
+            def __init__(self, message, default=""):
+                calls.append({"message": message, "default": default})
+            def ask(self):
+                return "result"
+
+        monkeypatch.setattr("questionary.text", FakeText)
+        from devflow_sdk.prompts import text
+        result = text("Enter something:", default="pre-filled")
+        assert result == "result"
+        assert calls[0]["default"] == "pre-filled"
 
 
 class TestSelect:
@@ -115,6 +130,21 @@ class TestCheckboxWithoutResolve:
     def test_returns_none_on_cancel(self, mock_checkbox):
         mock_checkbox.return_value.ask.return_value = None
         result = checkbox("Pick some", [Choice(title="a", value="a")])
+        assert result is None
+
+    @patch("devflow_sdk.prompts.questionary.checkbox")
+    def test_allow_empty_returns_empty_list(self, mock_checkbox):
+        """With allow_empty=True an empty selection is accepted without re-prompting."""
+        mock_checkbox.return_value.ask.return_value = []
+        result = checkbox("Pick some", [Choice(title="a", value="a")], allow_empty=True)
+        assert result == []
+        assert mock_checkbox.return_value.ask.call_count == 1
+
+    @patch("devflow_sdk.prompts.questionary.checkbox")
+    def test_allow_empty_returns_none_on_cancel(self, mock_checkbox):
+        """With allow_empty=True, Ctrl+C still returns None."""
+        mock_checkbox.return_value.ask.return_value = None
+        result = checkbox("Pick some", [Choice(title="a", value="a")], allow_empty=True)
         assert result is None
 
 
