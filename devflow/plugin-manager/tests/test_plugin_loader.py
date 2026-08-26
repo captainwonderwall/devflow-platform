@@ -202,7 +202,7 @@ class TestSelectPlugin(unittest.TestCase):
         path_b = _write_plugin(self.plugin_dir, "b_plugin.py", src_b)
         self.loader.register("a-plugin", path_a)
         self.loader.register("b-plugin", path_b)
-        with patch("plugin_loader.select", return_value="a-plugin"):
+        with patch("devflow_sdk.plugin.plugin_loader_impl.select", return_value="a-plugin"):
             result = self.loader.select_plugin(DraftPrPlugin)
         self.assertIsInstance(result, DraftPrPlugin)
 

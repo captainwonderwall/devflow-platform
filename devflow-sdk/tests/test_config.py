@@ -60,7 +60,7 @@ def test_load_config_new_format(tmp_path, monkeypatch):
             "draft-pr": {"title_format": "feat: {title}"}
         }
     }))
-    monkeypatch.setattr("devflow_sdk.config.CONFIG_PATH", cfg_file)
+    monkeypatch.setattr("devflow_sdk.config.io.CONFIG_PATH", cfg_file)
 
     result = load_config()
     assert result.global_config.ai_provider == "opencode"
@@ -70,7 +70,7 @@ def test_load_config_new_format(tmp_path, monkeypatch):
 
 def test_load_config_missing_file_returns_defaults(tmp_path, monkeypatch):
     monkeypatch.setattr(
-        "devflow_sdk.config.CONFIG_PATH", tmp_path / "nonexistent.json"
+        "devflow_sdk.config.io.CONFIG_PATH", tmp_path / "nonexistent.json"
     )
     result = load_config()
     assert result.global_config.ai_provider == "claude"
@@ -80,7 +80,7 @@ def test_load_config_missing_file_returns_defaults(tmp_path, monkeypatch):
 def test_load_config_empty_tools(tmp_path, monkeypatch):
     cfg_file = tmp_path / "config.json"
     cfg_file.write_text(json.dumps({"global": {"ai_provider": "claude"}}))
-    monkeypatch.setattr("devflow_sdk.config.CONFIG_PATH", cfg_file)
+    monkeypatch.setattr("devflow_sdk.config.io.CONFIG_PATH", cfg_file)
     result = load_config()
     assert result.tools == {}
 
@@ -93,7 +93,7 @@ def test_load_config_legacy_flat_format_migrates(tmp_path, monkeypatch, capsys):
         "ai_provider": "opencode",
         "models": {"fast": {"name": "legacy-model"}}
     }))
-    monkeypatch.setattr("devflow_sdk.config.CONFIG_PATH", cfg_file)
+    monkeypatch.setattr("devflow_sdk.config.io.CONFIG_PATH", cfg_file)
 
     result = load_config()
     assert result.global_config.ai_provider == "opencode"
@@ -108,7 +108,7 @@ def test_load_config_legacy_flat_format_migrates(tmp_path, monkeypatch, capsys):
 def test_load_config_invalid_json_raises(tmp_path, monkeypatch):
     cfg_file = tmp_path / "config.json"
     cfg_file.write_text("{bad json")
-    monkeypatch.setattr("devflow_sdk.config.CONFIG_PATH", cfg_file)
+    monkeypatch.setattr("devflow_sdk.config.io.CONFIG_PATH", cfg_file)
     with pytest.raises(ValueError, match="not valid JSON"):
         load_config()
 
@@ -118,7 +118,7 @@ def test_load_config_unknown_tier_raises(tmp_path, monkeypatch):
     cfg_file.write_text(json.dumps({
         "global": {"models": {"turbo": {"name": "x"}}}
     }))
-    monkeypatch.setattr("devflow_sdk.config.CONFIG_PATH", cfg_file)
+    monkeypatch.setattr("devflow_sdk.config.io.CONFIG_PATH", cfg_file)
     with pytest.raises(ValueError, match="unknown model tier 'turbo'"):
         load_config()
 
@@ -128,7 +128,7 @@ def test_load_config_missing_model_name_raises(tmp_path, monkeypatch):
     cfg_file.write_text(json.dumps({
         "global": {"models": {"fast": {"pricing": None}}}
     }))
-    monkeypatch.setattr("devflow_sdk.config.CONFIG_PATH", cfg_file)
+    monkeypatch.setattr("devflow_sdk.config.io.CONFIG_PATH", cfg_file)
     with pytest.raises(ValueError, match="missing required 'name' field"):
         load_config()
 
@@ -138,7 +138,7 @@ def test_load_config_incomplete_pricing_raises(tmp_path, monkeypatch):
     cfg_file.write_text(json.dumps({
         "global": {"models": {"fast": {"name": "m", "pricing": {"input": 1.0}}}}
     }))
-    monkeypatch.setattr("devflow_sdk.config.CONFIG_PATH", cfg_file)
+    monkeypatch.setattr("devflow_sdk.config.io.CONFIG_PATH", cfg_file)
     with pytest.raises(ValueError, match="pricing is missing required keys"):
         load_config()
 

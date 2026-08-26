@@ -7,7 +7,7 @@ from devflow_sdk.ai import run_ai_prompt, AiResult
 
 @pytest.fixture(autouse=True)
 def _no_devflow_config(tmp_path, monkeypatch):
-    monkeypatch.setattr("devflow_sdk.config.CONFIG_PATH", tmp_path / "config.json")
+    monkeypatch.setattr("devflow_sdk.config.io.CONFIG_PATH", tmp_path / "config.json")
 
 
 def _mock_proc(result_str, session_id="sess-1", returncode=0, stderr="",
@@ -94,7 +94,7 @@ def test_claude_not_found_exits():
 def test_unknown_ai_provider_config_exits(tmp_path, monkeypatch):
     cfg = tmp_path / "config.json"
     cfg.write_text('{"ai_provider": "bogus"}')
-    monkeypatch.setattr("devflow_sdk.config.CONFIG_PATH", cfg)
+    monkeypatch.setattr("devflow_sdk.config.io.CONFIG_PATH", cfg)
     with pytest.raises(SystemExit):
         run_ai_prompt("prompt", tier="fast")
 
@@ -348,7 +348,7 @@ def test_launch_interactive_session_does_not_launch_when_binary_not_found():
 def test_launch_interactive_session_uses_opencode_when_configured(tmp_path, monkeypatch):
     cfg = tmp_path / "config.json"
     cfg.write_text('{"ai_provider": "opencode"}')
-    monkeypatch.setattr("devflow_sdk.config.CONFIG_PATH", cfg)
+    monkeypatch.setattr("devflow_sdk.config.io.CONFIG_PATH", cfg)
     with patch("devflow_sdk.ai.shutil.which", return_value="/usr/bin/opencode"), \
          patch("devflow_sdk.ai.subprocess.run") as mock_run:
         launch_interactive_session("Brainstorm")
