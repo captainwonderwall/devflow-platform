@@ -46,7 +46,7 @@ class DraftPrConfig:
 
 def resolve_plugin(config: DraftPrConfig, cwd: str) -> str | None:
     for rule in config.plugin.rules:
-        if any(cwd == p or cwd.startswith(p + "/") for p in rule.paths):
+        if any(cwd == p.rstrip("/") or cwd.startswith(p.rstrip("/") + "/") for p in rule.paths):
             return rule.plugin
     return config.plugin.default
 
