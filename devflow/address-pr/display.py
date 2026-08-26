@@ -20,6 +20,8 @@ def display_comments(
         bot_label = " (bot)" if c.is_bot else ""
         if c.kind == "review_thread":
             location = f"inline: {c.file}:{c.line}"
+        elif c.kind == "review_body":
+            location = "Review body"
         else:
             location = "PR comment"
         body_preview = c.body[:120] + "..." if len(c.body) > 120 else c.body
@@ -48,6 +50,8 @@ def resolve_selection(
 def _location_label(c: Comment) -> str:
     if c.kind == "review_thread":
         return f"inline: {c.file}:{c.line}"
+    if c.kind == "review_body":
+        return "Review body"
     return "PR comment"
 
 

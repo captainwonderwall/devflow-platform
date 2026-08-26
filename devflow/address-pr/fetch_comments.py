@@ -9,7 +9,7 @@ from typing import List, Optional
 @dataclass
 class Comment:
     id: str                       # REST numeric ID as string
-    kind: str                     # "review_thread" | "pr_comment"
+    kind: str                     # "review_thread" | "pr_comment" | "review_body"
     author: str
     is_bot: bool
     body: str
@@ -143,6 +143,36 @@ def _fetch_issue_comments_raw(owner: str, repo: str, pr_number: int) -> list:
     return _run_gh(["api", f"/repos/{owner}/{repo}/issues/{pr_number}/comments?per_page=100"])
 
 
+def _fetch_reviews_raw(owner: str, repo: str, pr_number: int) -> list:
+    return _run_gh(["api", f"/repos/{owner}/{repo}/pulls/{pr_number}/reviews?per_page=100"])
+
+
+def build_review_body_comments(raw: list, pr_author: str,
+                                last_author_ts: Optional[str]) -> List[Comment]:
+    result = []
+    for r in raw:
+        if r["user"]["login"] == pr_author:
+            continue
+        if r["user"].get("type") == "Bot":
+            continue
+        if not r["body"].strip():
+            continue
+        if last_author_ts is not None and r["submitted_at"] <= last_author_ts:
+            continue
+        result.append(Comment(
+            id=str(r["id"]),
+            kind="review_body",
+            author=r["user"]["login"],
+            is_bot=False,
+            body=r["body"],
+            file=None,
+            line=None,
+            url=r["html_url"],
+            thread_node_id=None,
+        ))
+    return result
+
+
 def collect() -> dict:
     owner, repo = get_repo_info()
     pr = get_pr_info()
@@ -151,10 +181,17 @@ def collect() -> dict:
 
     threads_raw = _fetch_review_threads_raw(owner, repo, pr_number)
     issue_raw = _fetch_issue_comments_raw(owner, repo, pr_number)
+    reviews_raw = _fetch_reviews_raw(owner, repo, pr_number)
 
     review_comments = parse_review_threads(threads_raw)
     pr_comments = build_pr_comments(issue_raw, pr_author)
-    all_comments = review_comments + pr_comments
+
+    author_issue_comments = [c for c in issue_raw if c["user"]["login"] == pr_author]
+    last_author_ts = (max(c["created_at"] for c in author_issue_comments)
+                      if author_issue_comments else None)
+    review_body_comments = build_review_body_comments(reviews_raw, pr_author, last_author_ts)
+
+    all_comments = review_comments + pr_comments + review_body_comments
 
     return {
         "owner": owner,

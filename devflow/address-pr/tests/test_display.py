@@ -96,6 +96,16 @@ class TestPromptSelection(unittest.TestCase):
         choice_titles = [c.title for c in kwargs["choices"]]
         self.assertIn("[1] @alice — PR comment", choice_titles)
 
+    @patch("devflow_sdk.prompts.questionary.checkbox")
+    def test_review_body_location_label(self, mock_checkbox):
+        mock_checkbox.return_value.ask.return_value = ["1"]
+        from display import prompt_selection
+        comments = [_make_comment(kind="review_body", file=None, line=None)]
+        prompt_selection(comments)
+        _, kwargs = mock_checkbox.call_args
+        choice_titles = [c.title for c in kwargs["choices"]]
+        self.assertIn("[1] @alice — Review body", choice_titles)
+
 
 if __name__ == "__main__":
     unittest.main()

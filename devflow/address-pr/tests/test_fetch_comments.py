@@ -9,6 +9,7 @@ from fetch_comments import (
     filter_unresolved_pr_comments,
     parse_review_threads,
     build_pr_comments,
+    build_review_body_comments,
     Comment,
 )
 
@@ -140,6 +141,75 @@ class TestBuildPrComments(unittest.TestCase):
         raw = [self._raw(88, "github-actions[bot]", "lint fail", "2024-01-01T00:00:00Z")]
         result = build_pr_comments(raw, pr_author="phoang")
         self.assertTrue(result[0].is_bot)
+
+
+class TestBuildReviewBodyComments(unittest.TestCase):
+    def _review(self, review_id, login, body, submitted_at, user_type="User"):
+        return {
+            "id": review_id,
+            "user": {"login": login, "type": user_type},
+            "body": body,
+            "submitted_at": submitted_at,
+            "html_url": f"https://github.com/pr/reviews/{review_id}",
+        }
+
+    def test_non_empty_body_becomes_review_body_comment(self):
+        raw = [self._review(101, "alice", "Please fix naming.", "2024-01-03T00:00:00Z")]
+        result = build_review_body_comments(raw, pr_author="phoang", last_author_ts=None)
+        self.assertEqual(len(result), 1)
+        c = result[0]
+        self.assertEqual(c.id, "101")
+        self.assertEqual(c.kind, "review_body")
+        self.assertEqual(c.author, "alice")
+        self.assertEqual(c.body, "Please fix naming.")
+        self.assertEqual(c.url, "https://github.com/pr/reviews/101")
+        self.assertIsNone(c.file)
+        self.assertIsNone(c.line)
+        self.assertIsNone(c.thread_node_id)
+        self.assertFalse(c.is_bot)
+
+    def test_empty_body_excluded(self):
+        raw = [self._review(102, "alice", "", "2024-01-03T00:00:00Z")]
+        result = build_review_body_comments(raw, pr_author="phoang", last_author_ts=None)
+        self.assertEqual(result, [])
+
+    def test_whitespace_only_body_excluded(self):
+        raw = [self._review(103, "alice", "   \n  ", "2024-01-03T00:00:00Z")]
+        result = build_review_body_comments(raw, pr_author="phoang", last_author_ts=None)
+        self.assertEqual(result, [])
+
+    def test_bot_user_type_excluded(self):
+        raw = [self._review(104, "copilot-pull-request-reviewer[bot]",
+                            "## Pull request overview...", "2024-01-03T00:00:00Z",
+                            user_type="Bot")]
+        result = build_review_body_comments(raw, pr_author="phoang", last_author_ts=None)
+        self.assertEqual(result, [])
+
+    def test_pr_author_own_review_excluded(self):
+        raw = [self._review(105, "phoang", "Looks good to me.", "2024-01-03T00:00:00Z")]
+        result = build_review_body_comments(raw, pr_author="phoang", last_author_ts=None)
+        self.assertEqual(result, [])
+
+    def test_review_before_last_author_ts_excluded(self):
+        raw = [self._review(106, "alice", "Fix this.", "2024-01-01T00:00:00Z")]
+        result = build_review_body_comments(raw, pr_author="phoang",
+                                            last_author_ts="2024-01-02T00:00:00Z")
+        self.assertEqual(result, [])
+
+    def test_review_after_last_author_ts_included(self):
+        raw = [self._review(107, "alice", "Still needs work.", "2024-01-05T00:00:00Z")]
+        result = build_review_body_comments(raw, pr_author="phoang",
+                                            last_author_ts="2024-01-02T00:00:00Z")
+        self.assertEqual(len(result), 1)
+        self.assertEqual(result[0].id, "107")
+
+    def test_no_last_author_ts_includes_all_non_bot_non_author_reviews(self):
+        raw = [
+            self._review(108, "alice", "Old comment.", "2024-01-01T00:00:00Z"),
+            self._review(109, "bob", "Another.", "2024-01-02T00:00:00Z"),
+        ]
+        result = build_review_body_comments(raw, pr_author="phoang", last_author_ts=None)
+        self.assertEqual(len(result), 2)
 
 
 if __name__ == "__main__":
