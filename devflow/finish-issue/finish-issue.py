@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import argparse
 import os
+import shutil
 import subprocess
 import sys
 
@@ -161,7 +162,7 @@ def main():
         ok = _clear_force_marker_for_shell() and ok
         if force_remove:
             ok = _persist_force_for_shell() and ok
-            ok = _persist_worktree_path_for_shell(path) and ok
+        ok = _persist_worktree_path_for_shell(path) and ok
         remove_issue_context(path)
         sys.exit(0 if ok else 1)
 
@@ -201,6 +202,11 @@ def main():
     if result.returncode != 0:
         print(f"ERROR: '{' '.join(cmd)}' failed:\n{result.stderr}", file=sys.stderr)
         sys.exit(1)
+
+    # wt remove deletes tracked files but may leave gitignored files (e.g. .idea/).
+    # Remove the directory entirely if it still exists.
+    if os.path.isdir(path):
+        shutil.rmtree(path, ignore_errors=True)
 
     print(f"Removed worktree and branch '{branch}'.")
     _persist_branch_for_shell(main_branch)

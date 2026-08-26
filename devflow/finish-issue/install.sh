@@ -52,6 +52,9 @@ if [ -z "$RC_FILE" ]; then
     echo "      fi"
     echo "      if [ -n \"\$_remove\" ]; then"
     echo "          wt remove \"\$_remove\" || _rc=\$?"
+    echo "          if [ -n \"\$_worktree_path\" ] && [ -d \"\$_worktree_path\" ]; then"
+    echo "              rm -rf \"\$_worktree_path\""
+    echo "          fi"
     echo "          rm -f ~/.finish-issue-remove ~/.finish-issue-force ~/.finish-issue-worktree-path"
     echo "      fi"
     echo "      return \$_rc"
@@ -97,6 +100,9 @@ new_block = (
     "    fi\n"
     "    if [ -n \"$_remove\" ]; then\n"
     "        wt remove \"$_remove\" || _rc=$?\n"
+    "        if [ -n \"$_worktree_path\" ] && [ -d \"$_worktree_path\" ]; then\n"
+    "            rm -rf \"$_worktree_path\"\n"
+    "        fi\n"
     "        rm -f ~/.finish-issue-remove ~/.finish-issue-force ~/.finish-issue-worktree-path\n"
     "    fi\n"
     "    return $_rc\n"
@@ -138,6 +144,9 @@ finish-issue() {
     fi
     if [ -n "$_remove" ]; then
         wt remove "$_remove" || _rc=$?
+        if [ -n "$_worktree_path" ] && [ -d "$_worktree_path" ]; then
+            rm -rf "$_worktree_path"
+        fi
         rm -f ~/.finish-issue-remove ~/.finish-issue-force ~/.finish-issue-worktree-path
     fi
     return $_rc
