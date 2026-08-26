@@ -134,6 +134,13 @@ class TestPostReply(unittest.TestCase):
         self.assertIn("/issues/42/comments", " ".join(args))
         self.assertNotIn("/pulls/", " ".join(args))
 
+    def test_review_body_uses_issues_endpoint(self):
+        c = _make_comment("789", kind="review_body")
+        c.reply_text = "Thanks for the review!"
+        args = self._run_with_mock(c)
+        self.assertIn("/issues/42/comments", " ".join(args))
+        self.assertNotIn("/pulls/", " ".join(args))
+
 
 class TestResolveThread(unittest.TestCase):
     def test_calls_graphql_with_thread_id(self):
