@@ -98,6 +98,14 @@ class TestListModels:
         result = list_models(provider, None)
         assert result[-1] == (OTHER_SENTINEL, "Other (type manually)")
 
+    def test_fallback_uses_class_defaults_when_instance_models_overwritten(self):
+        provider = ClaudeProvider()
+        # Simulate get_provider merging a user config where capable = haiku
+        provider.models = {"fast": "claude-haiku-4-5-20251001", "capable": "claude-haiku-4-5-20251001"}
+        result = list_models(provider, None)
+        model_ids = [mid for mid, _ in result]
+        assert "claude-sonnet-4-6" in model_ids
+
     def test_display_name_used_when_present(self):
         provider = ClaudeProvider()
         catalog = _SAMPLE_PAYLOAD["anthropic"]["models"]
