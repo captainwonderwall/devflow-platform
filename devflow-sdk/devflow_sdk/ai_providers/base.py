@@ -24,6 +24,8 @@ class AiProvider(ABC):
     install_hint: str = ""
     display_name: str = ""
     redact_after_flags: tuple = ("-p",)
+    models_dev_key: str = ""
+    models_dev_id_prefix: str = ""
 
     @abstractmethod
     def build_command(

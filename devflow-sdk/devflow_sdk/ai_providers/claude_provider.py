@@ -6,6 +6,8 @@ class ClaudeProvider(AiProvider):
     binary = "claude"
     display_name = "Claude"
     install_hint = "https://claude.ai/code"
+    models_dev_key = "anthropic"
+    models_dev_id_prefix = ""
     models = {
         "fast": "claude-haiku-4-5-20251001",
         "capable": "claude-sonnet-4-6",
