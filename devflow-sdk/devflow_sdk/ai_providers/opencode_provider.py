@@ -8,6 +8,8 @@ class OpenCodeProvider(AiProvider):
     binary = "opencode"
     display_name = "OpenCode"
     install_hint = "https://opencode.ai"
+    models_dev_key = "github-copilot"
+    models_dev_id_prefix = "github-copilot/"
     models = {
         "fast": "github-copilot/claude-sonnet-4-5",
         "capable": "github-copilot/claude-sonnet-4-6",

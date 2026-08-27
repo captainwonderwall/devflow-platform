@@ -197,3 +197,17 @@ def test_opencode_build_interactive_command_includes_prompt():
     provider = OpenCodeProvider()
     cmd = provider.build_interactive_command("Brainstorm a solution")
     assert cmd == ["opencode", "--prompt", "Brainstorm a solution"]
+
+
+class TestProviderAttributes:
+    def test_claude_models_dev_key(self):
+        assert ClaudeProvider().models_dev_key == "anthropic"
+
+    def test_claude_models_dev_id_prefix(self):
+        assert ClaudeProvider().models_dev_id_prefix == ""
+
+    def test_opencode_models_dev_key(self):
+        assert OpenCodeProvider().models_dev_key == "github-copilot"
+
+    def test_opencode_models_dev_id_prefix(self):
+        assert OpenCodeProvider().models_dev_id_prefix == "github-copilot/"
