@@ -1,15 +1,7 @@
 import json
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
-from devflow_sdk.config.wizard.tools.model_discovery import fetch_catalog
-
-
-def _make_urlopen_mock(payload: dict) -> MagicMock:
-    mock_resp = MagicMock()
-    mock_resp.read.return_value = json.dumps(payload).encode()
-    mock_resp.__enter__ = MagicMock(return_value=mock_resp)
-    mock_resp.__exit__ = MagicMock(return_value=False)
-    return MagicMock(return_value=mock_resp)
+from devflow_sdk.config.wizard.tools.model_discovery import fetch_catalog, _CATALOG_PATH
 
 
 _SAMPLE_PAYLOAD = {
@@ -37,40 +29,31 @@ _SAMPLE_PAYLOAD = {
 
 
 class TestFetchCatalog:
-    def test_returns_models_dict_for_known_key(self):
-        with patch(
-            "devflow_sdk.config.wizard.tools.model_discovery.urllib.request.urlopen",
-            _make_urlopen_mock(_SAMPLE_PAYLOAD),
-        ):
+    def test_returns_models_dict_for_known_key(self, tmp_path):
+        catalog_file = tmp_path / "models_catalog.json"
+        catalog_file.write_text(json.dumps(_SAMPLE_PAYLOAD))
+        with patch("devflow_sdk.config.wizard.tools.model_discovery._CATALOG_PATH", catalog_file):
             result = fetch_catalog("anthropic")
         assert "claude-sonnet-4-6" in result
         assert result["claude-sonnet-4-6"]["name"] == "Claude Sonnet 4.6"
 
-    def test_returns_none_on_network_error(self):
-        with patch(
-            "devflow_sdk.config.wizard.tools.model_discovery.urllib.request.urlopen",
-            side_effect=OSError("network down"),
-        ):
+    def test_returns_none_when_file_missing(self, tmp_path):
+        missing = tmp_path / "nonexistent.json"
+        with patch("devflow_sdk.config.wizard.tools.model_discovery._CATALOG_PATH", missing):
             result = fetch_catalog("anthropic")
         assert result is None
 
-    def test_returns_none_on_bad_json(self):
-        mock_resp = MagicMock()
-        mock_resp.read.return_value = b"not json {"
-        mock_resp.__enter__ = MagicMock(return_value=mock_resp)
-        mock_resp.__exit__ = MagicMock(return_value=False)
-        with patch(
-            "devflow_sdk.config.wizard.tools.model_discovery.urllib.request.urlopen",
-            MagicMock(return_value=mock_resp),
-        ):
+    def test_returns_none_on_bad_json(self, tmp_path):
+        catalog_file = tmp_path / "models_catalog.json"
+        catalog_file.write_text("not json {")
+        with patch("devflow_sdk.config.wizard.tools.model_discovery._CATALOG_PATH", catalog_file):
             result = fetch_catalog("anthropic")
         assert result is None
 
-    def test_returns_none_for_missing_provider_key(self):
-        with patch(
-            "devflow_sdk.config.wizard.tools.model_discovery.urllib.request.urlopen",
-            _make_urlopen_mock({"other": {}}),
-        ):
+    def test_returns_none_for_missing_provider_key(self, tmp_path):
+        catalog_file = tmp_path / "models_catalog.json"
+        catalog_file.write_text(json.dumps({"other": {}}))
+        with patch("devflow_sdk.config.wizard.tools.model_discovery._CATALOG_PATH", catalog_file):
             result = fetch_catalog("anthropic")
         assert result is None
 

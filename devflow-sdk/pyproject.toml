@@ -15,5 +15,8 @@ dependencies = [
 [project.optional-dependencies]
 dev = ["pytest>=8", "build>=1.0"]
 
+[tool.setuptools.package-data]
+devflow_sdk = ["config/wizard/tools/models_catalog.json"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]

@@ -228,3 +228,10 @@ fi
 
 echo ""
 echo "==> Release complete."
+
+# ── optional: refresh models catalog ─────────────────────────────────────────
+echo ""
+read -rp "Refresh models catalog from models.dev? [y/N] " REFRESH_REPLY
+if [[ "$REFRESH_REPLY" =~ ^[Yy]$ ]]; then
+  bash "$REPO_ROOT/scripts/update-models-catalog.sh"
+fi
