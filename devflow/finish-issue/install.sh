@@ -62,7 +62,8 @@ if [ -z "$RC_FILE" ]; then
     echo "  # <<< finish-issue shell integration <<<"
 elif grep -qF "$SENTINEL" "$RC_FILE" 2>/dev/null; then
     if grep -qF 'command finish-issue --prepare' "$RC_FILE" 2>/dev/null \
-       && grep -qF '.finish-issue-force' "$RC_FILE" 2>/dev/null; then
+       && grep -qF '.finish-issue-force' "$RC_FILE" 2>/dev/null \
+       && grep -qF 'rm -rf "$_worktree_path"' "$RC_FILE" 2>/dev/null; then
         echo "Shell function already present in $RC_FILE."
         echo ""
         echo "NOTE: If your current terminal session was started before this"
