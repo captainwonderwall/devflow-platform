@@ -1,4 +1,65 @@
-from devflow_sdk.ai_providers.base import AiProvider, parse_provider_output
+import json
+
+from devflow_sdk.ai_providers.base import AiProvider, AiResult, parse_provider_output
+
+
+def _parse_event_stream(stdout, stderr, returncode, model, as_json):
+    """Parse OpenCode's newline-delimited events from `run --format json`."""
+    try:
+        events = [json.loads(line) for line in stdout.splitlines() if line.strip()]
+    except json.JSONDecodeError:
+        return parse_provider_output(
+            stdout, stderr, returncode, model,
+            provider_label="OpenCode", as_json=as_json,
+            result_keys=("result", "text"),
+            session_keys=("session_id", "sessionID"),
+        )
+
+    if not events or not all(isinstance(event, dict) for event in events):
+        return parse_provider_output(
+            stdout, stderr, returncode, model,
+            provider_label="OpenCode", as_json=as_json,
+            result_keys=("result", "text"),
+            session_keys=("session_id", "sessionID"),
+        )
+
+    session_id = next(
+        (event.get(key) for event in events for key in ("sessionID", "session_id")
+         if event.get(key)),
+        None,
+    )
+    errors = [event for event in events if event.get("type") == "error"]
+    if errors:
+        error = errors[-1].get("error", errors[-1])
+        if isinstance(error, dict):
+            data = error.get("data")
+            error = (data or {}).get("message") or error.get("name") or str(error)
+        return AiResult(
+            result={} if as_json else "", session_id=session_id, ok=False,
+            error=str(error), needs_interaction=False,
+        )
+
+    text_parts = [
+        event["part"].get("text", "")
+        for event in events
+        if event.get("type") == "text"
+        and isinstance(event.get("part"), dict)
+        and isinstance(event["part"].get("text"), str)
+    ]
+    if not text_parts:
+        return parse_provider_output(
+            stdout, stderr, returncode, model,
+            provider_label="OpenCode", as_json=as_json,
+            result_keys=("result", "text"),
+            session_keys=("session_id", "sessionID"),
+        )
+
+    synthetic = json.dumps({"text": "\n".join(text_parts), "sessionID": session_id})
+    return parse_provider_output(
+        synthetic, stderr, returncode, model,
+        provider_label="OpenCode", as_json=as_json,
+        result_keys=("result", "text"), session_keys=("session_id", "sessionID"),
+    )
 
 
 class OpenCodeProvider(AiProvider):
@@ -42,20 +103,10 @@ class OpenCodeProvider(AiProvider):
         return safe_cmd
 
     def parse_output(self, stdout, stderr, returncode, model):
-        return parse_provider_output(
-            stdout, stderr, returncode, model,
-            provider_label="OpenCode", as_json=True,
-            result_keys=("result", "text"),
-            session_keys=("session_id", "sessionID"),
-        )
+        return _parse_event_stream(stdout, stderr, returncode, model, as_json=True)
 
     def parse_text_output(self, stdout, stderr, returncode, model):
-        return parse_provider_output(
-            stdout, stderr, returncode, model,
-            provider_label="OpenCode", as_json=False,
-            result_keys=("result", "text"),
-            session_keys=("session_id", "sessionID"),
-        )
+        return _parse_event_stream(stdout, stderr, returncode, model, as_json=False)
 
     def build_interactive_command(self, initial_prompt: str) -> list[str]:
         cmd = ["opencode"]

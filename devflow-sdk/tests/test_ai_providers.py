@@ -188,6 +188,38 @@ def test_opencode_parse_output_json_result():
     assert result.total_tokens == 150
 
 
+def test_opencode_parse_output_json_event_stream():
+    stdout = "\n".join([
+        json.dumps({"type": "step_start", "sessionID": "sess-xyz", "part": {}}),
+        json.dumps({"type": "tool_use", "sessionID": "sess-xyz", "part": {}}),
+        json.dumps({
+            "type": "text", "sessionID": "sess-xyz",
+            "part": {"type": "text", "text": '{"title":"My PR"}'},
+        }),
+        json.dumps({"type": "step_finish", "sessionID": "sess-xyz", "part": {}}),
+    ])
+    result = OpenCodeProvider().parse_output(
+        stdout, "", 0, "github-copilot/claude-sonnet-4-5"
+    )
+    assert result.ok is True
+    assert result.result == {"title": "My PR"}
+    assert result.session_id == "sess-xyz"
+
+
+def test_opencode_parse_output_json_event_error():
+    stdout = json.dumps({
+        "type": "error",
+        "sessionID": "sess-xyz",
+        "error": {"name": "UnknownError", "data": {"message": "provider failed"}},
+    })
+    result = OpenCodeProvider().parse_output(
+        stdout, "", 1, "github-copilot/claude-sonnet-4-5"
+    )
+    assert result.ok is False
+    assert result.error == "provider failed"
+    assert result.session_id == "sess-xyz"
+
+
 def test_opencode_parse_output_nonzero_returncode():
     provider = OpenCodeProvider()
     result = provider.parse_output("", "some error", 1, "github-copilot/claude-sonnet-4-5")
