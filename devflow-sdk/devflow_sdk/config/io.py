@@ -132,6 +132,85 @@ def merge_config(base: DevflowConfig, overlay: DevflowConfig) -> DevflowConfig:
     )
 
 
+def repair_config(
+    path: Path | None = None,
+    tool_registry: dict[str, type] | None = None,
+) -> None:
+    target = path or CONFIG_PATH
+    target.parent.mkdir(parents=True, exist_ok=True)
+
+    if not target.exists():
+        _write_raw(target, {})
+        return
+
+    try:
+        data = json.loads(target.read_text())
+    except json.JSONDecodeError:
+        _write_raw(target, {})
+        return
+
+    if not isinstance(data, dict):
+        _write_raw(target, {})
+        return
+
+    global_section = data.get("global", {})
+    if isinstance(global_section, dict):
+        models_raw = global_section.get("models", {})
+        if isinstance(models_raw, dict):
+            repaired_models = {}
+            for tier, entry in models_raw.items():
+                if tier not in _VALID_TIERS:
+                    continue
+                if not isinstance(entry, dict) or "name" not in entry:
+                    continue
+                repaired_entry = {"name": entry["name"]}
+                pricing = entry.get("pricing")
+                if pricing is not None:
+                    required = {"input", "output", "cache_read", "cache_write"}
+                    if required.issubset(pricing.keys()):
+                        repaired_entry["pricing"] = pricing
+                repaired_models[tier] = repaired_entry
+            global_section = {**global_section, "models": repaired_models}
+        data = {**data, "global": global_section}
+
+    if tool_registry:
+        tools_raw = data.get("tools", {})
+        if isinstance(tools_raw, dict):
+            repaired_tools = {}
+            for name, raw in tools_raw.items():
+                if name in tool_registry:
+                    try:
+                        schema_cls = tool_registry[name]
+                        known = {f.name for f in dataclasses.fields(schema_cls)}
+                        filtered = {k: v for k, v in (raw or {}).items() if k in known}
+                        instance = schema_cls(**filtered)
+                        if hasattr(instance, "validate"):
+                            instance.validate()
+                        repaired_tools[name] = raw
+                    except Exception:
+                        pass
+                else:
+                    repaired_tools[name] = raw
+            data = {**data, "tools": repaired_tools}
+
+    _write_raw(target, data)
+
+
+def _write_raw(target: Path, data: dict) -> None:
+    fd, tmp = tempfile.mkstemp(dir=target.parent, prefix=".config-")
+    try:
+        with os.fdopen(fd, "w") as f:
+            json.dump(data, f, indent=2)
+            f.write("\n")
+        os.rename(tmp, target)
+    except Exception:
+        try:
+            os.unlink(tmp)
+        except OSError:
+            pass
+        raise
+
+
 def load_tool_config(config: DevflowConfig, tool_name: str, schema_cls: type[T]) -> T:
     raw = config.tools.get(tool_name)
     if raw is None:

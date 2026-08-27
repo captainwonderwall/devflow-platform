@@ -51,3 +51,57 @@ def test_all_tool_steps_contains_draft_pr_wizard_step():
 
 def test_all_tool_steps_is_not_empty():
     assert len(ALL_TOOL_STEPS) > 0
+
+
+# ── backup + repair ────────────────────────────────────────────────────────────
+
+def test_main_backs_up_invalid_config(tmp_path):
+    import re
+    config_path = tmp_path / "config.json"
+    config_path.write_text('{"global": {"models": {"turbo": {"name": "x"}}}, "tools": {}}')
+
+    with patch.object(devflow_config, "CONFIG_PATH", config_path), \
+         patch.object(devflow_config, "run_wizard"):
+        devflow_config.main()
+
+    backups = [f for f in tmp_path.iterdir() if re.match(r"config\.\d{8}-\d{6}\.bak\.json", f.name)]
+    assert len(backups) == 1
+
+
+def test_main_does_not_back_up_valid_config(tmp_path):
+    import re
+    config_path = tmp_path / "config.json"
+    config_path.write_text('{"global": {"models": {"fast": {"name": "haiku"}}}, "tools": {}}')
+
+    with patch.object(devflow_config, "CONFIG_PATH", config_path), \
+         patch.object(devflow_config, "run_wizard"):
+        devflow_config.main()
+
+    backups = [f for f in tmp_path.iterdir() if re.match(r"config\.\d{8}-\d{6}\.bak\.json", f.name)]
+    assert len(backups) == 0
+
+
+def test_main_repairs_config_before_wizard(tmp_path):
+    config_path = tmp_path / "config.json"
+    config_path.write_text('{"global": {"models": {"turbo": {"name": "x"}, "fast": {"name": "haiku"}}}, "tools": {}}')
+
+    import json as _json
+    with patch.object(devflow_config, "CONFIG_PATH", config_path), \
+         patch.object(devflow_config, "run_wizard"):
+        devflow_config.main()
+
+    data = _json.loads(config_path.read_text())
+    assert "fast" in data["global"]["models"]
+    assert "turbo" not in data["global"]["models"]
+
+
+def test_main_still_runs_wizard_after_repair(tmp_path):
+    config_path = tmp_path / "config.json"
+    config_path.write_text('{"global": {"models": {"turbo": {"name": "x"}}}, "tools": {}}')
+
+    from devflow_sdk.config.schema import DevflowConfig
+    with patch.object(devflow_config, "CONFIG_PATH", config_path), \
+         patch.object(devflow_config, "run_wizard", return_value=DevflowConfig()) as mock_wiz:
+        devflow_config.main()
+
+    assert mock_wiz.call_count == 1

@@ -57,6 +57,8 @@ def _rules_to_dicts(rules: list[DirectoryRule]) -> list[dict]:
 
 class DraftPrWizardStep(WizardStep):
     section = "draft-pr: Plugin Routing"
+    tool_name = "draft-pr"
+    schema_cls = DraftPrConfig
 
     def run(self, current: DevflowConfig) -> DevflowConfig:
         loader = PluginLoader()

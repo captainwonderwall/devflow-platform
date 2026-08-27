@@ -10,6 +10,7 @@ from devflow_sdk.config import (
     save_config,
     merge_config,
 )
+from devflow_sdk.config.io import repair_config
 
 
 def test_save_config_creates_valid_json(tmp_path):
@@ -110,3 +111,104 @@ def test_save_config_preserves_unknown_global_keys(tmp_path):
     save_config(config, path=config_path)
     data = json.loads(config_path.read_text())
     assert data["global"]["telemetry"] is False
+
+
+# ── repair_config ─────────────────────────────────────────────────────────────
+
+def test_repair_config_removes_unknown_model_tier(tmp_path):
+    config_path = tmp_path / "config.json"
+    config_path.write_text(json.dumps({
+        "global": {"models": {"fast": {"name": "haiku"}, "turbo": {"name": "gpt-x"}}},
+        "tools": {},
+    }))
+    repair_config(path=config_path)
+    data = json.loads(config_path.read_text())
+    assert "fast" in data["global"]["models"]
+    assert "turbo" not in data["global"]["models"]
+
+
+def test_repair_config_removes_model_entry_missing_name(tmp_path):
+    config_path = tmp_path / "config.json"
+    config_path.write_text(json.dumps({
+        "global": {"models": {"fast": {"pricing": {"input": 1, "output": 2, "cache_read": 0, "cache_write": 0}}}},
+        "tools": {},
+    }))
+    repair_config(path=config_path)
+    data = json.loads(config_path.read_text())
+    assert "fast" not in data["global"]["models"]
+
+
+def test_repair_config_drops_incomplete_pricing_keeps_model_name(tmp_path):
+    config_path = tmp_path / "config.json"
+    config_path.write_text(json.dumps({
+        "global": {"models": {"capable": {"name": "sonnet", "pricing": {"input": 1}}}},
+        "tools": {},
+    }))
+    repair_config(path=config_path)
+    data = json.loads(config_path.read_text())
+    assert data["global"]["models"]["capable"]["name"] == "sonnet"
+    assert "pricing" not in data["global"]["models"]["capable"]
+
+
+def test_repair_config_removes_invalid_tool_entry(tmp_path):
+    from dataclasses import dataclass
+
+    @dataclass
+    class StrictConfig:
+        value: str = ""
+
+        def validate(self):
+            if not self.value:
+                raise ValueError("value required")
+
+    config_path = tmp_path / "config.json"
+    config_path.write_text(json.dumps({
+        "global": {"models": {}},
+        "tools": {"my-tool": {"value": ""}, "other-tool": {"x": 1}},
+    }))
+    repair_config(path=config_path, tool_registry={"my-tool": StrictConfig})
+    data = json.loads(config_path.read_text())
+    assert "my-tool" not in data["tools"]
+    assert "other-tool" in data["tools"]
+
+
+def test_repair_config_resets_invalid_json_to_empty(tmp_path):
+    config_path = tmp_path / "config.json"
+    config_path.write_text("not valid json {{")
+    repair_config(path=config_path)
+    data = json.loads(config_path.read_text())
+    assert data == {}
+
+
+def test_repair_config_resets_non_object_root_to_empty(tmp_path):
+    config_path = tmp_path / "config.json"
+    config_path.write_text(json.dumps([1, 2, 3]))
+    repair_config(path=config_path)
+    data = json.loads(config_path.read_text())
+    assert data == {}
+
+
+def test_repair_config_preserves_valid_content(tmp_path):
+    config_path = tmp_path / "config.json"
+    config_path.write_text(json.dumps({
+        "global": {
+            "ai_provider": "claude",
+            "models": {
+                "fast": {"name": "haiku"},
+                "capable": {"name": "sonnet", "pricing": {"input": 1, "output": 2, "cache_read": 0, "cache_write": 0}},
+            },
+        },
+        "tools": {"draft-pr": {"plugin": {"default": "smoke"}}},
+    }))
+    repair_config(path=config_path)
+    data = json.loads(config_path.read_text())
+    assert data["global"]["models"]["fast"]["name"] == "haiku"
+    assert data["global"]["models"]["capable"]["name"] == "sonnet"
+    assert data["tools"]["draft-pr"]["plugin"]["default"] == "smoke"
+
+
+def test_repair_config_nonexistent_file_creates_empty(tmp_path):
+    config_path = tmp_path / "config.json"
+    repair_config(path=config_path)
+    data = json.loads(config_path.read_text())
+    assert data == {}
