@@ -25,7 +25,7 @@ def list_models(provider: AiProvider, catalog: dict[str, dict] | None) -> list[t
             display = model_data.get("name") or raw_id
             entries.append((full_id, display))
     else:
-        for model_id in provider.models.values():
+        for model_id in type(provider).models.values():
             entries.append((model_id, model_id))
     entries.append((OTHER_SENTINEL, "Other (type manually)"))
     return entries
