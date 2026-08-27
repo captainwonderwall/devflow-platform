@@ -1,18 +1,17 @@
 import json
 import re
-import urllib.request
+from pathlib import Path
 from devflow_sdk.ai_providers.base import AiProvider
 
-MODELS_DEV_URL = "https://models.dev/api.json"
-_TIMEOUT = 5
 OTHER_SENTINEL = "__other__"
 _DATE_SUFFIX_RE = re.compile(r'-\d{8}$')
+_CATALOG_PATH = Path(__file__).parent / "models_catalog.json"
 
 
 def fetch_catalog(models_dev_key: str) -> dict[str, dict] | None:
     try:
-        with urllib.request.urlopen(MODELS_DEV_URL, timeout=_TIMEOUT) as resp:
-            data = json.loads(resp.read())
+        with open(_CATALOG_PATH) as f:
+            data = json.load(f)
         return data[models_dev_key].get("models", {})
     except Exception:
         return None
