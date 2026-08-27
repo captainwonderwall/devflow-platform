@@ -87,7 +87,7 @@ def main():
         f"ERROR: finish-issue shell function is not installed or is out of date.\n"
         f"Re-run the installer: {os.path.join(SCRIPT_DIR, 'install.sh')}\n"
         "Then restart your shell or run: source {rc_path}",
-        required_content=["command finish-issue --prepare", ".finish-issue-force", "finish-issue-worktree-path"],
+        required_content=["command finish-issue --prepare", ".finish-issue-force", "finish-issue-worktree-path", 'rm -rf "$_worktree_path"'],
     )
 
     if args.issue:
