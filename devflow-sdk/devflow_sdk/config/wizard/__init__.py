@@ -9,6 +9,8 @@ from devflow_sdk.config.schema import DevflowConfig
 
 class WizardStep(ABC):
     section: str
+    tool_name: str | None = None
+    schema_cls: type | None = None
 
     @abstractmethod
     def run(self, current: DevflowConfig) -> DevflowConfig:

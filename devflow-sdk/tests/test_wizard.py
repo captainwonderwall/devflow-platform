@@ -93,3 +93,31 @@ def test_run_wizard_step_return_propagates_to_next(tmp_path):
             return current
 
     run_wizard([SetProvider(), AssertProvider()], path=config_path)
+
+
+def test_wizard_step_tool_name_defaults_to_none():
+    class MinimalStep(WizardStep):
+        section = "X"
+        def run(self, current):
+            return current
+
+    assert MinimalStep.tool_name is None
+
+
+def test_wizard_step_schema_cls_defaults_to_none():
+    class MinimalStep(WizardStep):
+        section = "X"
+        def run(self, current):
+            return current
+
+    assert MinimalStep.schema_cls is None
+
+
+def test_draft_pr_wizard_step_tool_name():
+    from devflow_sdk.config.wizard.tools.draft_pr import DraftPrWizardStep
+    assert DraftPrWizardStep.tool_name == "draft-pr"
+
+
+def test_draft_pr_wizard_step_schema_cls():
+    from devflow_sdk.config.wizard.tools.draft_pr import DraftPrWizardStep, DraftPrConfig
+    assert DraftPrWizardStep.schema_cls is DraftPrConfig
