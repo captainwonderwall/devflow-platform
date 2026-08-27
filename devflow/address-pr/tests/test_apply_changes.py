@@ -13,6 +13,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 apply_changes_mod = import_module("apply_changes")
 from fetch_comments import Comment
 from devflow_sdk.ai import AiResult
+from devflow_sdk.config import DevflowConfig, GlobalConfig
 
 
 def _mock_result(returncode=0, stdout="", stderr=""):
@@ -565,15 +566,19 @@ class TestApplyChangesRetry(unittest.TestCase):
 
 
 class TestApplyChangesPermissionMenu(unittest.TestCase):
+    def _claude_config(self):
+        return DevflowConfig(global_config=GlobalConfig(ai_provider="claude"))
+
     def test_resumes_interactively_and_returns_success(self):
         interactive_ok = _mock_result(0)
         with patch("apply_changes.run_ai_prompt",
                    return_value=_mock_ai_text("", needs_interaction=True)):
-            with patch("apply_changes.subprocess.run",
+            with patch("apply_changes.load_config", return_value=self._claude_config()):
+                with patch("apply_changes.subprocess.run",
                         return_value=interactive_ok) as mock_run:
-                with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
-                    result = apply_changes_mod.apply_changes(
-                        "Title", "Description", [_make_comment()])
+                    with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
+                        result = apply_changes_mod.apply_changes(
+                            "Title", "Description", [_make_comment()])
         self.assertTrue(result)
         self.assertEqual(mock_run.call_count, 1)
         first_call_args, first_call_kwargs = mock_run.call_args_list[0]
@@ -589,12 +594,13 @@ class TestApplyChangesPermissionMenu(unittest.TestCase):
         interactive_ok = _mock_result(0)
         with patch("apply_changes.run_ai_prompt",
                    return_value=_mock_ai_text("", needs_interaction=True)):
-            with patch("apply_changes.subprocess.run",
+            with patch("apply_changes.load_config", return_value=self._claude_config()):
+                with patch("apply_changes.subprocess.run",
                         return_value=interactive_ok) as mock_run:
-                with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
-                    result = apply_changes_mod.apply_changes(
-                        "Title", "Description", [_make_comment()],
-                        session_id="sess-123")
+                    with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
+                        result = apply_changes_mod.apply_changes(
+                            "Title", "Description", [_make_comment()],
+                            session_id="sess-123")
         self.assertTrue(result)
         self.assertEqual(mock_run.call_count, 1)
         first_call_args, first_call_kwargs = mock_run.call_args_list[0]

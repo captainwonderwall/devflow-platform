@@ -72,8 +72,8 @@ bash scripts/bootstrap.sh   # installs uv, builds SDK wheel, seeds vendor
 Run tests:
 
 ```bash
-uv run --no-project pytest devflow-sdk/   # SDK unit tests
-uv run --no-project pytest devflow/       # devflow unit tests
+uv run --directory devflow-sdk --extra dev pytest                 # SDK unit tests
+uv run --directory devflow-sdk --extra dev pytest ../devflow/     # devflow unit tests
 bash devflow-plugin-scaffold/tests/test_scaffold.sh  # scaffold smoke test
 ```
 

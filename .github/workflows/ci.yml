@@ -10,18 +10,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v4
-      - run: uv venv
-      - run: uv pip install -e "devflow-sdk/[dev]"
-      - run: uv run --no-project pytest devflow-sdk/
+      - run: uv run --directory devflow-sdk --extra dev pytest
 
   devflow-tests:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v4
-      - run: uv venv
-      - run: uv pip install -e "devflow-sdk/[dev]"
-      - run: uv run --no-project pytest devflow/
+      - run: uv run --directory devflow-sdk --extra dev pytest ../devflow/
 
   scaffold-tests:
     runs-on: ubuntu-latest
