@@ -1,4 +1,5 @@
 from devflow_sdk.ai_providers.base import AiProvider, AiResult
+from devflow_sdk.config import GlobalConfig, ModelConfig
 
 
 def test_ai_provider_is_abstract():
@@ -130,6 +131,48 @@ def test_opencode_models_and_pricing():
         assert model_id in provider.pricing
 
 
+def test_get_provider_resolves_configured_opencode_model_from_catalog():
+    provider = get_provider(GlobalConfig(
+        ai_provider="opencode",
+        models={
+            "fast": ModelConfig(name="github-copilot/gpt-5-mini"),
+            "capable": ModelConfig(name="github-copilot/gpt-5.6-luna"),
+        },
+    ))
+
+    assert provider.pricing["github-copilot/gpt-5-mini"] == {
+        "input": 0.25,
+        "output": 2.0,
+        "cache_read": 0.025,
+        "cache_write": None,
+    }
+    assert provider.models["capable"] == "github-copilot/gpt-5.6-luna"
+    assert provider.pricing["github-copilot/gpt-5.6-luna"] == {
+        "input": 0.2,
+        "output": 1.2,
+        "cache_read": 0.02,
+        "cache_write": None,
+    }
+
+
+def test_explicit_configured_pricing_takes_precedence_over_catalog():
+    configured_pricing = {
+        "input": 9.0,
+        "output": 8.0,
+        "cache_read": 7.0,
+        "cache_write": 6.0,
+    }
+    provider = get_provider(GlobalConfig(
+        ai_provider="opencode",
+        models={"capable": ModelConfig(
+            name="github-copilot/gpt-5.6-luna",
+            pricing=configured_pricing,
+        )},
+    ))
+
+    assert provider.pricing["github-copilot/gpt-5.6-luna"] == configured_pricing
+
+
 def test_opencode_parse_output_json_result():
     provider = OpenCodeProvider()
     stdout = json.dumps({
@@ -154,7 +197,6 @@ def test_opencode_parse_output_nonzero_returncode():
 
 import pytest
 from devflow_sdk.ai_providers import get_provider
-from devflow_sdk.config import GlobalConfig
 
 
 def test_get_provider_claude():

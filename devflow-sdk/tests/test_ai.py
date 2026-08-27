@@ -150,6 +150,23 @@ def test_capable_tier_resolves_to_sonnet_model():
     assert result.ok is True
 
 
+def test_configured_catalog_model_is_allowed(tmp_path, monkeypatch):
+    config_path = tmp_path / "config.json"
+    config_path.write_text(
+        '{"global": {"ai_provider": "opencode", "models": '
+        '{"capable": {"name": "github-copilot/gpt-5.6-luna"}}}}'
+    )
+    monkeypatch.setattr("devflow_sdk.config.io.CONFIG_PATH", config_path)
+    proc = _mock_proc("{}", model="github-copilot/gpt-5.6-luna")
+
+    with patch("devflow_sdk.ai.shutil.which", return_value="/usr/bin/opencode"), \
+         patch("devflow_sdk.ai.subprocess.run", return_value=proc) as mock_run:
+        result = run_ai_prompt("prompt", tier="capable")
+
+    assert result.ok is True
+    assert "github-copilot/gpt-5.6-luna" in mock_run.call_args.args[0]
+
+
 def test_not_ok_when_returncode_nonzero():
     m = MagicMock()
     m.returncode = 1

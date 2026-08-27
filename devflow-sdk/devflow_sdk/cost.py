@@ -45,7 +45,7 @@ class CostAccumulator:
             usage.get("input_tokens", 0) / 1_000_000 * prices["input"]
             + usage.get("output_tokens", 0) / 1_000_000 * prices["output"]
             + usage.get("cache_read_input_tokens", 0) / 1_000_000 * prices["cache_read"]
-            + usage.get("cache_write_input_tokens", 0) / 1_000_000 * prices["cache_write"]
+            + usage.get("cache_write_input_tokens", 0) / 1_000_000 * (prices.get("cache_write") or 0)
         )
 
     def print_summary(self):

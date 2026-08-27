@@ -133,6 +133,26 @@ def test_add_empty_pricing_is_zero():
     assert acc._total_usd == 0.0
 
 
+def test_add_treats_missing_cache_write_price_as_zero():
+    acc = CostAccumulator()
+    pricing = {
+        "github-copilot/gpt-5.6-luna": {
+            "input": 0.2,
+            "output": 1.2,
+            "cache_read": 0.02,
+            "cache_write": None,
+        }
+    }
+
+    acc.add(
+        {"input_tokens": 1_000_000, "cache_write_input_tokens": 1_000_000},
+        "github-copilot/gpt-5.6-luna",
+        pricing,
+    )
+
+    assert abs(acc._total_usd - 0.2) < 1e-9
+
+
 def test_pricing_matches_provider_pricing_tables():
     assert "claude-haiku-4-5" in _CLAUDE
     assert "claude-sonnet-4-6" in _CLAUDE
