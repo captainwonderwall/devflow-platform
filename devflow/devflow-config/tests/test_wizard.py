@@ -105,3 +105,52 @@ def test_main_still_runs_wizard_after_repair(tmp_path):
         devflow_config.main()
 
     assert mock_wiz.call_count == 1
+
+
+def test_main_copies_opencode_config_and_updates_both_shells(tmp_path):
+    from devflow_sdk.config.schema import DevflowConfig, GlobalConfig
+
+    home = tmp_path / "home"
+
+    config = DevflowConfig(global_config=GlobalConfig(ai_provider="opencode"))
+    with patch.object(devflow_config, "Path") as path_cls, \
+        patch.object(devflow_config, "run_wizard", return_value=config):
+        path_cls.home.return_value = home
+        devflow_config.main()
+
+    copied = home / ".devflow" / "opencode.json"
+    assert copied.read_text() == devflow_config._STOCK_OPENCODE_CONFIG.read_text()
+    expected = (
+        "# >>> devflow opencode config >>>\n"
+        'if [ -f "$HOME/.devflow/opencode.json" ]; then\n'
+        '    export OPENCODE_CONFIG_CONTENT="$(< "$HOME/.devflow/opencode.json")"\n'
+        "fi\n"
+        "# <<< devflow opencode config <<<"
+    )
+    assert expected in (home / ".zshrc").read_text()
+    assert expected in (home / ".bashrc").read_text()
+
+
+def test_main_updates_existing_opencode_shell_block_idempotently(tmp_path):
+    from devflow_sdk.config.schema import DevflowConfig, GlobalConfig
+
+    home = tmp_path / "home"
+    old_block = (
+        "# >>> devflow opencode config >>>\n"
+        "export OPENCODE_CONFIG_CONTENT=old\n"
+        "# <<< devflow opencode config <<<"
+    )
+    home.mkdir()
+    (home / ".zshrc").write_text(f"before\n{old_block}\nafter\n")
+
+    config = DevflowConfig(global_config=GlobalConfig(ai_provider="opencode"))
+    with patch.object(devflow_config, "Path") as path_cls, \
+        patch.object(devflow_config, "run_wizard", return_value=config):
+        path_cls.home.return_value = home
+        devflow_config.main()
+
+    shell = (home / ".zshrc").read_text()
+    assert shell.count("# >>> devflow opencode config >>>") == 1
+    assert "export OPENCODE_CONFIG_CONTENT=old" not in shell
+    assert shell.startswith("before\n")
+    assert shell.endswith("after\n")

@@ -55,6 +55,11 @@ Configuration is stored in `~/.devflow/config.json`. The wizard configures:
 - The default `draft-pr` plugin
 - Optional path-based rules that select different plugins per project
 
+When OpenCode is selected, the wizard copies the repository's stock
+`devflow/devflow-config/opencode.json` to `~/.devflow/opencode.json` and adds
+an `OPENCODE_CONFIG_CONTENT` export to both `~/.zshrc` and `~/.bashrc`. Restart
+your shell, or source the relevant rc file, after running the wizard.
+
 Re-running the wizard preserves settings outside its managed fields. Plugins
 are registered separately and can be inspected with:
 
