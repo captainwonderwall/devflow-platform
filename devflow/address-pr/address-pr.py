@@ -22,6 +22,7 @@ from post_replies import generate_reply_texts, confirm_and_post_replies
 from devflow_sdk.summary import summary
 from devflow_sdk.ticket_info import check_gh
 from devflow_sdk.prompts import confirm
+from devflow_sdk.ai import configured_provider_display_name
 
 
 def parse_args():
@@ -31,8 +32,8 @@ def parse_args():
     parser.add_argument(
         "--debug",
         action="store_true",
-        help="Save Claude's raw output (command, exit code, stdout, stderr) "
-             "to a temp file for each Claude call, for inspection if "
+         help="Save the configured AI provider's raw output (command, exit code, "
+             "stdout, stderr) to a temp file for each AI call, for inspection if "
              "something goes wrong.",
     )
     return parser.parse_args()
@@ -194,13 +195,17 @@ def main():
 
     chosen = [comments[i] for i in selected]
 
-    print("\nAddressing comments with Claude...\n")
+    print(
+        f"\nAddressing comments with {configured_provider_display_name()}...\n"
+    )
     status_before = get_working_tree_status()
     sha_before = get_current_sha()
     success = apply_changes(data["pr_title"], data["pr_description"], chosen,
                             session_id=session_id, debug=args.debug)
     if not success:
-        print("ERROR: Claude session failed. No changes committed.",
+        print(
+            f"ERROR: {configured_provider_display_name()} session failed. "
+            "No changes committed.",
               file=sys.stderr)
         sys.exit(1)
 

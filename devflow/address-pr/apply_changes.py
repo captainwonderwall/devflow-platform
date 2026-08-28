@@ -12,7 +12,7 @@ VENDOR_DIR = os.path.join(REPO_ROOT, "vendor")
 import glob as _glob
 for _whl in sorted(_glob.glob(os.path.join(VENDOR_DIR, "*.whl"))):
     sys.path.insert(0, _whl)
-from devflow_sdk.ai import run_ai_prompt
+from devflow_sdk.ai import configured_provider_display_name, run_ai_prompt
 from devflow_sdk.ai_providers import get_provider
 from devflow_sdk.config import load_config
 
@@ -244,7 +244,7 @@ def apply_changes(pr_title: str, pr_description: str,
         )
 
         if ai_result.needs_interaction:
-            print("Claude needs write permission to modify files "
+            print(f"{configured_provider_display_name()} needs write permission to modify files "
                   "(bypass permissions may be disabled by an org policy).")
             print("Resuming interactively — answer the approval prompt when "
                   "it appears.\n")
@@ -255,7 +255,10 @@ def apply_changes(pr_title: str, pr_description: str,
                 interactive_proc = subprocess.run(resume_cmd)
                 return interactive_proc.returncode == 0
             except OSError as e:
-                print(f"Error: Could not run claude: {e}", file=sys.stderr)
+                print(
+                    f"Error: Could not run {configured_provider_display_name()}: {e}",
+                    file=sys.stderr,
+                )
                 return False
             except KeyboardInterrupt:
                 print("\nCancelled.", file=sys.stderr)
@@ -271,7 +274,10 @@ def apply_changes(pr_title: str, pr_description: str,
 
         edits = extract_edits(result_text)
         if edits is None:
-            print("Claude did not produce any edits.", file=sys.stderr)
+            print(
+                f"{configured_provider_display_name()} did not produce any edits.",
+                file=sys.stderr,
+            )
             return False
 
         if not edits:

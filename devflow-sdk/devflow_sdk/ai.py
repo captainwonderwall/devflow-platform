@@ -11,9 +11,22 @@ from devflow_sdk.ai_providers.base import AiResult
 from devflow_sdk.config import load_config
 from devflow_sdk.cost import accumulator
 
-__all__ = ["run_ai_prompt", "launch_interactive_session", "AiResult"]
+__all__ = [
+    "run_ai_prompt",
+    "launch_interactive_session",
+    "configured_provider_display_name",
+    "AiResult",
+]
 
 _DATE_SUFFIX_RE = re.compile(r'-\d{8}$')
+
+
+def configured_provider_display_name() -> str:
+    """Return the configured provider's display name for user-facing messages."""
+    try:
+        return get_provider(load_config().global_config).display_name
+    except (ValueError, AttributeError):
+        return "AI provider"
 
 
 def _write_debug_log(provider, cmd: list, returncode: int,

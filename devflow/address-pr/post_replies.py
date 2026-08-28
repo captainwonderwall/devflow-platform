@@ -13,7 +13,7 @@ VENDOR_DIR = os.path.join(REPO_ROOT, "vendor")
 import glob as _glob
 for _whl in sorted(_glob.glob(os.path.join(VENDOR_DIR, "*.whl"))):
     sys.path.insert(0, _whl)
-from devflow_sdk.ai import run_ai_prompt
+from devflow_sdk.ai import configured_provider_display_name, run_ai_prompt
 from devflow_sdk.prompts import select
 
 
@@ -81,7 +81,9 @@ def generate_reply_texts(comments: List[Comment],
         debug=debug
     )
     if not ai_result.ok:
-        print(f"ERROR: claude failed generating replies: {ai_result.error.strip()}",
+        print(
+            f"ERROR: {configured_provider_display_name()} failed generating replies: "
+            f"{ai_result.error.strip()}",
               file=sys.stderr)
         sys.exit(1)
     replies = ai_result.result
