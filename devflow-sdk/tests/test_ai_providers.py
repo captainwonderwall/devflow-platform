@@ -151,7 +151,7 @@ def test_get_provider_resolves_configured_opencode_model_from_catalog():
         "input": 0.2,
         "output": 1.2,
         "cache_read": 0.02,
-        "cache_write": None,
+        "cache_write": 0.25,
     }
 
 
