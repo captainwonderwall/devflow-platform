@@ -1,55 +1,198 @@
-# devflow-platform
+# devflow
 
-Monorepo for the devflow toolchain — a CLI for generating AI-assisted pull requests, with a plugin system for custom PR formats and an interactive wizard for configuration.
+`devflow` is a set of AI-assisted command-line tools for moving an issue from
+task tracker to merged change. It creates isolated worktrees, drafts pull
+requests, addresses review feedback, squashes commits, and cleans up finished
+work.
 
-## Subprojects
+The tools are interactive: they show what they are about to do and ask for
+confirmation before actions such as changing files, posting replies, pushing,
+or removing a worktree.
 
-| Directory | Description |
-|-----------|-------------|
-| [`devflow/`](devflow/) | The main CLI tool. Installed via Homebrew. |
-| [`devflow-sdk/`](devflow-sdk/) | Shared plugin interface (`PluginBase`) and utilities. Distributed as a wheel attached to GitHub Releases. |
-| [`devflow-plugin-scaffold/`](devflow-plugin-scaffold/) | One-liner scaffold for building new devflow plugins. |
-| [`homebrew-devflow/`](homebrew-devflow/) | Homebrew tap formulae. Managed here via git subtree; synced to [`captainwonderwall/homebrew-devflow`](https://github.com/captainwonderwall/homebrew-devflow) on release. |
+## Install
 
-## Configuring devflow
+Install the Homebrew tap and the toolchain:
 
-devflow reads `~/.devflow/config.json`. Use the interactive wizard to create or update it:
+```bash
+brew tap captainwonderwall/devflow
+brew install devflow
+```
+
+Install the integrations required by the workflows you use:
+
+```bash
+brew install worktrunk gh
+brew tap atlassian/homebrew-acli && brew install acli
+```
+
+You also need an AI CLI configured for the provider selected in `devflow-config`.
+The default supported provider is Claude; install it from
+<https://claude.ai/code>.
+
+After installing Homebrew packages, enable the shell integrations used to
+switch worktrees automatically:
+
+```bash
+bash "$(brew --prefix)/opt/devflow/libexec/scripts/setup-shell.sh"
+source ~/.zshrc  # use ~/.bashrc for Bash
+```
+
+Use `gh auth login` for GitHub issues and pull requests. Authenticate Jira's
+`acli` separately if you use Jira issues.
+
+## Configure devflow
+
+Run the wizard whenever you want to create or update configuration:
 
 ```bash
 devflow-config
 ```
 
-The wizard walks through every setting pre-populated with your current values, so re-running it is how you update any setting.
+Configuration is stored in `~/.devflow/config.json`. The wizard configures:
 
-**What it configures:**
+- The AI provider (`claude` or `opencode`)
+- `fast` and `capable` model names and token pricing
+- The default `draft-pr` plugin
+- Optional path-based rules that select different plugins per project
 
-- **AI provider** — choose between `claude` and `opencode`
-- **Model tiers** — set the model name and token pricing for `fast` and `capable` tiers
-- **draft-pr plugin routing** — set a default plugin and add path-based rules that map directories to specific plugins
+Re-running the wizard preserves settings outside its managed fields. Plugins
+are registered separately and can be inspected with:
 
-**Example `~/.devflow/config.json`** (produced by the wizard):
+```bash
+devflow-plugin list
+```
+
+## Daily Workflow
+
+Run the tools from the repository you are working on. A typical workflow is:
+
+```text
+start-issue -> edit and test -> draft-pr -> address-pr -> finish-issue
+```
+
+Use `squash-commits` before opening a pull request when your branch contains
+several commits.
+
+### 1. Start an issue
+
+Create a branch and isolated worktree from a Jira key or GitHub issue number:
+
+```bash
+start-issue VDP-46625
+start-issue 42
+```
+
+The issue metadata is fetched, a branch type is selected, and a worktree is
+created. Use an explicit branch type when inference is not appropriate:
+
+```bash
+start-issue VDP-46625 --fix
+start-issue 42 --feat
+start-issue 42 --hotfix
+start-issue 42 --chore
+start-issue 42 --docs
+```
+
+Supported branch types are `feat`, `fix`, `hotfix`, `chore`, and `docs`.
+
+### 2. Draft a pull request
+
+From the issue worktree, run:
+
+```bash
+draft-pr
+```
+
+`draft-pr` gathers the branch and diff context, asks for issue and
+customer-visibility details, lets you select a registered plugin, and uses
+the configured capable model to draft the PR. It creates the PR through the
+GitHub CLI. To supply a GitHub issue when it cannot be inferred from the
+branch:
+
+```bash
+draft-pr --github-issue 42
+```
+
+If a PR already exists for the branch, the tool reports its URL instead of
+creating a duplicate.
+
+### 3. Address review comments
+
+From the PR's worktree, run:
+
+```bash
+address-pr
+```
+
+The tool fetches unresolved review comments, uses AI to explain or group them,
+lets you select which comments to address, applies the changes, and prepares
+replies. It scopes commits to files changed during the session so unrelated
+pre-existing work is not swept into the commit. Review and confirm replies
+and the optional push interactively.
+
+For additional diagnostics, preserve the AI provider's raw command output in
+temporary debug files:
+
+```bash
+address-pr --debug
+```
+
+### 4. Squash commits
+
+When the branch has multiple commits, run:
+
+```bash
+squash-commits
+```
+
+The tool drafts a single Conventional Commits-style message, handles a dirty
+working tree through an interactive stash choice, and asks whether to
+force-push with `--force-with-lease`. It does nothing when the branch has one
+or zero commits ahead of its base branch.
+
+### 5. Finish an issue
+
+After the branch has been merged, remove its worktree and branch:
+
+```bash
+finish-issue VDP-46625
+finish-issue 42
+```
+
+When run inside a worktree created by `start-issue`, the issue argument can be
+omitted:
+
+```bash
+finish-issue
+```
+
+`finish-issue` verifies that the matching branch is merged before removing
+anything. If the worktree is dirty, it asks whether to abort or discard the
+uncommitted changes.
+
+## Plugins
+
+`draft-pr` supports plugins for different PR formats. Create a plugin with
+the [plugin scaffold](devflow-plugin-scaffold/), install it, and verify it:
+
+```bash
+cd my-format
+bash install.sh
+devflow-plugin list
+```
+
+Select a default plugin or route projects by path with `devflow-config`.
+Plugins can also be configured directly in `~/.devflow/config.json`:
 
 ```json
 {
-  "global": {
-    "ai_provider": "claude",
-    "models": {
-      "fast": {
-        "name": "claude-haiku-4-5-20251001",
-        "pricing": { "input": 0.8, "output": 4.0, "cache_read": 0.08, "cache_write": 1.0 }
-      },
-      "capable": {
-        "name": "claude-sonnet-4-6",
-        "pricing": { "input": 3.0, "output": 15.0, "cache_read": 0.3, "cache_write": 3.75 }
-      }
-    }
-  },
   "tools": {
     "draft-pr": {
       "plugin": {
-        "default": "smoke-check",
+        "default": "my-format",
         "rules": [
-          { "paths": ["/work/mobile"], "plugin": "mobile-format" }
+          { "paths": ["apps/web"], "plugin": "web-format" },
+          { "paths": ["services/"], "plugin": "service-format" }
         ]
       }
     }
@@ -57,92 +200,22 @@ The wizard walks through every setting pre-populated with your current values, s
 }
 ```
 
-Any keys you add manually outside the wizard's scope are preserved on the next save.
+Rules use the longest matching path relative to the Git root. If no rule
+matches, `default` is used. If neither is set and multiple plugins are
+registered, `draft-pr` prompts you to choose one.
 
-## Getting started (contributors)
+## Troubleshooting
 
-**Prerequisites:** [Homebrew](https://brew.sh), [GitHub CLI](https://cli.github.com)
+- If `start-issue` or `finish-issue` cannot switch directories, reload your
+  shell after running the setup-shell script.
+- If an issue cannot be fetched, verify `gh auth status` or your Jira `acli`
+  authentication.
+- If the AI call fails, verify the configured provider CLI works directly and
+  re-run `devflow-config`.
+- If `draft-pr` reports no plugins, install a plugin and check it with
+  `devflow-plugin list`.
 
-```bash
-git clone git@github.com:captainwonderwall/devflow-platform.git
-cd devflow-platform
-bash scripts/bootstrap.sh   # installs uv, builds SDK wheel, seeds vendor
-```
+## Development
 
-Run tests:
-
-```bash
-uv run --directory devflow-sdk --extra dev pytest                 # SDK unit tests
-uv run --directory devflow-sdk --extra dev pytest ../devflow/     # devflow unit tests
-bash devflow-plugin-scaffold/tests/test_scaffold.sh  # scaffold smoke test
-```
-
-## Releasing
-
-Detect and release all subprojects that have unreleased changes:
-
-```bash
-bash scripts/release.sh
-```
-
-The script:
-1. Computes the next semver version for each changed subproject using Conventional Commits.
-2. Releases **devflow-sdk** first (builds a wheel, creates a GitHub Release, updates the vendor wheel in `devflow/`).
-3. Releases **devflow** (bumps the Homebrew formula, tags `devflow/vX.Y.Z`).
-4. Releases **devflow-plugin-scaffold** (bumps `VERSION`, tags `devflow-plugin-scaffold/vX.Y.Z`).
-5. Syncs `homebrew-devflow/` to the standalone tap repo via `git subtree push`.
-
-To release a single subproject only, run its own release script directly:
-
-```bash
-# SDK
-(cd devflow-sdk && bash scripts/release.sh)
-
-# devflow
-(cd devflow && bash scripts/release.sh devflow)
-```
-
-## Using devflow-sdk in external repos
-
-The SDK is distributed as a wheel attached to GitHub Releases — not published to PyPI. To vendor it:
-
-```bash
-gh release download devflow-sdk/vX.Y.Z \
-  --repo captainwonderwall/devflow-platform \
-  --pattern "devflow_sdk-*.whl" \
-  --dir vendor/
-pip install vendor/devflow_sdk-*.whl
-```
-
-See [`devflow-sdk/README.md`](devflow-sdk/README.md) for the full plugin interface.
-
-## Creating a plugin
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/captainwonderwall/devflow-platform/main/devflow-plugin-scaffold/scaffold.sh | bash -s -- my-format
-```
-
-See [`devflow-plugin-scaffold/README.md`](devflow-plugin-scaffold/README.md) for full instructions.
-
-## Repository structure
-
-```
-devflow-platform/
-├── devflow/                    # main CLI
-│   ├── scripts/
-│   │   ├── release.sh          # release devflow; updates Homebrew formula
-│   │   └── update-vendor.sh    # downloads SDK wheel from GitHub Releases
-│   └── vendor/                 # vendored devflow-sdk wheel
-├── devflow-sdk/                # plugin SDK
-│   └── scripts/
-│       └── release.sh          # release SDK; attaches wheel to GitHub Release
-├── devflow-plugin-scaffold/    # plugin scaffolding tool
-│   └── scaffold.sh
-├── homebrew-devflow/           # Homebrew formulae (git subtree)
-├── scripts/
-│   ├── bootstrap.sh            # one-time dev setup
-│   └── release.sh              # top-level release orchestrator
-└── .github/
-    └── workflows/
-        └── ci.yml              # unified CI (sdk-tests, devflow-tests, scaffold-tests)
-```
+Contributor setup, tests, releases, SDK vendoring, and plugin-authoring
+details are in [`DEVELOPMENT.md`](DEVELOPMENT.md).
