@@ -70,19 +70,25 @@ class TestFilterUnresolvedPrComments(unittest.TestCase):
 
 
 class TestParseReviewThreads(unittest.TestCase):
+    def _node(self, db_id, author, body, path="a.py", line=1, typename=None):
+        node = {
+            "databaseId": db_id,
+            "author": {"login": author},
+            "body": body,
+            "path": path,
+            "line": line,
+            "url": "http://x",
+        }
+        if typename is not None:
+            node["author"]["__typename"] = typename
+        return node
+
     def _thread(self, thread_id, is_resolved, db_id, author, body,
                 path="a.py", line=1):
         return {
             "id": thread_id,
             "isResolved": is_resolved,
-            "comments": {"nodes": [{
-                "databaseId": db_id,
-                "author": {"login": author},
-                "body": body,
-                "path": path,
-                "line": line,
-                "url": "http://x",
-            }]},
+            "comments": {"nodes": [self._node(db_id, author, body, path, line)]},
         }
 
     def test_resolved_thread_excluded(self):
@@ -113,6 +119,42 @@ class TestParseReviewThreads(unittest.TestCase):
         threads = [{"id": "PRRT_4", "isResolved": False,
                     "comments": {"nodes": []}}]
         self.assertEqual(parse_review_threads(threads), [])
+
+    def test_single_node_thread_has_one_thread_entry(self):
+        threads = [self._thread("PRRT_5", False, 50, "alice", "fix this")]
+        result = parse_review_threads(threads)
+        self.assertEqual(len(result[0].thread), 1)
+        self.assertEqual(result[0].thread[0]["author"], "alice")
+        self.assertEqual(result[0].thread[0]["body"], "fix this")
+
+    def test_multi_node_thread_populates_all_entries(self):
+        thread = {
+            "id": "PRRT_6",
+            "isResolved": False,
+            "comments": {"nodes": [
+                self._node(60, "alice", "fix this"),
+                self._node(61, "phoang", "done"),
+                self._node(62, "alice", "thanks"),
+            ]},
+        }
+        result = parse_review_threads([thread])
+        self.assertEqual(len(result[0].thread), 3)
+        self.assertEqual(result[0].thread[0]["author"], "alice")
+        self.assertEqual(result[0].thread[1]["author"], "phoang")
+        self.assertEqual(result[0].thread[2]["author"], "alice")
+
+    def test_thread_entry_is_bot_flag_set(self):
+        thread = {
+            "id": "PRRT_7",
+            "isResolved": False,
+            "comments": {"nodes": [
+                self._node(70, "alice", "nit"),
+                self._node(71, "dependabot[bot]", "auto reply"),
+            ]},
+        }
+        result = parse_review_threads([thread])
+        self.assertFalse(result[0].thread[0]["is_bot"])
+        self.assertTrue(result[0].thread[1]["is_bot"])
 
 
 class TestBuildPrComments(unittest.TestCase):

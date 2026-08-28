@@ -33,6 +33,11 @@ def build_analysis_prompt(pr_title: str, pr_branch: str,
         bot_label = " [bot]" if c.is_bot else ""
         lines.append(f"- id: {c.id}, author: @{c.author}{bot_label}{loc}")
         lines.append(f"  body: {c.body[:300]}")
+        if c.thread and len(c.thread) > 1:
+            lines.append("  thread:")
+            for entry in c.thread[1:]:
+                bot_suffix = " [bot]" if entry["is_bot"] else ""
+                lines.append(f"    @{entry['author']}{bot_suffix}: {entry['body'][:300]}")
     return "\n".join(lines)
 
 

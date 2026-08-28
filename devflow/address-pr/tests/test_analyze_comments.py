@@ -11,10 +11,11 @@ from devflow_sdk.ai import AiResult
 
 
 def _make_comment(id_, author="alice", body="fix this", file=None, line=None,
-                  is_bot=False):
+                  is_bot=False, thread=None):
     return Comment(
         id=id_, kind="review_thread", author=author, is_bot=is_bot,
         body=body, file=file, line=line, url="http://x", thread_node_id=None,
+        thread=thread or [{"author": author, "body": body, "is_bot": is_bot}],
     )
 
 
@@ -61,6 +62,32 @@ class TestBuildAnalysisPrompt(unittest.TestCase):
         c = _make_comment("RC_1", file="src/auth.py", line=42)
         prompt = build_analysis_prompt("PR", "branch", [c])
         self.assertIn("read that file", prompt)
+
+    def test_single_entry_thread_shows_no_reply_section(self):
+        c = _make_comment("RC_1", author="alice", body="fix this",
+                          thread=[{"author": "alice", "body": "fix this", "is_bot": False}])
+        prompt = build_analysis_prompt("PR", "branch", [c])
+        self.assertNotIn("  reply", prompt.lower())
+
+    def test_multi_entry_thread_includes_all_replies_in_prompt(self):
+        thread = [
+            {"author": "alice", "body": "change the name", "is_bot": False},
+            {"author": "phoang", "body": "I disagree, it's clear", "is_bot": False},
+            {"author": "alice", "body": "ok fair enough", "is_bot": False},
+        ]
+        c = _make_comment("RC_2", author="alice", body="change the name", thread=thread)
+        prompt = build_analysis_prompt("PR", "branch", [c])
+        self.assertIn("I disagree, it's clear", prompt)
+        self.assertIn("ok fair enough", prompt)
+
+    def test_thread_replies_show_author_names(self):
+        thread = [
+            {"author": "alice", "body": "fix this", "is_bot": False},
+            {"author": "phoang", "body": "no need", "is_bot": False},
+        ]
+        c = _make_comment("RC_3", author="alice", body="fix this", thread=thread)
+        prompt = build_analysis_prompt("PR", "branch", [c])
+        self.assertIn("phoang", prompt)
 
 
 class TestAnalyzeComments(unittest.TestCase):

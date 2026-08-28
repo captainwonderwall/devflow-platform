@@ -17,6 +17,7 @@ class Comment:
     line: Optional[int]
     url: str
     thread_node_id: Optional[str] # GraphQL node ID — for resolveReviewThread
+    thread: List[dict] = None     # ordered list of {author, body, is_bot} for all thread nodes
     verdict: Optional[str] = None # "VALID" | "INVALID"
     reason: Optional[str] = None
     reply_text: Optional[str] = None
@@ -60,6 +61,11 @@ def parse_review_threads(threads: list) -> List[Comment]:
         if not nodes:
             continue
         node = nodes[0]
+        thread_entries = [
+            {"author": n["author"]["login"], "body": n["body"],
+             "is_bot": _author_is_bot(n["author"])}
+            for n in nodes
+        ]
         result.append(Comment(
             id=str(node["databaseId"]),
             kind="review_thread",
@@ -70,6 +76,7 @@ def parse_review_threads(threads: list) -> List[Comment]:
             line=node["line"],
             url=node["url"],
             thread_node_id=t["id"],
+            thread=thread_entries,
         ))
     return result
 
@@ -125,7 +132,7 @@ def _fetch_review_threads_raw(owner: str, repo: str, pr_number: int) -> list:
         "repository(owner:$owner,name:$repo){"
         "pullRequest(number:$number){"
         "reviewThreads(first:100){nodes{"
-        "id isResolved comments(first:1){nodes{"
+        "id isResolved comments(first:50){nodes{"
         "databaseId author{login __typename} body path line url"
         "}}}}}}}"
     )
