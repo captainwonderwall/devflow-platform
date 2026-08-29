@@ -337,7 +337,24 @@ class TestMainIssueContextWriting(unittest.TestCase):
         mock_write.assert_called_once_with("/fake/worktree", issue)
 
     def test_write_issue_context_not_called_when_no_worktree(self):
-        mock_write = self._run_main(None, self._github_issue())
+        issue = self._github_issue()
+        with patch("sys.argv", ["start-issue", "42"]), \
+             patch("atexit.register"), \
+             patch("start_issue.fetch", return_value=issue), \
+             patch("start_issue.run_ai_prompt", return_value=_ai_result("feat")), \
+             patch("start_issue.check_worktrunk"), \
+             patch("start_issue.check_shell_function"), \
+             patch("start_issue.get_repo_root", return_value="/fake/root"), \
+             patch("start_issue.detect_and_write_config"), \
+             patch("start_issue.create_worktree", return_value=None), \
+             patch("start_issue.copy_ide_config"), \
+             patch("start_issue.prompt_and_open_ai_agent"), \
+             patch("start_issue._persist_branch_for_shell"), \
+             patch("start_issue.add_worktree"), \
+             patch("start_issue.write_issue_context") as mock_write, \
+             patch.object(start_issue.summary, "start_rate_fetch"), \
+             patch.object(start_issue.summary, "add"):
+            start_issue.main()
         mock_write.assert_not_called()
 
 
