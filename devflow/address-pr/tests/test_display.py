@@ -47,7 +47,7 @@ def _make_comment(author="alice", is_bot=False, kind="review_thread",
 
 
 class TestPromptSelection(unittest.TestCase):
-    @patch("devflow_sdk.prompts.questionary.checkbox")
+    @patch("devflow_sdk.core.prompts.questionary.checkbox")
     def test_returns_indices_on_valid_submission(self, mock_checkbox):
         mock_checkbox.return_value.ask.return_value = ["1"]
         from display import prompt_selection
@@ -55,7 +55,7 @@ class TestPromptSelection(unittest.TestCase):
         result = prompt_selection(comments)
         self.assertEqual(result, [0])
 
-    @patch("devflow_sdk.prompts.questionary.checkbox")
+    @patch("devflow_sdk.core.prompts.questionary.checkbox")
     def test_all_resolves_to_every_index(self, mock_checkbox):
         mock_checkbox.return_value.ask.return_value = ["all"]
         from display import prompt_selection
@@ -64,7 +64,7 @@ class TestPromptSelection(unittest.TestCase):
         self.assertEqual(result, [0, 1, 2])
 
     @patch("builtins.print")
-    @patch("devflow_sdk.prompts.questionary.checkbox")
+    @patch("devflow_sdk.core.prompts.questionary.checkbox")
     def test_ctrl_c_returns_none_immediately(self, mock_checkbox, mock_print):
         mock_checkbox.return_value.ask.return_value = None
         from display import prompt_selection
@@ -73,7 +73,7 @@ class TestPromptSelection(unittest.TestCase):
         self.assertIsNone(result)
         mock_checkbox.return_value.ask.assert_called_once()
 
-    @patch("devflow_sdk.prompts.questionary.checkbox")
+    @patch("devflow_sdk.core.prompts.questionary.checkbox")
     def test_choice_labels_include_author_and_location(self, mock_checkbox):
         mock_checkbox.return_value.ask.return_value = ["1"]
         from display import prompt_selection
@@ -86,7 +86,7 @@ class TestPromptSelection(unittest.TestCase):
         self.assertIn("all", choice_titles)
         self.assertNotIn("none", choice_titles)
 
-    @patch("devflow_sdk.prompts.questionary.checkbox")
+    @patch("devflow_sdk.core.prompts.questionary.checkbox")
     def test_pr_comment_location_label(self, mock_checkbox):
         mock_checkbox.return_value.ask.return_value = ["1"]
         from display import prompt_selection
@@ -96,7 +96,7 @@ class TestPromptSelection(unittest.TestCase):
         choice_titles = [c.title for c in kwargs["choices"]]
         self.assertIn("[1] @alice — PR comment", choice_titles)
 
-    @patch("devflow_sdk.prompts.questionary.checkbox")
+    @patch("devflow_sdk.core.prompts.questionary.checkbox")
     def test_review_body_location_label(self, mock_checkbox):
         mock_checkbox.return_value.ask.return_value = ["1"]
         from display import prompt_selection

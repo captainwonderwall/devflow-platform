@@ -2,7 +2,7 @@ import json
 import pytest
 from pathlib import Path
 
-from devflow_sdk.config import (
+from devflow_sdk.core.config import (
     DevflowConfig,
     GlobalConfig,
     ModelConfig,
@@ -10,7 +10,7 @@ from devflow_sdk.config import (
     save_config,
     merge_config,
 )
-from devflow_sdk.config.io import repair_config
+from devflow_sdk.core.config.io import repair_config
 
 
 def test_save_config_creates_valid_json(tmp_path):

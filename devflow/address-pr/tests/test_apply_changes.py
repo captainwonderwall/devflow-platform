@@ -12,8 +12,8 @@ from importlib import import_module
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 apply_changes_mod = import_module("apply_changes")
 from fetch_comments import Comment
-from devflow_sdk.ai import AiResult
-from devflow_sdk.config import DevflowConfig, GlobalConfig
+from devflow_sdk.core.ai import AiResult
+from devflow_sdk.core.config import DevflowConfig, GlobalConfig
 
 
 def _mock_result(returncode=0, stdout="", stderr=""):

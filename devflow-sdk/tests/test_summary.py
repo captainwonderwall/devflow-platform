@@ -1,7 +1,7 @@
 
 
-from devflow_sdk.summary import Summary
-from devflow_sdk.ai_providers.claude_provider import ClaudeProvider
+from devflow_sdk.core.summary import Summary
+from devflow_sdk.core.ai.providers.claude_provider import ClaudeProvider
 
 _CLAUDE = ClaudeProvider.pricing
 
@@ -112,6 +112,6 @@ def test_all_rows_same_width(capsys):
 
 
 def test_module_singleton_shares_cost_accumulator():
-    from devflow_sdk.summary import summary
-    from devflow_sdk.cost import accumulator
+    from devflow_sdk.core.summary import summary
+    from devflow_sdk.core.cost import accumulator
     assert summary._cost is accumulator

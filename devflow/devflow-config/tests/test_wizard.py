@@ -15,15 +15,15 @@ _spec = importlib.util.spec_from_file_location(
 devflow_config = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(devflow_config)
 
-from devflow_sdk.config.wizard.global_steps import ModelsStep, ProviderStep
-from devflow_sdk.config.wizard.tools import ALL_TOOL_STEPS
-from devflow_sdk.config.wizard.tools.draft_pr import DraftPrWizardStep
+from devflow_sdk.core.config.wizard.global_steps import ModelsStep, ProviderStep
+from devflow_sdk.core.config.wizard.tools import ALL_TOOL_STEPS
+from devflow_sdk.core.config.wizard.tools.draft_pr import DraftPrWizardStep
 
 
 # ── entry point ───────────────────────────────────────────────────────────────
 
 def test_main_calls_run_wizard_with_correct_steps(capsys):
-    from devflow_sdk.config.schema import DevflowConfig
+    from devflow_sdk.core.config.schema import DevflowConfig
     with patch.object(devflow_config, "run_wizard", return_value=DevflowConfig()) as mock_wizard:
         devflow_config.main()
 
@@ -35,7 +35,7 @@ def test_main_calls_run_wizard_with_correct_steps(capsys):
 
 
 def test_main_prints_save_confirmation(capsys):
-    from devflow_sdk.config.schema import DevflowConfig
+    from devflow_sdk.core.config.schema import DevflowConfig
     with patch.object(devflow_config, "run_wizard", return_value=DevflowConfig()):
         devflow_config.main()
 
@@ -99,7 +99,7 @@ def test_main_still_runs_wizard_after_repair(tmp_path):
     config_path = tmp_path / "config.json"
     config_path.write_text('{"global": {"models": {"turbo": {"name": "x"}}}, "tools": {}}')
 
-    from devflow_sdk.config.schema import DevflowConfig
+    from devflow_sdk.core.config.schema import DevflowConfig
     with patch.object(devflow_config, "CONFIG_PATH", config_path), \
          patch.object(devflow_config, "run_wizard", return_value=DevflowConfig()) as mock_wiz:
         devflow_config.main()
@@ -108,7 +108,7 @@ def test_main_still_runs_wizard_after_repair(tmp_path):
 
 
 def test_main_copies_opencode_config_and_updates_both_shells(tmp_path):
-    from devflow_sdk.config.schema import DevflowConfig, GlobalConfig
+    from devflow_sdk.core.config.schema import DevflowConfig, GlobalConfig
 
     home = tmp_path / "home"
 
@@ -132,7 +132,7 @@ def test_main_copies_opencode_config_and_updates_both_shells(tmp_path):
 
 
 def test_main_updates_existing_opencode_shell_block_idempotently(tmp_path):
-    from devflow_sdk.config.schema import DevflowConfig, GlobalConfig
+    from devflow_sdk.core.config.schema import DevflowConfig, GlobalConfig
 
     home = tmp_path / "home"
     old_block = (

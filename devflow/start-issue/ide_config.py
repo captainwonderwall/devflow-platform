@@ -4,8 +4,8 @@ import shutil
 import subprocess
 import sys
 
-from devflow_sdk.prompts import select, Choice
-from devflow_sdk.ai import launch_interactive_session
+from devflow_sdk.core.prompts import select, Choice
+from devflow_sdk.core.ai import launch_interactive_session
 
 IDE_CONFIG_FOLDERS = (".idea", ".vscode")
 

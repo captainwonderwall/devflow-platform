@@ -1,5 +1,5 @@
-from devflow_sdk.ai_providers.base import AiProvider, AiResult
-from devflow_sdk.config import GlobalConfig, ModelConfig
+from devflow_sdk.core.ai.providers.base import AiProvider, AiResult
+from devflow_sdk.core.config import GlobalConfig, ModelConfig
 
 
 def test_ai_provider_is_abstract():
@@ -13,7 +13,7 @@ def test_ai_result_defaults_total_tokens_to_zero():
     assert result.total_tokens == 0
 
 
-from devflow_sdk.ai_providers.claude_provider import ClaudeProvider
+from devflow_sdk.core.ai.providers.claude_provider import ClaudeProvider
 
 
 def test_claude_build_command_basic():
@@ -97,7 +97,7 @@ def test_claude_parse_output_nonzero_returncode_still_captures_usage():
 
 
 import json
-from devflow_sdk.ai_providers.opencode_provider import OpenCodeProvider
+from devflow_sdk.core.ai.providers.opencode_provider import OpenCodeProvider
 
 
 def test_opencode_build_command_basic():
@@ -228,7 +228,7 @@ def test_opencode_parse_output_nonzero_returncode():
 
 
 import pytest
-from devflow_sdk.ai_providers import get_provider
+from devflow_sdk.core.ai.providers import get_provider
 
 
 def test_get_provider_claude():
@@ -247,7 +247,7 @@ def test_get_provider_unknown_raises_with_valid_names_listed():
 
 
 def test_parse_provider_output_non_dict_json_array_does_not_raise():
-    from devflow_sdk.ai_providers.base import parse_provider_output
+    from devflow_sdk.core.ai.providers.base import parse_provider_output
     result = parse_provider_output("[]", "", 0, "claude-haiku-4-5",
                                     provider_label="Claude", as_json=True)
     assert result.ok is False

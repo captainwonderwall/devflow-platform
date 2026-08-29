@@ -10,6 +10,13 @@ dev:
 test:
     uv run --extra dev pytest
 
+# Check import boundaries
+lint-imports:
+    uv run --extra dev lint-imports
+
+# Run all checks
+check: test lint-imports
+
 # Build wheel
 build:
     uv build --wheel

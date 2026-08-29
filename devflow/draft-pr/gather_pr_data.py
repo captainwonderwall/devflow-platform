@@ -10,7 +10,7 @@ _VENDOR_DIR = os.path.join(os.path.dirname(_SCRIPT_DIR), "vendor")
 for _whl in sorted(_glob.glob(os.path.join(_VENDOR_DIR, "*.whl"))):
     sys.path.insert(0, _whl)
 
-from devflow_sdk.branch_name import parse_branch
+from devflow_sdk.core.branch_name import parse_branch
 
 FIX_PREFIXES = {"fix", "bugfix", "hotfix"}
 

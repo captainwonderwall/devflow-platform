@@ -4,9 +4,9 @@ from io import BytesIO
 from unittest.mock import patch
 
 
-from devflow_sdk.cost import CostAccumulator
-from devflow_sdk.ai_providers.claude_provider import ClaudeProvider
-from devflow_sdk.ai_providers.opencode_provider import OpenCodeProvider
+from devflow_sdk.core.cost import CostAccumulator
+from devflow_sdk.core.ai.providers.claude_provider import ClaudeProvider
+from devflow_sdk.core.ai.providers.opencode_provider import OpenCodeProvider
 
 _CLAUDE = ClaudeProvider.pricing
 _OPENCODE = OpenCodeProvider.pricing
@@ -93,7 +93,7 @@ def test_fetch_rate_sets_browser_user_agent_and_relaxed_ssl():
         def __exit__(self, *args):
             return False
 
-    with patch("devflow_sdk.cost.urllib.request.urlopen") as mock_urlopen:
+    with patch("devflow_sdk.core.cost.urllib.request.urlopen") as mock_urlopen:
         mock_urlopen.return_value = _CtxManager()
 
         acc = CostAccumulator()
@@ -113,7 +113,7 @@ def test_fetch_rate_sets_browser_user_agent_and_relaxed_ssl():
 
 
 def test_fetch_rate_handles_failure():
-    with patch("devflow_sdk.cost.urllib.request.urlopen", side_effect=OSError("blocked")):
+    with patch("devflow_sdk.core.cost.urllib.request.urlopen", side_effect=OSError("blocked")):
         acc = CostAccumulator()
         acc._fetch_rate()
         assert acc._cad_rate is None

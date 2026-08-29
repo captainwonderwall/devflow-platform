@@ -19,10 +19,10 @@ from analyze_comments import analyze_comments
 from display import display_comments, prompt_selection
 from apply_changes import apply_changes
 from post_replies import generate_reply_texts, confirm_and_post_replies
-from devflow_sdk.summary import summary
-from devflow_sdk.ticket_info import check_gh
-from devflow_sdk.prompts import confirm
-from devflow_sdk.ai import configured_provider_display_name
+from devflow_sdk.core.summary import summary
+from devflow_sdk.domain.issue import check_gh
+from devflow_sdk.core.prompts import confirm
+from devflow_sdk.core.ai import configured_provider_display_name
 
 
 def parse_args():

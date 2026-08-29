@@ -7,7 +7,7 @@ _HERE = os.path.dirname(__file__)
 sys.path.insert(0, os.path.join(_HERE, ".."))
 
 from repo_init import has_wt_config, detect_and_write_config
-from devflow_sdk.ai import AiResult
+from devflow_sdk.core.ai import AiResult
 
 WT_CONFIG = ".config/wt.toml"
 

@@ -3,8 +3,8 @@ import pytest
 from pathlib import Path
 from unittest.mock import patch, MagicMock
 
-from devflow_sdk.config import DevflowConfig, GlobalConfig
-from devflow_sdk.config.wizard import WizardStep, run_wizard
+from devflow_sdk.core.config import DevflowConfig, GlobalConfig
+from devflow_sdk.core.config.wizard import WizardStep, run_wizard
 
 
 class _ProviderSwitchStep(WizardStep):
@@ -50,14 +50,14 @@ def test_run_wizard_calls_steps_in_order(tmp_path):
 def test_run_wizard_saves_final_config(tmp_path):
     config_path = tmp_path / "config.json"
     run_wizard([_ProviderSwitchStep()], path=config_path)
-    from devflow_sdk.config import load_config
+    from devflow_sdk.core.config import load_config
     result = load_config(path=config_path)
     assert result.global_config.ai_provider == "opencode"
 
 
 def test_run_wizard_loads_existing_config(tmp_path):
     config_path = tmp_path / "config.json"
-    from devflow_sdk.config import save_config
+    from devflow_sdk.core.config import save_config
     save_config(
         DevflowConfig(global_config=GlobalConfig(ai_provider="opencode")),
         path=config_path,
@@ -114,10 +114,10 @@ def test_wizard_step_schema_cls_defaults_to_none():
 
 
 def test_draft_pr_wizard_step_tool_name():
-    from devflow_sdk.config.wizard.tools.draft_pr import DraftPrWizardStep
+    from devflow_sdk.core.config.wizard.tools.draft_pr import DraftPrWizardStep
     assert DraftPrWizardStep.tool_name == "draft-pr"
 
 
 def test_draft_pr_wizard_step_schema_cls():
-    from devflow_sdk.config.wizard.tools.draft_pr import DraftPrWizardStep, DraftPrConfig
+    from devflow_sdk.core.config.wizard.tools.draft_pr import DraftPrWizardStep, DraftPrConfig
     assert DraftPrWizardStep.schema_cls is DraftPrConfig

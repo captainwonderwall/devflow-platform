@@ -3,10 +3,10 @@ import shutil
 from datetime import datetime
 from pathlib import Path
 
-from devflow_sdk.config.io import CONFIG_PATH, load_config, load_tool_config, repair_config
-from devflow_sdk.config.wizard import run_wizard
-from devflow_sdk.config.wizard.global_steps import ModelsStep, ProviderStep
-from devflow_sdk.config.wizard.tools import ALL_TOOL_STEPS
+from devflow_sdk.core.config.io import CONFIG_PATH, load_config, load_tool_config, repair_config
+from devflow_sdk.core.config.wizard import run_wizard
+from devflow_sdk.core.config.wizard.global_steps import ModelsStep, ProviderStep
+from devflow_sdk.core.config.wizard.tools import ALL_TOOL_STEPS
 
 
 def _config_is_valid(tool_registry: dict) -> bool:

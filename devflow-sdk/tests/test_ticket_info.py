@@ -2,7 +2,7 @@ import json
 import pytest
 from unittest.mock import patch, MagicMock
 
-from devflow_sdk.ticket_info import fetch, fetch_github_issue
+from devflow_sdk.domain.issue.ticket_info import fetch, fetch_github_issue
 
 _JIRA_ISSUE = {
     "source": "jira", "id": "VDP-46625",
@@ -17,14 +17,14 @@ _GH_ISSUE = {
 
 
 def test_jira_key_dispatches_to_fetch_jira():
-    with patch("devflow_sdk.ticket_info.fetch_jira_ticket", return_value=_JIRA_ISSUE) as mock:
+    with patch("devflow_sdk.domain.issue.ticket_info.fetch_jira_ticket", return_value=_JIRA_ISSUE) as mock:
         result = fetch("VDP-46625")
     mock.assert_called_once_with("VDP-46625")
     assert result["source"] == "jira"
 
 
 def test_numeric_string_dispatches_to_fetch_github():
-    with patch("devflow_sdk.ticket_info.fetch_github_issue", return_value=_GH_ISSUE) as mock:
+    with patch("devflow_sdk.domain.issue.ticket_info.fetch_github_issue", return_value=_GH_ISSUE) as mock:
         result = fetch("42")
     mock.assert_called_once_with(42)
     assert result["source"] == "github"
@@ -41,7 +41,7 @@ def test_lowercase_jira_key_treated_as_invalid():
 
 
 def test_multi_project_jira_key_dispatches_correctly():
-    with patch("devflow_sdk.ticket_info.fetch_jira_ticket", return_value=_JIRA_ISSUE) as mock:
+    with patch("devflow_sdk.domain.issue.ticket_info.fetch_jira_ticket", return_value=_JIRA_ISSUE) as mock:
         fetch("CONS-123")
     mock.assert_called_once_with("CONS-123")
 
@@ -61,7 +61,7 @@ def test_github_issue_includes_url():
         "labels": [],
         "url": "https://github.com/owner/repo/issues/42",
     })
-    with patch("devflow_sdk.ticket_info.check_gh"), \
+    with patch("devflow_sdk.domain.issue.ticket_info.check_gh"), \
          patch("subprocess.run", return_value=proc):
         result = fetch_github_issue(42)
     assert result["url"] == "https://github.com/owner/repo/issues/42"

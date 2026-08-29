@@ -1,8 +1,8 @@
 from unittest.mock import patch
 
-from devflow_sdk.config import DevflowConfig, GlobalConfig, ModelConfig
-from devflow_sdk.config.wizard.global_steps import ProviderStep, ModelsStep
-from devflow_sdk.config.wizard.tools.model_discovery import OTHER_SENTINEL
+from devflow_sdk.core.config import DevflowConfig, GlobalConfig, ModelConfig
+from devflow_sdk.core.config.wizard.global_steps import ProviderStep, ModelsStep
+from devflow_sdk.core.config.wizard.tools.model_discovery import OTHER_SENTINEL
 
 
 def make_config(provider="claude", models=None):
@@ -25,21 +25,21 @@ class TestProviderStep:
         step = ProviderStep()
         current = make_config(provider="claude")
         # select() returns "opencode" — simulate user choosing opencode
-        with patch("devflow_sdk.config.wizard.global_steps.select", return_value="opencode"):
+        with patch("devflow_sdk.core.config.wizard.global_steps.select", return_value="opencode"):
             result = step.run(current)
         assert result.global_config.ai_provider == "opencode"
 
     def test_preserves_provider_when_unchanged(self):
         step = ProviderStep()
         current = make_config(provider="opencode")
-        with patch("devflow_sdk.config.wizard.global_steps.select", return_value="opencode"):
+        with patch("devflow_sdk.core.config.wizard.global_steps.select", return_value="opencode"):
             result = step.run(current)
         assert result.global_config.ai_provider == "opencode"
 
     def test_other_fields_untouched(self):
         step = ProviderStep()
         current = make_config(provider="claude")
-        with patch("devflow_sdk.config.wizard.global_steps.select", return_value="opencode"):
+        with patch("devflow_sdk.core.config.wizard.global_steps.select", return_value="opencode"):
             result = step.run(current)
         assert result.global_config.models == current.global_config.models
         assert result.tools == current.tools
@@ -53,10 +53,10 @@ class TestModelsStep:
         step = ModelsStep()
         current = make_config()
         with (
-            patch("devflow_sdk.config.wizard.global_steps.checkbox", return_value=["fast"]),
-            patch("devflow_sdk.config.wizard.global_steps.fetch_catalog", return_value=None),
-            patch("devflow_sdk.config.wizard.global_steps.select", return_value="new-haiku"),
-            patch("devflow_sdk.config.wizard.global_steps.text", side_effect=["0.8", "4.0", "0.08", "1.0"]),
+            patch("devflow_sdk.core.config.wizard.global_steps.checkbox", return_value=["fast"]),
+            patch("devflow_sdk.core.config.wizard.global_steps.fetch_catalog", return_value=None),
+            patch("devflow_sdk.core.config.wizard.global_steps.select", return_value="new-haiku"),
+            patch("devflow_sdk.core.config.wizard.global_steps.text", side_effect=["0.8", "4.0", "0.08", "1.0"]),
         ):
             result = step.run(current)
         assert result.global_config.models["fast"].name == "new-haiku"
@@ -65,10 +65,10 @@ class TestModelsStep:
         step = ModelsStep()
         current = make_config()
         with (
-            patch("devflow_sdk.config.wizard.global_steps.checkbox", return_value=["capable"]),
-            patch("devflow_sdk.config.wizard.global_steps.fetch_catalog", return_value=None),
-            patch("devflow_sdk.config.wizard.global_steps.select", return_value="new-sonnet"),
-            patch("devflow_sdk.config.wizard.global_steps.text", side_effect=["3.0", "15.0", "0.3", "3.75"]),
+            patch("devflow_sdk.core.config.wizard.global_steps.checkbox", return_value=["capable"]),
+            patch("devflow_sdk.core.config.wizard.global_steps.fetch_catalog", return_value=None),
+            patch("devflow_sdk.core.config.wizard.global_steps.select", return_value="new-sonnet"),
+            patch("devflow_sdk.core.config.wizard.global_steps.text", side_effect=["3.0", "15.0", "0.3", "3.75"]),
         ):
             result = step.run(current)
         assert result.global_config.models["fast"].name == "haiku"
@@ -77,7 +77,7 @@ class TestModelsStep:
     def test_no_tiers_selected_leaves_models_unchanged(self):
         step = ModelsStep()
         current = make_config()
-        with patch("devflow_sdk.config.wizard.global_steps.checkbox", return_value=[]):
+        with patch("devflow_sdk.core.config.wizard.global_steps.checkbox", return_value=[]):
             result = step.run(current)
         assert result.global_config.models == current.global_config.models
 
@@ -85,10 +85,10 @@ class TestModelsStep:
         step = ModelsStep()
         current = make_config(models={"fast": ModelConfig(name="haiku")})
         with (
-            patch("devflow_sdk.config.wizard.global_steps.checkbox", return_value=["fast"]),
-            patch("devflow_sdk.config.wizard.global_steps.fetch_catalog", return_value=None),
-            patch("devflow_sdk.config.wizard.global_steps.select", return_value="haiku"),
-            patch("devflow_sdk.config.wizard.global_steps.text", side_effect=["0.8", "4.0", "0.08", "1.0"]),
+            patch("devflow_sdk.core.config.wizard.global_steps.checkbox", return_value=["fast"]),
+            patch("devflow_sdk.core.config.wizard.global_steps.fetch_catalog", return_value=None),
+            patch("devflow_sdk.core.config.wizard.global_steps.select", return_value="haiku"),
+            patch("devflow_sdk.core.config.wizard.global_steps.text", side_effect=["0.8", "4.0", "0.08", "1.0"]),
         ):
             result = step.run(current)
         pricing = result.global_config.models["fast"].pricing
@@ -102,10 +102,10 @@ class TestModelsStep:
         step = ModelsStep()
         current = make_config(models={"fast": ModelConfig(name="haiku")})
         with (
-            patch("devflow_sdk.config.wizard.global_steps.checkbox", return_value=["fast"]),
-            patch("devflow_sdk.config.wizard.global_steps.fetch_catalog", return_value=None),
-            patch("devflow_sdk.config.wizard.global_steps.select", return_value=OTHER_SENTINEL),
-            patch("devflow_sdk.config.wizard.global_steps.text", side_effect=["custom-model", "1.0", "5.0", "0.1", "1.25"]),
+            patch("devflow_sdk.core.config.wizard.global_steps.checkbox", return_value=["fast"]),
+            patch("devflow_sdk.core.config.wizard.global_steps.fetch_catalog", return_value=None),
+            patch("devflow_sdk.core.config.wizard.global_steps.select", return_value=OTHER_SENTINEL),
+            patch("devflow_sdk.core.config.wizard.global_steps.text", side_effect=["custom-model", "1.0", "5.0", "0.1", "1.25"]),
         ):
             result = step.run(current)
         assert result.global_config.models["fast"].name == "custom-model"
@@ -121,11 +121,11 @@ class TestModelsStep:
             }
         }
         with (
-            patch("devflow_sdk.config.wizard.global_steps.checkbox", return_value=["fast"]),
-            patch("devflow_sdk.config.wizard.global_steps.fetch_catalog", return_value=catalog),
-            patch("devflow_sdk.config.wizard.global_steps.select", return_value="claude-haiku-4-5"),
+            patch("devflow_sdk.core.config.wizard.global_steps.checkbox", return_value=["fast"]),
+            patch("devflow_sdk.core.config.wizard.global_steps.fetch_catalog", return_value=catalog),
+            patch("devflow_sdk.core.config.wizard.global_steps.select", return_value="claude-haiku-4-5"),
             # User confirms pre-filled defaults by entering the same values
-            patch("devflow_sdk.config.wizard.global_steps.text", side_effect=["1.0", "5.0", "0.1", "1.25"]),
+            patch("devflow_sdk.core.config.wizard.global_steps.text", side_effect=["1.0", "5.0", "0.1", "1.25"]),
         ):
             result = step.run(current)
         pricing = result.global_config.models["fast"].pricing
@@ -138,10 +138,10 @@ class TestModelsStep:
         step = ModelsStep()
         current = make_config(models={"fast": ModelConfig(name="haiku")})
         with (
-            patch("devflow_sdk.config.wizard.global_steps.checkbox", return_value=["fast"]),
-            patch("devflow_sdk.config.wizard.global_steps.fetch_catalog", return_value=None),
-            patch("devflow_sdk.config.wizard.global_steps.select", return_value="haiku"),
-            patch("devflow_sdk.config.wizard.global_steps.text", side_effect=["abc", "0.8", "4.0", "0.08", "1.0"]),
+            patch("devflow_sdk.core.config.wizard.global_steps.checkbox", return_value=["fast"]),
+            patch("devflow_sdk.core.config.wizard.global_steps.fetch_catalog", return_value=None),
+            patch("devflow_sdk.core.config.wizard.global_steps.select", return_value="haiku"),
+            patch("devflow_sdk.core.config.wizard.global_steps.text", side_effect=["abc", "0.8", "4.0", "0.08", "1.0"]),
             patch("builtins.print"),
         ):
             result = step.run(current)
@@ -152,10 +152,10 @@ class TestModelsStep:
         step = ModelsStep()
         current = make_config(models={"fast": ModelConfig(name="haiku", pricing=existing_pricing)})
         with (
-            patch("devflow_sdk.config.wizard.global_steps.checkbox", return_value=["fast"]),
-            patch("devflow_sdk.config.wizard.global_steps.fetch_catalog", return_value=None),
-            patch("devflow_sdk.config.wizard.global_steps.select", return_value="haiku"),
-            patch("devflow_sdk.config.wizard.global_steps.text", side_effect=["0.8", "4.0", "0.08", ""]),
+            patch("devflow_sdk.core.config.wizard.global_steps.checkbox", return_value=["fast"]),
+            patch("devflow_sdk.core.config.wizard.global_steps.fetch_catalog", return_value=None),
+            patch("devflow_sdk.core.config.wizard.global_steps.select", return_value="haiku"),
+            patch("devflow_sdk.core.config.wizard.global_steps.text", side_effect=["0.8", "4.0", "0.08", ""]),
             patch("builtins.print"),
         ):
             result = step.run(current)

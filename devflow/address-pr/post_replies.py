@@ -13,8 +13,8 @@ VENDOR_DIR = os.path.join(REPO_ROOT, "vendor")
 import glob as _glob
 for _whl in sorted(_glob.glob(os.path.join(VENDOR_DIR, "*.whl"))):
     sys.path.insert(0, _whl)
-from devflow_sdk.ai import configured_provider_display_name, run_ai_prompt
-from devflow_sdk.prompts import select
+from devflow_sdk.core.ai import configured_provider_display_name, run_ai_prompt
+from devflow_sdk.core.prompts import select
 
 
 def _edit_in_editor(text: str) -> str:
