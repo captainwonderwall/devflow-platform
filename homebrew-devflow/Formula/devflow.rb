@@ -45,7 +45,7 @@ class Devflow < Formula
     %w[draft-pr address-pr squash-commits finish-issue start-issue].each do |tool|
       (bin/tool).write <<~BASH
         #!/bin/bash
-        export PYTHONPATH="#{libexec}/plugin-manager:#{python_packages}${PYTHONPATH:+:$PYTHONPATH}"
+        export PYTHONPATH="#{python_packages}${PYTHONPATH:+:$PYTHONPATH}"
         exec python3 "#{libexec}/#{tool}/#{tool}.py" "$@"
       BASH
       (bin/tool).chmod 0755
@@ -53,14 +53,14 @@ class Devflow < Formula
 
     (bin/"devflow-plugin").write <<~BASH
       #!/bin/bash
-      export PYTHONPATH="#{libexec}/plugin-manager:#{python_packages}${PYTHONPATH:+:$PYTHONPATH}"
-      exec python3 "#{libexec}/plugin-manager/plugin_loader.py" "$@"
+      export PYTHONPATH="#{python_packages}${PYTHONPATH:+:$PYTHONPATH}"
+      exec python3 -m devflow_sdk.core.plugin.cli "$@"
     BASH
     (bin/"devflow-plugin").chmod 0755
 
     (bin/"devflow-config").write <<~BASH
       #!/bin/bash
-      export PYTHONPATH="#{libexec}/plugin-manager:#{python_packages}${PYTHONPATH:+:$PYTHONPATH}"
+      export PYTHONPATH="#{python_packages}${PYTHONPATH:+:$PYTHONPATH}"
       exec python3 "#{libexec}/devflow-config/devflow-config.py" "$@"
     BASH
     (bin/"devflow-config").chmod 0755
