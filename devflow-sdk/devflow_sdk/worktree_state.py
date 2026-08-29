@@ -25,8 +25,8 @@ def _load_raw(state_path: Path) -> list[dict]:
         if isinstance(data, dict):
             entries = data.get("worktrees", [])
             if isinstance(entries, list):
-                return entries
-    except (json.JSONDecodeError, OSError):
+                return [e for e in entries if isinstance(e, dict)]
+    except Exception:
         pass
     return []
 
@@ -49,11 +49,12 @@ def _save_raw(entries: list[dict], state_path: Path) -> None:
 
 def _parse_entry(raw: dict) -> WorktreeEntry | None:
     try:
-        return WorktreeEntry(
-            path=raw["path"],
-            ticket_id=raw["ticket_id"],
-            source=raw["source"],
-        )
+        path = raw["path"]
+        ticket_id = raw["ticket_id"]
+        source = raw["source"]
+        if not isinstance(path, str) or not isinstance(ticket_id, str) or not isinstance(source, str):
+            return None
+        return WorktreeEntry(path=path, ticket_id=ticket_id, source=source)
     except (KeyError, TypeError):
         return None
 
@@ -87,7 +88,7 @@ def remove_worktree(path: str, *, state_path: Path | None = None) -> None:
         print(f"[devflow] Warning: could not update worktree state: {e}", file=sys.stderr)
 
 
-def list_worktrees(
+def list_tracked_worktrees(
     *,
     purge_stale: bool = True,
     state_path: Path | None = None,
@@ -99,7 +100,10 @@ def list_worktrees(
         if purge_stale:
             live = [e for e in entries if Path(e.path).is_dir()]
             if len(live) != len(entries):
-                _save_raw([asdict(e) for e in live], target)
+                try:
+                    _save_raw([asdict(e) for e in live], target)
+                except Exception as save_err:
+                    print(f"[devflow] Warning: could not purge stale worktree state: {save_err}", file=sys.stderr)
             return live
         return entries
     except Exception as e:

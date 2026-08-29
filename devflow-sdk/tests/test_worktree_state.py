@@ -7,7 +7,7 @@ from unittest.mock import patch
 from devflow_sdk.worktree_state import (
     WorktreeEntry,
     add_worktree,
-    list_worktrees,
+    list_tracked_worktrees,
     remove_worktree,
 )
 
@@ -50,10 +50,25 @@ class TestAddWorktree(unittest.TestCase):
         self.assertEqual(len(entries), 1)
 
     def test_prints_warning_on_unwritable_path(self):
-        unwritable = Path("/no/such/dir/state.json")
+        blocker = Path(self._tmp.name) / "blocker"
+        blocker.write_text("")                      # a file, not a dir
+        unwritable = blocker / "state.json"         # mkdir -> NotADirectoryError
         with patch("sys.stderr") as mock_err:
             add_worktree("/repos/feat-42", "42", "github", state_path=unwritable)
         mock_err.write.assert_called()
+
+    def test_recovers_from_partially_malformed_entries(self):
+        # Write state with one valid and one invalid entry
+        self._state_path.write_text(json.dumps({"worktrees": [
+            {"path": "/repos/valid", "ticket_id": "1", "source": "github"},
+            "not_a_dict",
+        ]}))
+        add_worktree("/repos/new", "2", "github", state_path=self._state_path)
+        entries = self._load()
+        paths = [e["path"] for e in entries]
+        self.assertIn("/repos/valid", paths)
+        self.assertIn("/repos/new", paths)
+        self.assertNotIn("not_a_dict", paths)
 
 
 class TestRemoveWorktree(unittest.TestCase):
@@ -95,14 +110,14 @@ class TestListWorktrees(unittest.TestCase):
         self._tmp.cleanup()
 
     def test_returns_empty_when_file_absent(self):
-        result = list_worktrees(state_path=self._state_path)
+        result = list_tracked_worktrees(state_path=self._state_path)
         self.assertEqual(result, [])
 
     def test_returns_all_live_entries(self):
         dir1 = Path(self._tmp.name) / "wt1"
         dir1.mkdir()
         add_worktree(str(dir1), "42", "github", state_path=self._state_path)
-        result = list_worktrees(state_path=self._state_path)
+        result = list_tracked_worktrees(state_path=self._state_path)
         self.assertEqual(len(result), 1)
         self.assertEqual(result[0], WorktreeEntry(path=str(dir1), ticket_id="42", source="github"))
 
@@ -111,7 +126,7 @@ class TestListWorktrees(unittest.TestCase):
         dir1.mkdir()
         add_worktree(str(dir1), "42", "github", state_path=self._state_path)
         add_worktree("/nonexistent/wt2", "99", "github", state_path=self._state_path)
-        result = list_worktrees(state_path=self._state_path)
+        result = list_tracked_worktrees(state_path=self._state_path)
         self.assertEqual(len(result), 1)
         self.assertEqual(result[0].ticket_id, "42")
         raw = json.loads(self._state_path.read_text())["worktrees"]
@@ -119,7 +134,7 @@ class TestListWorktrees(unittest.TestCase):
 
     def test_skips_purge_when_purge_stale_false(self):
         add_worktree("/nonexistent/wt2", "99", "github", state_path=self._state_path)
-        result = list_worktrees(purge_stale=False, state_path=self._state_path)
+        result = list_tracked_worktrees(purge_stale=False, state_path=self._state_path)
         self.assertEqual(len(result), 1)
         self.assertEqual(result[0].ticket_id, "99")
 
@@ -128,13 +143,25 @@ class TestListWorktrees(unittest.TestCase):
         dir1.mkdir()
         add_worktree(str(dir1), "42", "github", state_path=self._state_path)
         mtime_before = self._state_path.stat().st_mtime
-        list_worktrees(state_path=self._state_path)
+        list_tracked_worktrees(state_path=self._state_path)
         self.assertEqual(self._state_path.stat().st_mtime, mtime_before)
 
     def test_returns_empty_on_corrupt_file(self):
         self._state_path.write_text("not json")
-        result = list_worktrees(state_path=self._state_path)
+        result = list_tracked_worktrees(state_path=self._state_path)
         self.assertEqual(result, [])
+
+    def test_list_skips_malformed_entries_but_keeps_valid_ones(self):
+        dir1 = Path(self._tmp.name) / "wt1"
+        dir1.mkdir()
+        self._state_path.write_text(json.dumps({"worktrees": [
+            {"path": str(dir1), "ticket_id": "1", "source": "github"},
+            {"path": 123, "ticket_id": "bad", "source": "github"},
+            "not_a_dict",
+        ]}))
+        result = list_tracked_worktrees(purge_stale=False, state_path=self._state_path)
+        self.assertEqual(len(result), 1)
+        self.assertEqual(result[0].ticket_id, "1")
 
 
 if __name__ == "__main__":
