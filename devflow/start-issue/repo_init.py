@@ -3,8 +3,8 @@ import re
 import subprocess
 import sys
 
-from devflow_sdk.ai import run_ai_prompt
-from devflow_sdk.prompts import confirm
+from devflow_sdk.core.ai import run_ai_prompt
+from devflow_sdk.core.prompts import confirm
 
 WT_CONFIG = ".config/wt.toml"
 

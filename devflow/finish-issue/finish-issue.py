@@ -13,20 +13,20 @@ import glob as _glob
 for _whl in sorted(_glob.glob(os.path.join(VENDOR_DIR, "*.whl"))):
     sys.path.insert(0, _whl)    # Dev: shared/ is at repo root
 
-from devflow_sdk.ticket_info import fetch
-from devflow_sdk.prompts import select, text
-from devflow_sdk.issue_context import remove_issue_context, read_issue_context
-from devflow_sdk.shell_function_check import check_shell_function
-from devflow_sdk.worktrunk import check_worktrunk, list_worktrees, find_matching_worktrees, is_dirty
-from devflow_sdk.worktree_state import remove_worktree
-from shell_state import (
+from devflow_sdk.domain.issue import fetch, remove_issue_context, read_issue_context
+from devflow_sdk.core.prompts import select, text
+from devflow_sdk.core.shell_function_check import check_shell_function
+from devflow_sdk.core.git.worktree import list_worktrees, is_dirty
+from devflow_sdk.domain.workspace import check_manager, find_for_issue
+from devflow_sdk.core.git.shell_state import (
     _persist_branch_for_shell,
     _persist_worktree_for_shell,
     _persist_force_for_shell,
     _persist_worktree_path_for_shell,
     _clear_force_marker_for_shell,
 )
-from merge_check import get_main_branch, is_merged
+from devflow_sdk.core.git.merge_check import get_main_branch, is_merged
+from devflow_sdk.worktree_state import remove_worktree
 
 
 def _cwd_inside_worktree(worktree_path, cwd=None):
@@ -82,7 +82,7 @@ def main():
     )
     args = parser.parse_args()
 
-    check_worktrunk()
+    check_manager()
     check_shell_function(
         "# >>> finish-issue shell integration >>>",
         f"ERROR: finish-issue shell function is not installed or is out of date.\n"
@@ -104,7 +104,7 @@ def main():
     print(f"Issue: {issue['source'].upper()} {issue['id']}: {issue['title']}")
 
     worktrees = list_worktrees()
-    matches = find_matching_worktrees(issue['id'], issue['source'], worktrees=worktrees)
+    matches = find_for_issue(issue['id'], issue['source'])
 
     if not matches:
         print(f"ERROR: No worktree found matching issue '{issue['id']}'.", file=sys.stderr)

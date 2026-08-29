@@ -11,19 +11,15 @@ import glob as _glob
 for _whl in sorted(_glob.glob(os.path.join(VENDOR_DIR, "*.whl"))):
     sys.path.insert(0, _whl)
 
-PLUGIN_MANAGER_DIR = os.path.join(REPO_ROOT, "plugin-manager")
-sys.path.insert(0, PLUGIN_MANAGER_DIR)
-
-from devflow_sdk.ai import run_ai_prompt
-from devflow_sdk.prompts import select, prompt
-from devflow_sdk.config import load_config, load_tool_config
-from config import DraftPrConfig, resolve_plugin
+from devflow_sdk.core.ai import run_ai_prompt
+from devflow_sdk.core.prompts import select, prompt
+from devflow_sdk.core.config import load_config, load_tool_config
+from devflow_sdk.core.plugin import DraftPrPlugin, select_plugin
+from devflow_sdk.core.config.wizard.tools.draft_pr import DraftPrConfig, resolve_plugin
 
 from gather_pr_data import collect
 from prepare import validate_state
 from prompt_inputs import build_questions
-from plugin_loader import select_plugin
-from devflow_sdk.plugin import DraftPrPlugin
 from build_pr_body import write_create_script
 from orchestrate import check_existing_pr, run_create_script
 

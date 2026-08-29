@@ -8,7 +8,7 @@ from unittest.mock import patch, MagicMock
 _HERE = os.path.dirname(__file__)
 sys.path.insert(0, os.path.join(_HERE, ".."))        # draft-pr/ dir
 
-from devflow_sdk.ticket_info import (
+from devflow_sdk.domain.issue.ticket_info import (
     is_jira_key, check_acli, check_gh,
     fetch_jira_ticket, fetch_github_issue, get_ticket_context, format_ticket_context,
 )
@@ -36,52 +36,52 @@ class TestIsJiraKey(unittest.TestCase):
 
 
 class TestCheckAcli(unittest.TestCase):
-    @patch("devflow_sdk.ticket_info.shutil.which", return_value=None)
+    @patch("devflow_sdk.domain.issue.ticket_info.shutil.which", return_value=None)
     def test_exits_when_not_installed(self, mock_which):
         with self.assertRaises(SystemExit) as ctx:
             check_acli()
         self.assertEqual(ctx.exception.code, 1)
 
-    @patch("devflow_sdk.ticket_info.subprocess.run")
-    @patch("devflow_sdk.ticket_info.shutil.which", return_value="/usr/local/bin/acli")
+    @patch("devflow_sdk.domain.issue.ticket_info.subprocess.run")
+    @patch("devflow_sdk.domain.issue.ticket_info.shutil.which", return_value="/usr/local/bin/acli")
     def test_exits_when_not_authenticated(self, mock_which, mock_run):
         mock_run.return_value = MagicMock(returncode=1)
         with self.assertRaises(SystemExit) as ctx:
             check_acli()
         self.assertEqual(ctx.exception.code, 1)
 
-    @patch("devflow_sdk.ticket_info.subprocess.run")
-    @patch("devflow_sdk.ticket_info.shutil.which", return_value="/usr/local/bin/acli")
+    @patch("devflow_sdk.domain.issue.ticket_info.subprocess.run")
+    @patch("devflow_sdk.domain.issue.ticket_info.shutil.which", return_value="/usr/local/bin/acli")
     def test_passes_when_installed_and_authenticated(self, mock_which, mock_run):
         mock_run.return_value = MagicMock(returncode=0)
         check_acli()  # must not raise
 
 
 class TestCheckGh(unittest.TestCase):
-    @patch("devflow_sdk.ticket_info.shutil.which", return_value=None)
+    @patch("devflow_sdk.domain.issue.ticket_info.shutil.which", return_value=None)
     def test_exits_when_not_installed(self, mock_which):
         with self.assertRaises(SystemExit) as ctx:
             check_gh()
         self.assertEqual(ctx.exception.code, 1)
 
-    @patch("devflow_sdk.ticket_info.subprocess.run")
-    @patch("devflow_sdk.ticket_info.shutil.which", return_value="/usr/local/bin/gh")
+    @patch("devflow_sdk.domain.issue.ticket_info.subprocess.run")
+    @patch("devflow_sdk.domain.issue.ticket_info.shutil.which", return_value="/usr/local/bin/gh")
     def test_exits_when_not_authenticated(self, mock_which, mock_run):
         mock_run.return_value = MagicMock(returncode=1)
         with self.assertRaises(SystemExit) as ctx:
             check_gh()
         self.assertEqual(ctx.exception.code, 1)
 
-    @patch("devflow_sdk.ticket_info.subprocess.run")
-    @patch("devflow_sdk.ticket_info.shutil.which", return_value="/usr/local/bin/gh")
+    @patch("devflow_sdk.domain.issue.ticket_info.subprocess.run")
+    @patch("devflow_sdk.domain.issue.ticket_info.shutil.which", return_value="/usr/local/bin/gh")
     def test_passes_when_installed_and_authenticated(self, mock_which, mock_run):
         mock_run.return_value = MagicMock(returncode=0)
         check_gh()  # must not raise
 
 
 class TestFetchJiraTicket(unittest.TestCase):
-    @patch("devflow_sdk.ticket_info.check_acli")
-    @patch("devflow_sdk.ticket_info.subprocess.run")
+    @patch("devflow_sdk.domain.issue.ticket_info.check_acli")
+    @patch("devflow_sdk.domain.issue.ticket_info.subprocess.run")
     def test_returns_normalized_dict(self, mock_run, mock_check):
         mock_run.return_value = MagicMock(
             returncode=0,
@@ -104,8 +104,8 @@ class TestFetchJiraTicket(unittest.TestCase):
             "labels": [],
         })
 
-    @patch("devflow_sdk.ticket_info.check_acli")
-    @patch("devflow_sdk.ticket_info.subprocess.run")
+    @patch("devflow_sdk.domain.issue.ticket_info.check_acli")
+    @patch("devflow_sdk.domain.issue.ticket_info.subprocess.run")
     def test_returns_issuetype_when_present(self, mock_run, mock_check):
         mock_run.return_value = MagicMock(
             returncode=0,
@@ -121,15 +121,15 @@ class TestFetchJiraTicket(unittest.TestCase):
         result = fetch_jira_ticket("CONS-456")
         self.assertEqual(result["issuetype"], "Bug")
 
-    @patch("devflow_sdk.ticket_info.check_acli")
-    @patch("devflow_sdk.ticket_info.subprocess.run")
+    @patch("devflow_sdk.domain.issue.ticket_info.check_acli")
+    @patch("devflow_sdk.domain.issue.ticket_info.subprocess.run")
     def test_exits_on_command_failure(self, mock_run, mock_check):
         mock_run.return_value = MagicMock(returncode=1, stdout="", stderr="not found")
         with self.assertRaises(SystemExit):
             fetch_jira_ticket("CONS-999")
 
-    @patch("devflow_sdk.ticket_info.check_acli")
-    @patch("devflow_sdk.ticket_info.subprocess.run")
+    @patch("devflow_sdk.domain.issue.ticket_info.check_acli")
+    @patch("devflow_sdk.domain.issue.ticket_info.subprocess.run")
     def test_exits_on_invalid_json(self, mock_run, mock_check):
         mock_run.return_value = MagicMock(returncode=0, stdout="not json")
         with self.assertRaises(SystemExit):
@@ -137,8 +137,8 @@ class TestFetchJiraTicket(unittest.TestCase):
 
 
 class TestFetchGithubIssue(unittest.TestCase):
-    @patch("devflow_sdk.ticket_info.check_gh")
-    @patch("devflow_sdk.ticket_info.subprocess.run")
+    @patch("devflow_sdk.domain.issue.ticket_info.check_gh")
+    @patch("devflow_sdk.domain.issue.ticket_info.subprocess.run")
     def test_returns_normalized_dict(self, mock_run, mock_check):
         mock_run.return_value = MagicMock(
             returncode=0,
@@ -161,8 +161,8 @@ class TestFetchGithubIssue(unittest.TestCase):
             "url": "",
         })
 
-    @patch("devflow_sdk.ticket_info.check_gh")
-    @patch("devflow_sdk.ticket_info.subprocess.run")
+    @patch("devflow_sdk.domain.issue.ticket_info.check_gh")
+    @patch("devflow_sdk.domain.issue.ticket_info.subprocess.run")
     def test_returns_labels_when_present(self, mock_run, mock_check):
         mock_run.return_value = MagicMock(
             returncode=0,
@@ -176,15 +176,15 @@ class TestFetchGithubIssue(unittest.TestCase):
         result = fetch_github_issue("99")
         self.assertEqual(result["labels"], ["bug", "urgent"])
 
-    @patch("devflow_sdk.ticket_info.check_gh")
-    @patch("devflow_sdk.ticket_info.subprocess.run")
+    @patch("devflow_sdk.domain.issue.ticket_info.check_gh")
+    @patch("devflow_sdk.domain.issue.ticket_info.subprocess.run")
     def test_exits_on_command_failure(self, mock_run, mock_check):
         mock_run.return_value = MagicMock(returncode=1, stdout="", stderr="not found")
         with self.assertRaises(SystemExit):
             fetch_github_issue("999")
 
-    @patch("devflow_sdk.ticket_info.check_gh")
-    @patch("devflow_sdk.ticket_info.subprocess.run")
+    @patch("devflow_sdk.domain.issue.ticket_info.check_gh")
+    @patch("devflow_sdk.domain.issue.ticket_info.subprocess.run")
     def test_exits_on_invalid_json(self, mock_run, mock_check):
         mock_run.return_value = MagicMock(returncode=0, stdout="not json")
         with self.assertRaises(SystemExit):
@@ -192,7 +192,7 @@ class TestFetchGithubIssue(unittest.TestCase):
 
 
 class TestGetTicketContext(unittest.TestCase):
-    @patch("devflow_sdk.ticket_info.fetch_jira_ticket")
+    @patch("devflow_sdk.domain.issue.ticket_info.fetch_jira_ticket")
     def test_valid_jira_key_wins(self, mock_fetch_jira):
         mock_fetch_jira.return_value = {
             "source": "jira", "id": "CONS-123",
@@ -203,7 +203,7 @@ class TestGetTicketContext(unittest.TestCase):
         mock_fetch_jira.assert_called_once_with("CONS-123")
         self.assertEqual(result["source"], "jira")
 
-    @patch("devflow_sdk.ticket_info.fetch_github_issue")
+    @patch("devflow_sdk.domain.issue.ticket_info.fetch_github_issue")
     def test_falls_back_to_github_issue_when_no_jira_key(self, mock_fetch_gh):
         mock_fetch_gh.return_value = {
             "source": "github", "id": "11",
@@ -214,7 +214,7 @@ class TestGetTicketContext(unittest.TestCase):
         mock_fetch_gh.assert_called_once_with("11")
         self.assertEqual(result["source"], "github")
 
-    @patch("devflow_sdk.ticket_info.fetch_github_issue")
+    @patch("devflow_sdk.domain.issue.ticket_info.fetch_github_issue")
     def test_falls_back_to_github_issue_when_jira_none(self, mock_fetch_gh):
         mock_fetch_gh.return_value = {
             "source": "github", "id": "11",

@@ -5,7 +5,7 @@ from typing import List, Optional, Tuple
 from fetch_comments import Comment
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
-from devflow_sdk.prompts import Choice, checkbox
+from devflow_sdk.core.prompts import Choice, checkbox
 
 
 def display_comments(

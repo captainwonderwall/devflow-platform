@@ -1,7 +1,7 @@
 import unittest
 
 
-from devflow_sdk.branch_name import infer_type, slugify, make_branch, parse_branch
+from devflow_sdk.core.branch_name import infer_type, slugify, make_branch, parse_branch
 
 
 class TestInferType(unittest.TestCase):

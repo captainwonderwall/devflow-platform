@@ -12,10 +12,10 @@ import glob as _glob
 for _whl in sorted(_glob.glob(os.path.join(VENDOR_DIR, "*.whl"))):
     sys.path.insert(0, _whl)
 
-import git_ops
-from devflow_sdk.ai import run_ai_prompt
-from devflow_sdk.summary import summary
-from devflow_sdk.prompts import select
+from devflow_sdk.core.git import git_ops
+from devflow_sdk.core.ai import run_ai_prompt
+from devflow_sdk.core.summary import summary
+from devflow_sdk.core.prompts import select
 
 DIRTY_ABORT = "Abort"
 DIRTY_STASH = "Stash changes, squash, then restore them"

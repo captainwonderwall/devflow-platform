@@ -29,16 +29,16 @@ PUSH_NO = squash_commits.PUSH_NO
 
 class TestPromptsMigration(unittest.TestCase):
     def test_uses_devflow_sdk_prompts_select(self):
-        from devflow_sdk.prompts import select
+        from devflow_sdk.core.prompts import select
         self.assertIs(squash_commits.select, select)
 
-    @unittest.mock.patch("devflow_sdk.prompts.questionary.checkbox")
+    @unittest.mock.patch("devflow_sdk.core.prompts.questionary.checkbox")
     def test_prompt_dirty_tree_choice_delegates_to_shared_select(self, mock_checkbox):
         mock_checkbox.return_value.ask.return_value = [squash_commits.DIRTY_STASH]
         result = squash_commits.prompt_dirty_tree_choice()
         self.assertEqual(result, squash_commits.DIRTY_STASH)
 
-    @unittest.mock.patch("devflow_sdk.prompts.questionary.checkbox")
+    @unittest.mock.patch("devflow_sdk.core.prompts.questionary.checkbox")
     def test_prompt_push_choice_delegates_to_shared_select(self, mock_checkbox):
         mock_checkbox.return_value.ask.return_value = [squash_commits.PUSH_YES]
         result = squash_commits.prompt_push_choice("main")

@@ -1,7 +1,7 @@
 import json
 from unittest.mock import patch
 
-from devflow_sdk.config.wizard.tools.model_discovery import fetch_catalog, _CATALOG_PATH
+from devflow_sdk.core.config.wizard.tools.model_discovery import fetch_catalog, _CATALOG_PATH
 
 
 _SAMPLE_PAYLOAD = {
@@ -32,35 +32,35 @@ class TestFetchCatalog:
     def test_returns_models_dict_for_known_key(self, tmp_path):
         catalog_file = tmp_path / "models_catalog.json"
         catalog_file.write_text(json.dumps(_SAMPLE_PAYLOAD))
-        with patch("devflow_sdk.config.wizard.tools.model_discovery._CATALOG_PATH", catalog_file):
+        with patch("devflow_sdk.core.config.wizard.tools.model_discovery._CATALOG_PATH", catalog_file):
             result = fetch_catalog("anthropic")
         assert "claude-sonnet-4-6" in result
         assert result["claude-sonnet-4-6"]["name"] == "Claude Sonnet 4.6"
 
     def test_returns_none_when_file_missing(self, tmp_path):
         missing = tmp_path / "nonexistent.json"
-        with patch("devflow_sdk.config.wizard.tools.model_discovery._CATALOG_PATH", missing):
+        with patch("devflow_sdk.core.config.wizard.tools.model_discovery._CATALOG_PATH", missing):
             result = fetch_catalog("anthropic")
         assert result is None
 
     def test_returns_none_on_bad_json(self, tmp_path):
         catalog_file = tmp_path / "models_catalog.json"
         catalog_file.write_text("not json {")
-        with patch("devflow_sdk.config.wizard.tools.model_discovery._CATALOG_PATH", catalog_file):
+        with patch("devflow_sdk.core.config.wizard.tools.model_discovery._CATALOG_PATH", catalog_file):
             result = fetch_catalog("anthropic")
         assert result is None
 
     def test_returns_none_for_missing_provider_key(self, tmp_path):
         catalog_file = tmp_path / "models_catalog.json"
         catalog_file.write_text(json.dumps({"other": {}}))
-        with patch("devflow_sdk.config.wizard.tools.model_discovery._CATALOG_PATH", catalog_file):
+        with patch("devflow_sdk.core.config.wizard.tools.model_discovery._CATALOG_PATH", catalog_file):
             result = fetch_catalog("anthropic")
         assert result is None
 
 
-from devflow_sdk.config.wizard.tools.model_discovery import list_models, OTHER_SENTINEL, lookup_pricing
-from devflow_sdk.ai_providers.claude_provider import ClaudeProvider
-from devflow_sdk.ai_providers.opencode_provider import OpenCodeProvider
+from devflow_sdk.core.config.wizard.tools.model_discovery import list_models, OTHER_SENTINEL, lookup_pricing
+from devflow_sdk.core.ai.providers.claude_provider import ClaudeProvider
+from devflow_sdk.core.ai.providers.opencode_provider import OpenCodeProvider
 
 
 class TestListModels:

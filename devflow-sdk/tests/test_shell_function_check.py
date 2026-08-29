@@ -2,7 +2,7 @@ import os
 import tempfile
 from unittest.mock import patch
 
-from devflow_sdk.shell_function_check import check_shell_function
+from devflow_sdk.core.shell_function_check import check_shell_function
 
 SENTINEL = "# >>> my-script shell integration >>>"
 HINT = "Run: install.sh"

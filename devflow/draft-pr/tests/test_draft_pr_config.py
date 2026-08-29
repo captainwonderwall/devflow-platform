@@ -10,8 +10,8 @@ for _whl in sorted(_glob.glob(os.path.join(VENDOR_DIR, "*.whl"))):
     sys.path.insert(0, _whl)
 sys.path.insert(0, SCRIPT_DIR)
 
-from config import DirectoryRule, DraftPrConfig, resolve_plugin
-from devflow_sdk.config import DevflowConfig, PluginConfig, load_tool_config
+from devflow_sdk.core.config.wizard.tools.draft_pr import DirectoryRule, DraftPrConfig, resolve_plugin
+from devflow_sdk.core.config import DevflowConfig, PluginConfig, load_tool_config
 
 
 # ── DirectoryRule ─────────────────────────────────────────────────────────────

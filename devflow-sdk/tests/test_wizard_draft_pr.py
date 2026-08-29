@@ -2,14 +2,14 @@ import dataclasses
 import pytest
 from unittest.mock import MagicMock, patch
 
-from devflow_sdk.config import DevflowConfig, GlobalConfig
-from devflow_sdk.config.wizard.tools.draft_pr import (
+from devflow_sdk.core.config import DevflowConfig, GlobalConfig
+from devflow_sdk.core.config.wizard.tools.draft_pr import (
     DraftPrConfig,
     DraftPrWizardStep,
     DirectoryRule,
     resolve_plugin,
 )
-from devflow_sdk.plugin import PluginEntry
+from devflow_sdk.core.plugin import PluginEntry
 
 
 def _make_config(draft_pr_tools=None):
@@ -36,7 +36,7 @@ class TestDraftPrConfig:
                 "rules": [{"paths": ["/src"], "plugin": "other"}],
             }
         }
-        from devflow_sdk.config import load_tool_config, DevflowConfig, GlobalConfig
+        from devflow_sdk.core.config import load_tool_config, DevflowConfig, GlobalConfig
         config = DevflowConfig(global_config=GlobalConfig(), tools={"draft-pr": raw})
         draft_cfg = load_tool_config(config, "draft-pr", DraftPrConfig)
         assert draft_cfg.plugin.default == "smoke-check"
@@ -48,12 +48,12 @@ class TestDraftPrConfig:
             cfg.validate()
 
     def test_validate_passes_with_default(self):
-        from devflow_sdk.config.schema import PluginConfig
+        from devflow_sdk.core.config.schema import PluginConfig
         cfg = DraftPrConfig(plugin=PluginConfig(default="smoke-check"))
         cfg.validate()  # should not raise
 
     def test_rules_sorted_by_path_length_descending(self):
-        from devflow_sdk.config.schema import PluginConfig
+        from devflow_sdk.core.config.schema import PluginConfig
         rules = [
             DirectoryRule(paths=["/a"], plugin="short"),
             DirectoryRule(paths=["/a/b/c/d"], plugin="longest"),
@@ -67,24 +67,24 @@ class TestDraftPrConfig:
 
 class TestResolvePlugin:
     def test_matches_first_rule_by_path_prefix(self):
-        from devflow_sdk.config.schema import PluginConfig
+        from devflow_sdk.core.config.schema import PluginConfig
         rules = [DirectoryRule(paths=["/Users/foo/projects"], plugin="proj-plugin")]
         cfg = DraftPrConfig(plugin=PluginConfig(default="default-plugin", rules=rules))
         assert resolve_plugin(cfg, "/Users/foo/projects/myrepo") == "proj-plugin"
 
     def test_falls_back_to_default(self):
-        from devflow_sdk.config.schema import PluginConfig
+        from devflow_sdk.core.config.schema import PluginConfig
         cfg = DraftPrConfig(plugin=PluginConfig(default="fallback"))
         assert resolve_plugin(cfg, "/unmatched/path") == "fallback"
 
     def test_does_not_match_path_prefix_sibling(self):
-        from devflow_sdk.config.schema import PluginConfig
+        from devflow_sdk.core.config.schema import PluginConfig
         rules = [DirectoryRule(paths=["/foo/proj"], plugin="proj-plugin")]
         cfg = DraftPrConfig(plugin=PluginConfig(default="fallback", rules=rules))
         assert resolve_plugin(cfg, "/foo/projectX") == "fallback"
 
     def test_matches_exact_path(self):
-        from devflow_sdk.config.schema import PluginConfig
+        from devflow_sdk.core.config.schema import PluginConfig
         rules = [DirectoryRule(paths=["/foo/proj"], plugin="proj-plugin")]
         cfg = DraftPrConfig(plugin=PluginConfig(default="fallback", rules=rules))
         assert resolve_plugin(cfg, "/foo/proj") == "proj-plugin"
@@ -98,7 +98,7 @@ class TestDraftPrWizardStep:
         step = DraftPrWizardStep()
         current = _make_config()
         with patch(
-            "devflow_sdk.config.wizard.tools.draft_pr.PluginLoader.list_plugins",
+            "devflow_sdk.core.config.wizard.tools.draft_pr.PluginLoader.list_plugins",
             return_value={},
         ):
             result = step.run(current)
@@ -111,10 +111,10 @@ class TestDraftPrWizardStep:
         current = _make_config()
         plugins = {"smoke-check": _make_entry("smoke-check")}
         with (
-            patch("devflow_sdk.config.wizard.tools.draft_pr.PluginLoader.list_plugins", return_value=plugins),
-            patch("devflow_sdk.config.wizard.tools.draft_pr.select", return_value="smoke-check"),
-            patch("devflow_sdk.config.wizard.tools.draft_pr.checkbox", return_value=[]),
-            patch("devflow_sdk.config.wizard.tools.draft_pr.confirm", return_value=False),
+            patch("devflow_sdk.core.config.wizard.tools.draft_pr.PluginLoader.list_plugins", return_value=plugins),
+            patch("devflow_sdk.core.config.wizard.tools.draft_pr.select", return_value="smoke-check"),
+            patch("devflow_sdk.core.config.wizard.tools.draft_pr.checkbox", return_value=[]),
+            patch("devflow_sdk.core.config.wizard.tools.draft_pr.confirm", return_value=False),
         ):
             result = step.run(current)
         assert result.tools["draft-pr"]["plugin"]["default"] == "smoke-check"
@@ -134,10 +134,10 @@ class TestDraftPrWizardStep:
         }
         rule = DirectoryRule(paths=["/src"], plugin="other-plugin")
         with (
-            patch("devflow_sdk.config.wizard.tools.draft_pr.PluginLoader.list_plugins", return_value=plugins),
-            patch("devflow_sdk.config.wizard.tools.draft_pr.select", return_value="smoke-check"),
-            patch("devflow_sdk.config.wizard.tools.draft_pr.checkbox", return_value=[rule]),
-            patch("devflow_sdk.config.wizard.tools.draft_pr.confirm", return_value=False),
+            patch("devflow_sdk.core.config.wizard.tools.draft_pr.PluginLoader.list_plugins", return_value=plugins),
+            patch("devflow_sdk.core.config.wizard.tools.draft_pr.select", return_value="smoke-check"),
+            patch("devflow_sdk.core.config.wizard.tools.draft_pr.checkbox", return_value=[rule]),
+            patch("devflow_sdk.core.config.wizard.tools.draft_pr.confirm", return_value=False),
         ):
             result = step.run(current)
         rules = result.tools["draft-pr"]["plugin"]["rules"]
@@ -158,10 +158,10 @@ class TestDraftPrWizardStep:
             "other-plugin": _make_entry("other-plugin"),
         }
         with (
-            patch("devflow_sdk.config.wizard.tools.draft_pr.PluginLoader.list_plugins", return_value=plugins),
-            patch("devflow_sdk.config.wizard.tools.draft_pr.select", return_value="smoke-check"),
+            patch("devflow_sdk.core.config.wizard.tools.draft_pr.PluginLoader.list_plugins", return_value=plugins),
+            patch("devflow_sdk.core.config.wizard.tools.draft_pr.select", return_value="smoke-check"),
             # None simulates Ctrl+C on the checkbox prompt
-            patch("devflow_sdk.config.wizard.tools.draft_pr.checkbox", return_value=None),
+            patch("devflow_sdk.core.config.wizard.tools.draft_pr.checkbox", return_value=None),
         ):
             result = step.run(current)
         assert result == current
@@ -171,11 +171,11 @@ class TestDraftPrWizardStep:
         current = _make_config()
         plugins = {"smoke-check": _make_entry("smoke-check")}
         with (
-            patch("devflow_sdk.config.wizard.tools.draft_pr.PluginLoader.list_plugins", return_value=plugins),
-            patch("devflow_sdk.config.wizard.tools.draft_pr.select", return_value="smoke-check"),
-            patch("devflow_sdk.config.wizard.tools.draft_pr.checkbox", return_value=[]),
-            patch("devflow_sdk.config.wizard.tools.draft_pr.confirm", side_effect=[True, False]),
-            patch("devflow_sdk.config.wizard.tools.draft_pr.text", return_value="/work/myproject"),
+            patch("devflow_sdk.core.config.wizard.tools.draft_pr.PluginLoader.list_plugins", return_value=plugins),
+            patch("devflow_sdk.core.config.wizard.tools.draft_pr.select", return_value="smoke-check"),
+            patch("devflow_sdk.core.config.wizard.tools.draft_pr.checkbox", return_value=[]),
+            patch("devflow_sdk.core.config.wizard.tools.draft_pr.confirm", side_effect=[True, False]),
+            patch("devflow_sdk.core.config.wizard.tools.draft_pr.text", return_value="/work/myproject"),
         ):
             result = step.run(current)
         rules = result.tools["draft-pr"]["plugin"]["rules"]

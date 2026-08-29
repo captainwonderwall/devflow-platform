@@ -4,7 +4,7 @@ import tempfile
 import unittest
 from unittest.mock import patch, MagicMock
 
-from devflow_sdk.issue_context import write_issue_context, remove_issue_context, read_issue_context
+from devflow_sdk.domain.issue.issue_context import write_issue_context, remove_issue_context, read_issue_context
 
 _ISSUE = {
     "source": "github",

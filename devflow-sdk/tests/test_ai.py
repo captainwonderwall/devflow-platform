@@ -2,12 +2,12 @@ import json
 import pytest
 from unittest.mock import patch, MagicMock
 
-from devflow_sdk.ai import run_ai_prompt, AiResult
+from devflow_sdk.core.ai import run_ai_prompt, AiResult
 
 
 @pytest.fixture(autouse=True)
 def _no_devflow_config(tmp_path, monkeypatch):
-    monkeypatch.setattr("devflow_sdk.config.io.CONFIG_PATH", tmp_path / "config.json")
+    monkeypatch.setattr("devflow_sdk.core.config.io.CONFIG_PATH", tmp_path / "config.json")
 
 
 def _mock_proc(result_str, session_id="sess-1", returncode=0, stderr="",
@@ -31,31 +31,31 @@ def _mock_proc(result_str, session_id="sess-1", returncode=0, stderr="",
 
 def test_returns_parsed_json_result():
     payload = {"title": "My PR"}
-    with patch("devflow_sdk.ai.shutil.which", return_value="/usr/bin/claude"), \
-         patch("devflow_sdk.ai.subprocess.run", return_value=_mock_proc(json.dumps(payload))):
+    with patch("devflow_sdk.core.ai.shutil.which", return_value="/usr/bin/claude"), \
+         patch("devflow_sdk.core.ai.subprocess.run", return_value=_mock_proc(json.dumps(payload))):
         result = run_ai_prompt("prompt", tier="fast", result_type="json")
     assert result.result == payload
     assert result.ok is True
 
 
 def test_returns_text_result():
-    with patch("devflow_sdk.ai.shutil.which", return_value="/usr/bin/claude"), \
-         patch("devflow_sdk.ai.subprocess.run", return_value=_mock_proc("<edits></edits>")):
+    with patch("devflow_sdk.core.ai.shutil.which", return_value="/usr/bin/claude"), \
+         patch("devflow_sdk.core.ai.subprocess.run", return_value=_mock_proc("<edits></edits>")):
         result = run_ai_prompt("prompt", tier="fast", result_type="text")
     assert result.result == "<edits></edits>"
     assert result.ok is True
 
 
 def test_session_id_returned():
-    with patch("devflow_sdk.ai.shutil.which", return_value="/usr/bin/claude"), \
-         patch("devflow_sdk.ai.subprocess.run", return_value=_mock_proc("{}", session_id="sess-xyz")):
+    with patch("devflow_sdk.core.ai.shutil.which", return_value="/usr/bin/claude"), \
+         patch("devflow_sdk.core.ai.subprocess.run", return_value=_mock_proc("{}", session_id="sess-xyz")):
         result = run_ai_prompt("prompt", tier="fast")
     assert result.session_id == "sess-xyz"
 
 
 def test_resume_flag_added_when_session_id_given():
-    with patch("devflow_sdk.ai.shutil.which", return_value="/usr/bin/claude"), \
-         patch("devflow_sdk.ai.subprocess.run", return_value=_mock_proc("{}")) as mock_run:
+    with patch("devflow_sdk.core.ai.shutil.which", return_value="/usr/bin/claude"), \
+         patch("devflow_sdk.core.ai.subprocess.run", return_value=_mock_proc("{}")) as mock_run:
         run_ai_prompt("prompt", tier="fast", session_id="sess-abc")
     cmd = mock_run.call_args[0][0]
     assert "--resume" in cmd
@@ -63,16 +63,16 @@ def test_resume_flag_added_when_session_id_given():
 
 
 def test_stateless_flag_added():
-    with patch("devflow_sdk.ai.shutil.which", return_value="/usr/bin/claude"), \
-         patch("devflow_sdk.ai.subprocess.run", return_value=_mock_proc("{}")) as mock_run:
+    with patch("devflow_sdk.core.ai.shutil.which", return_value="/usr/bin/claude"), \
+         patch("devflow_sdk.core.ai.subprocess.run", return_value=_mock_proc("{}")) as mock_run:
         run_ai_prompt("prompt", tier="fast", stateless=True)
     cmd = mock_run.call_args[0][0]
     assert "--no-session-persistence" in cmd
 
 
 def test_trust_level_full_adds_bypass_permissions():
-    with patch("devflow_sdk.ai.shutil.which", return_value="/usr/bin/claude"), \
-         patch("devflow_sdk.ai.subprocess.run", return_value=_mock_proc("{}")) as mock_run:
+    with patch("devflow_sdk.core.ai.shutil.which", return_value="/usr/bin/claude"), \
+         patch("devflow_sdk.core.ai.subprocess.run", return_value=_mock_proc("{}")) as mock_run:
         run_ai_prompt("prompt", tier="fast", trust_level="full")
     cmd = mock_run.call_args[0][0]
     assert "--permission-mode" in cmd
@@ -80,13 +80,13 @@ def test_trust_level_full_adds_bypass_permissions():
 
 
 def test_disallowed_tier_exits():
-    with patch("devflow_sdk.ai.shutil.which", return_value="/usr/bin/claude"):
+    with patch("devflow_sdk.core.ai.shutil.which", return_value="/usr/bin/claude"):
         with pytest.raises(SystemExit):
             run_ai_prompt("prompt", tier="ultra")
 
 
 def test_claude_not_found_exits():
-    with patch("devflow_sdk.ai.shutil.which", return_value=None):
+    with patch("devflow_sdk.core.ai.shutil.which", return_value=None):
         with pytest.raises(SystemExit):
             run_ai_prompt("prompt", tier="fast")
 
@@ -94,15 +94,15 @@ def test_claude_not_found_exits():
 def test_unknown_ai_provider_config_exits(tmp_path, monkeypatch):
     cfg = tmp_path / "config.json"
     cfg.write_text('{"ai_provider": "bogus"}')
-    monkeypatch.setattr("devflow_sdk.config.io.CONFIG_PATH", cfg)
+    monkeypatch.setattr("devflow_sdk.core.config.io.CONFIG_PATH", cfg)
     with pytest.raises(SystemExit):
         run_ai_prompt("prompt", tier="fast")
 
 
 def test_cost_tracked_via_accumulator():
-    with patch("devflow_sdk.ai.shutil.which", return_value="/usr/bin/claude"), \
-         patch("devflow_sdk.ai.subprocess.run", return_value=_mock_proc("{}", input_tokens=100)), \
-         patch("devflow_sdk.ai.accumulator.add") as mock_add:
+    with patch("devflow_sdk.core.ai.shutil.which", return_value="/usr/bin/claude"), \
+         patch("devflow_sdk.core.ai.subprocess.run", return_value=_mock_proc("{}", input_tokens=100)), \
+         patch("devflow_sdk.core.ai.accumulator.add") as mock_add:
         run_ai_prompt("prompt", tier="fast")
     mock_add.assert_called_once()
     args, _ = mock_add.call_args
@@ -113,8 +113,8 @@ def test_cost_tracked_via_accumulator():
 
 
 def test_needs_interaction_detected_in_result_text():
-    with patch("devflow_sdk.ai.shutil.which", return_value="/usr/bin/claude"), \
-         patch("devflow_sdk.ai.subprocess.run",
+    with patch("devflow_sdk.core.ai.shutil.which", return_value="/usr/bin/claude"), \
+         patch("devflow_sdk.core.ai.subprocess.run",
                return_value=_mock_proc("waiting for your approval")):
         result = run_ai_prompt("prompt", tier="fast", result_type="text")
     assert result.needs_interaction is True
@@ -126,8 +126,8 @@ def test_needs_interaction_detected_in_stderr():
     m.stdout = json.dumps({"result": "", "session_id": None,
                             "usage": {}, "model": "claude-haiku-4-5"})
     m.stderr = "permission prompts are waiting"
-    with patch("devflow_sdk.ai.shutil.which", return_value="/usr/bin/claude"), \
-         patch("devflow_sdk.ai.subprocess.run", return_value=m):
+    with patch("devflow_sdk.core.ai.shutil.which", return_value="/usr/bin/claude"), \
+         patch("devflow_sdk.core.ai.subprocess.run", return_value=m):
         result = run_ai_prompt("prompt", tier="fast", result_type="text")
     assert result.needs_interaction is True
 
@@ -135,15 +135,15 @@ def test_needs_interaction_detected_in_stderr():
 def test_strips_markdown_fences_from_json_result():
     payload = {"key": "value"}
     fenced = f"```json\n{json.dumps(payload)}\n```"
-    with patch("devflow_sdk.ai.shutil.which", return_value="/usr/bin/claude"), \
-         patch("devflow_sdk.ai.subprocess.run", return_value=_mock_proc(fenced)):
+    with patch("devflow_sdk.core.ai.shutil.which", return_value="/usr/bin/claude"), \
+         patch("devflow_sdk.core.ai.subprocess.run", return_value=_mock_proc(fenced)):
         result = run_ai_prompt("prompt", tier="fast", result_type="json")
     assert result.result == payload
 
 
 def test_capable_tier_resolves_to_sonnet_model():
-    with patch("devflow_sdk.ai.shutil.which", return_value="/usr/bin/claude"), \
-         patch("devflow_sdk.ai.subprocess.run", return_value=_mock_proc("{}")) as mock_run:
+    with patch("devflow_sdk.core.ai.shutil.which", return_value="/usr/bin/claude"), \
+         patch("devflow_sdk.core.ai.subprocess.run", return_value=_mock_proc("{}")) as mock_run:
         result = run_ai_prompt("prompt", tier="capable")
     cmd = mock_run.call_args[0][0]
     assert "claude-sonnet-4-6" in cmd
@@ -156,11 +156,11 @@ def test_configured_catalog_model_is_allowed(tmp_path, monkeypatch):
         '{"global": {"ai_provider": "opencode", "models": '
         '{"capable": {"name": "github-copilot/gpt-5.6-luna"}}}}'
     )
-    monkeypatch.setattr("devflow_sdk.config.io.CONFIG_PATH", config_path)
+    monkeypatch.setattr("devflow_sdk.core.config.io.CONFIG_PATH", config_path)
     proc = _mock_proc("{}", model="github-copilot/gpt-5.6-luna")
 
-    with patch("devflow_sdk.ai.shutil.which", return_value="/usr/bin/opencode"), \
-         patch("devflow_sdk.ai.subprocess.run", return_value=proc) as mock_run:
+    with patch("devflow_sdk.core.ai.shutil.which", return_value="/usr/bin/opencode"), \
+         patch("devflow_sdk.core.ai.subprocess.run", return_value=proc) as mock_run:
         result = run_ai_prompt("prompt", tier="capable")
 
     assert result.ok is True
@@ -172,8 +172,8 @@ def test_not_ok_when_returncode_nonzero():
     m.returncode = 1
     m.stdout = ""
     m.stderr = "some error"
-    with patch("devflow_sdk.ai.shutil.which", return_value="/usr/bin/claude"), \
-         patch("devflow_sdk.ai.subprocess.run", return_value=m):
+    with patch("devflow_sdk.core.ai.shutil.which", return_value="/usr/bin/claude"), \
+         patch("devflow_sdk.core.ai.subprocess.run", return_value=m):
         result = run_ai_prompt("prompt", tier="fast")
     assert result.ok is False
     assert result.error == "some error"
@@ -181,23 +181,23 @@ def test_not_ok_when_returncode_nonzero():
 
 def test_total_tokens_summed():
     proc = _mock_proc("{}", input_tokens=500, output_tokens=100)
-    with patch("devflow_sdk.ai.shutil.which", return_value="/usr/bin/claude"), \
-         patch("devflow_sdk.ai.subprocess.run", return_value=proc), \
-         patch("devflow_sdk.ai.accumulator.add"):
+    with patch("devflow_sdk.core.ai.shutil.which", return_value="/usr/bin/claude"), \
+         patch("devflow_sdk.core.ai.subprocess.run", return_value=proc), \
+         patch("devflow_sdk.core.ai.accumulator.add"):
         result = run_ai_prompt("prompt", tier="fast")
     assert result.total_tokens == 600
 
 
 def test_json_parse_failure_returns_not_ok():
-    with patch("devflow_sdk.ai.shutil.which", return_value="/usr/bin/claude"), \
-         patch("devflow_sdk.ai.subprocess.run", return_value=_mock_proc("not json at all")):
+    with patch("devflow_sdk.core.ai.shutil.which", return_value="/usr/bin/claude"), \
+         patch("devflow_sdk.core.ai.subprocess.run", return_value=_mock_proc("not json at all")):
         result = run_ai_prompt("prompt", tier="fast", result_type="json")
     assert result.ok is False
 
 
 def test_cwd_passed_to_subprocess():
-    with patch("devflow_sdk.ai.shutil.which", return_value="/usr/bin/claude"), \
-         patch("devflow_sdk.ai.subprocess.run", return_value=_mock_proc("{}")) as mock_run:
+    with patch("devflow_sdk.core.ai.shutil.which", return_value="/usr/bin/claude"), \
+         patch("devflow_sdk.core.ai.subprocess.run", return_value=_mock_proc("{}")) as mock_run:
         run_ai_prompt("prompt", tier="fast", cwd="/some/repo")
     _, kwargs = mock_run.call_args
     assert kwargs.get("cwd") == "/some/repo"
@@ -220,9 +220,9 @@ def test_debug_writes_log_file_with_command_exitcode_stdout_stderr():
             pass
 
     fake_path = "/tmp/claude-debug-fake.log"
-    with patch("devflow_sdk.ai.shutil.which", return_value="/usr/bin/claude"), \
-         patch("devflow_sdk.ai.subprocess.run", return_value=m), \
-         patch("devflow_sdk.ai.tempfile.NamedTemporaryFile",
+    with patch("devflow_sdk.core.ai.shutil.which", return_value="/usr/bin/claude"), \
+         patch("devflow_sdk.core.ai.subprocess.run", return_value=m), \
+         patch("devflow_sdk.core.ai.tempfile.NamedTemporaryFile",
                return_value=_FakeFile(fake_path)):
         run_ai_prompt("prompt", tier="fast", result_type="text", debug=True)
 
@@ -253,9 +253,9 @@ def test_debug_prints_saved_path_to_stderr(capsys):
             pass
 
     fake_path = "/tmp/claude-debug-fake.log"
-    with patch("devflow_sdk.ai.shutil.which", return_value="/usr/bin/claude"), \
-         patch("devflow_sdk.ai.subprocess.run", return_value=m), \
-         patch("devflow_sdk.ai.tempfile.NamedTemporaryFile",
+    with patch("devflow_sdk.core.ai.shutil.which", return_value="/usr/bin/claude"), \
+         patch("devflow_sdk.core.ai.subprocess.run", return_value=m), \
+         patch("devflow_sdk.core.ai.tempfile.NamedTemporaryFile",
                return_value=_FakeFile(fake_path)):
         run_ai_prompt("prompt", tier="fast", debug=True)
 
@@ -279,9 +279,9 @@ def test_debug_writes_log_even_when_claude_exits_nonzero():
             pass
 
     fake_path = "/tmp/claude-debug-fake.log"
-    with patch("devflow_sdk.ai.shutil.which", return_value="/usr/bin/claude"), \
-         patch("devflow_sdk.ai.subprocess.run", return_value=m), \
-         patch("devflow_sdk.ai.tempfile.NamedTemporaryFile",
+    with patch("devflow_sdk.core.ai.shutil.which", return_value="/usr/bin/claude"), \
+         patch("devflow_sdk.core.ai.subprocess.run", return_value=m), \
+         patch("devflow_sdk.core.ai.tempfile.NamedTemporaryFile",
                return_value=_FakeFile(fake_path)):
         result = run_ai_prompt("prompt", tier="fast", debug=True)
 
@@ -307,9 +307,9 @@ def test_debug_writes_log_even_when_json_unparseable():
             pass
 
     fake_path = "/tmp/claude-debug-fake.log"
-    with patch("devflow_sdk.ai.shutil.which", return_value="/usr/bin/claude"), \
-         patch("devflow_sdk.ai.subprocess.run", return_value=m), \
-         patch("devflow_sdk.ai.tempfile.NamedTemporaryFile",
+    with patch("devflow_sdk.core.ai.shutil.which", return_value="/usr/bin/claude"), \
+         patch("devflow_sdk.core.ai.subprocess.run", return_value=m), \
+         patch("devflow_sdk.core.ai.tempfile.NamedTemporaryFile",
                return_value=_FakeFile(fake_path)):
         result = run_ai_prompt("prompt", tier="fast", result_type="json", debug=True)
 
@@ -318,9 +318,9 @@ def test_debug_writes_log_even_when_json_unparseable():
 
 
 def test_no_debug_file_written_when_debug_false():
-    with patch("devflow_sdk.ai.shutil.which", return_value="/usr/bin/claude"), \
-         patch("devflow_sdk.ai.subprocess.run", return_value=_mock_proc("{}")), \
-         patch("devflow_sdk.ai.tempfile.NamedTemporaryFile") as mock_tmp:
+    with patch("devflow_sdk.core.ai.shutil.which", return_value="/usr/bin/claude"), \
+         patch("devflow_sdk.core.ai.subprocess.run", return_value=_mock_proc("{}")), \
+         patch("devflow_sdk.core.ai.tempfile.NamedTemporaryFile") as mock_tmp:
         run_ai_prompt("prompt", tier="fast")
     mock_tmp.assert_not_called()
 
@@ -330,18 +330,18 @@ def test_run_ai_prompt_handles_non_dict_json_stdout():
     m.returncode = 0
     m.stdout = "null"
     m.stderr = ""
-    with patch("devflow_sdk.ai.shutil.which", return_value="/usr/bin/claude"), \
-         patch("devflow_sdk.ai.subprocess.run", return_value=m):
+    with patch("devflow_sdk.core.ai.shutil.which", return_value="/usr/bin/claude"), \
+         patch("devflow_sdk.core.ai.subprocess.run", return_value=m):
         result = run_ai_prompt("prompt", tier="fast", result_type="json")
     assert result.ok is False
 
 
-from devflow_sdk.ai import launch_interactive_session
+from devflow_sdk.core.ai import launch_interactive_session
 
 
 def test_launch_interactive_session_builds_command_from_provider():
-    with patch("devflow_sdk.ai.shutil.which", return_value="/usr/bin/claude"), \
-         patch("devflow_sdk.ai.subprocess.run") as mock_run:
+    with patch("devflow_sdk.core.ai.shutil.which", return_value="/usr/bin/claude"), \
+         patch("devflow_sdk.core.ai.subprocess.run") as mock_run:
         launch_interactive_session("Brainstorm", cwd="/worktree")
     cmd = mock_run.call_args[0][0]
     assert cmd == ["claude", "Brainstorm"]
@@ -349,15 +349,15 @@ def test_launch_interactive_session_builds_command_from_provider():
 
 
 def test_launch_interactive_session_no_capture_output():
-    with patch("devflow_sdk.ai.shutil.which", return_value="/usr/bin/claude"), \
-         patch("devflow_sdk.ai.subprocess.run") as mock_run:
+    with patch("devflow_sdk.core.ai.shutil.which", return_value="/usr/bin/claude"), \
+         patch("devflow_sdk.core.ai.subprocess.run") as mock_run:
         launch_interactive_session("Brainstorm")
     assert "capture_output" not in mock_run.call_args[1]
 
 
 def test_launch_interactive_session_does_not_launch_when_binary_not_found():
-    with patch("devflow_sdk.ai.shutil.which", return_value=None), \
-         patch("devflow_sdk.ai.subprocess.run") as mock_run:
+    with patch("devflow_sdk.core.ai.shutil.which", return_value=None), \
+         patch("devflow_sdk.core.ai.subprocess.run") as mock_run:
         launch_interactive_session("Brainstorm")
     mock_run.assert_not_called()
 
@@ -365,9 +365,9 @@ def test_launch_interactive_session_does_not_launch_when_binary_not_found():
 def test_launch_interactive_session_uses_opencode_when_configured(tmp_path, monkeypatch):
     cfg = tmp_path / "config.json"
     cfg.write_text('{"ai_provider": "opencode"}')
-    monkeypatch.setattr("devflow_sdk.config.io.CONFIG_PATH", cfg)
-    with patch("devflow_sdk.ai.shutil.which", return_value="/usr/bin/opencode"), \
-         patch("devflow_sdk.ai.subprocess.run") as mock_run:
+    monkeypatch.setattr("devflow_sdk.core.config.io.CONFIG_PATH", cfg)
+    with patch("devflow_sdk.core.ai.shutil.which", return_value="/usr/bin/opencode"), \
+         patch("devflow_sdk.core.ai.subprocess.run") as mock_run:
         launch_interactive_session("Brainstorm")
     cmd = mock_run.call_args[0][0]
     assert cmd[0] == "opencode"

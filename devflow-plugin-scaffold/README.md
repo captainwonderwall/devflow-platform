@@ -71,12 +71,12 @@ pip install pytest
 
 A plugin is a single `.py` file containing a class that:
 
-1. Inherits from `devflow_sdk.draft_pr_plugin.DraftPrPlugin`
+1. Inherits from `devflow_sdk.core.plugin.DraftPrPlugin`
 2. Declares a `name` class attribute — the display name shown in the plugin picker
 3. Implements three methods
 
 ```python
-from devflow_sdk.draft_pr_plugin import DraftPrPlugin
+from devflow_sdk.core.plugin import DraftPrPlugin
 
 
 class AcmePlugin(DraftPrPlugin):

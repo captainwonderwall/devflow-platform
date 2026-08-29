@@ -48,7 +48,7 @@ class TestResolveDirtyChoice(unittest.TestCase):
 class TestPromptDirtyTreeChoice(unittest.TestCase):
     def test_delegates_to_shared_select(self):
         import unittest.mock
-        with unittest.mock.patch("devflow_sdk.prompts.questionary.checkbox") as mock_checkbox:
+        with unittest.mock.patch("devflow_sdk.core.prompts.questionary.checkbox") as mock_checkbox:
             mock_checkbox.return_value.ask.return_value = [DIRTY_DROP]
             result = finish_issue.prompt_dirty_tree_choice("feat/gh65-something")
         self.assertEqual(result, DIRTY_DROP)
@@ -68,12 +68,12 @@ class TestMainDirtyWorktreeHandling(unittest.TestCase):
         match = {"branch": "feat/wt/gh65-something", "path": "/repos/gh65"}
 
         with unittest.mock.patch("sys.argv", argv), \
-             unittest.mock.patch.object(finish_issue, "check_worktrunk"), \
+             unittest.mock.patch.object(finish_issue, "check_manager"), \
              unittest.mock.patch.object(finish_issue, "check_shell_function"), \
              unittest.mock.patch.object(finish_issue, "fetch",
                  return_value={"source": "github", "id": "65", "title": "t"}), \
              unittest.mock.patch.object(finish_issue, "list_worktrees", return_value=worktrees), \
-             unittest.mock.patch.object(finish_issue, "find_matching_worktrees", return_value=[match]), \
+             unittest.mock.patch.object(finish_issue, "find_for_issue", return_value=[match]), \
              unittest.mock.patch.object(finish_issue, "get_main_branch", return_value="main"), \
              unittest.mock.patch.object(finish_issue, "is_merged", return_value=True), \
              unittest.mock.patch.object(finish_issue, "is_dirty", return_value=is_dirty_return), \
@@ -163,12 +163,12 @@ class TestMainIssueContextCleanup(unittest.TestCase):
         call_order = []
 
         with unittest.mock.patch("sys.argv", argv), \
-             unittest.mock.patch.object(finish_issue, "check_worktrunk"), \
+             unittest.mock.patch.object(finish_issue, "check_manager"), \
              unittest.mock.patch.object(finish_issue, "check_shell_function"), \
              unittest.mock.patch.object(finish_issue, "fetch",
                  return_value={"source": "github", "id": "65", "title": "t"}), \
              unittest.mock.patch.object(finish_issue, "list_worktrees", return_value=worktrees), \
-             unittest.mock.patch.object(finish_issue, "find_matching_worktrees", return_value=[match]), \
+             unittest.mock.patch.object(finish_issue, "find_for_issue", return_value=[match]), \
              unittest.mock.patch.object(finish_issue, "get_main_branch", return_value="main"), \
              unittest.mock.patch.object(finish_issue, "is_merged", return_value=True), \
              unittest.mock.patch.object(finish_issue, "is_dirty",
@@ -211,13 +211,13 @@ class TestMainIssueAutoDetection(unittest.TestCase):
         fetched_issue = {"source": "github", "id": "65", "title": "t"}
 
         with unittest.mock.patch("sys.argv", argv), \
-             unittest.mock.patch.object(finish_issue, "check_worktrunk"), \
+             unittest.mock.patch.object(finish_issue, "check_manager"), \
              unittest.mock.patch.object(finish_issue, "check_shell_function"), \
              unittest.mock.patch.object(finish_issue, "fetch", return_value=fetched_issue) as mock_fetch, \
              unittest.mock.patch.object(finish_issue, "read_issue_context", return_value=issue_context) as mock_read, \
              unittest.mock.patch.object(finish_issue, "text", return_value=prompt_input) as mock_text, \
              unittest.mock.patch.object(finish_issue, "list_worktrees", return_value=worktrees), \
-             unittest.mock.patch.object(finish_issue, "find_matching_worktrees", return_value=[match]), \
+             unittest.mock.patch.object(finish_issue, "find_for_issue", return_value=[match]), \
              unittest.mock.patch.object(finish_issue, "get_main_branch", return_value="main"), \
              unittest.mock.patch.object(finish_issue, "is_merged", return_value=True), \
              unittest.mock.patch.object(finish_issue, "is_dirty", return_value=False), \
@@ -276,13 +276,13 @@ class TestCheckShellFunctionCalledInFinishIssue(unittest.TestCase):
     def test_check_shell_function_called_with_finish_issue_sentinel_and_prepare(self):
         wt = self._make_worktree()
         with unittest.mock.patch("sys.argv", ["finish-issue", "42"]), \
-             unittest.mock.patch.object(finish_issue, "check_worktrunk"), \
+             unittest.mock.patch.object(finish_issue, "check_manager"), \
              unittest.mock.patch.object(finish_issue, "check_shell_function") as mock_csf, \
              unittest.mock.patch.object(finish_issue, "fetch",
                  return_value={"source": "github", "id": "42", "title": "t",
                                "body": "", "comments": [], "issuetype": "", "labels": []}), \
              unittest.mock.patch.object(finish_issue, "list_worktrees", return_value=[wt]), \
-             unittest.mock.patch.object(finish_issue, "find_matching_worktrees", return_value=[wt]), \
+             unittest.mock.patch.object(finish_issue, "find_for_issue", return_value=[wt]), \
              unittest.mock.patch.object(finish_issue, "get_main_branch", return_value="main"), \
              unittest.mock.patch.object(finish_issue, "is_merged", return_value=True), \
              unittest.mock.patch.object(finish_issue, "is_dirty", return_value=False), \
@@ -315,12 +315,12 @@ class TestMainWorktreeStateIntegration(unittest.TestCase):
         match = {"branch": "feat/wt/gh65-something", "path": "/repos/gh65"}
 
         with unittest.mock.patch("sys.argv", argv), \
-             unittest.mock.patch.object(finish_issue, "check_worktrunk"), \
+             unittest.mock.patch.object(finish_issue, "check_manager"), \
              unittest.mock.patch.object(finish_issue, "check_shell_function"), \
              unittest.mock.patch.object(finish_issue, "fetch",
                  return_value={"source": "github", "id": "65", "title": "t"}), \
              unittest.mock.patch.object(finish_issue, "list_worktrees", return_value=worktrees), \
-             unittest.mock.patch.object(finish_issue, "find_matching_worktrees", return_value=[match]), \
+             unittest.mock.patch.object(finish_issue, "find_for_issue", return_value=[match]), \
              unittest.mock.patch.object(finish_issue, "get_main_branch", return_value="main"), \
              unittest.mock.patch.object(finish_issue, "is_merged", return_value=True), \
              unittest.mock.patch.object(finish_issue, "is_dirty", return_value=False), \

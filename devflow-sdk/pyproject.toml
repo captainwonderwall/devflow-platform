@@ -13,10 +13,27 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["pytest>=8", "build>=1.0"]
+dev = ["pytest>=8", "build>=1.0", "import-linter>=2.0"]
 
 [tool.setuptools.package-data]
-devflow_sdk = ["config/wizard/tools/models_catalog.json"]
+devflow_sdk = ["core/config/wizard/tools/models_catalog.json"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+
+[tool.importlinter]
+root_package = "devflow_sdk"
+
+[[tool.importlinter.contracts]]
+name = "Core must not import from domain"
+type = "forbidden"
+source_modules = ["devflow_sdk.core"]
+forbidden_modules = ["devflow_sdk.domain"]
+
+[[tool.importlinter.contracts]]
+name = "Domains are independent of each other"
+type = "independence"
+modules = [
+    "devflow_sdk.domain.issue",
+    "devflow_sdk.domain.workspace",
+]

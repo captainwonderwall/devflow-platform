@@ -11,6 +11,8 @@ jobs:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v4
       - run: uv run --directory devflow-sdk --extra dev pytest
+      - name: Check import boundaries
+        run: uv run --directory devflow-sdk --extra dev lint-imports
 
   devflow-tests:
     runs-on: ubuntu-latest

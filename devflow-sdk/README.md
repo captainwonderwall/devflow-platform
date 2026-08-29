@@ -25,7 +25,7 @@ gh release list --repo captainwonderwall/devflow-platform | grep devflow-sdk
 Subclass `DraftPrPlugin` to build a devflow plugin:
 
 ```python
-from devflow_sdk.draft_pr_plugin import DraftPrPlugin
+from devflow_sdk.core.plugin import DraftPrPlugin
 
 class MyPlugin(DraftPrPlugin):
     name = "My Format"

@@ -7,7 +7,7 @@ from unittest.mock import patch
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 from fetch_comments import Comment
 from analyze_comments import build_analysis_prompt, analyze_comments
-from devflow_sdk.ai import AiResult
+from devflow_sdk.core.ai import AiResult
 
 
 def _make_comment(id_, author="alice", body="fix this", file=None, line=None,

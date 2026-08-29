@@ -14,16 +14,17 @@ import glob as _glob
 for _whl in sorted(_glob.glob(os.path.join(VENDOR_DIR, "*.whl"))):
     sys.path.insert(0, _whl)    # Dev: shared/ is at repo root
 
-from devflow_sdk.ticket_info import fetch
-from devflow_sdk.branch_name import make_branch, infer_type, VALID_TYPES
-from devflow_sdk.issue_context import write_issue_context
-from devflow_sdk.shell_function_check import check_shell_function
+from devflow_sdk.domain.issue import fetch, write_issue_context
+from devflow_sdk.core.branch_name import make_branch, infer_type, VALID_TYPES
+from devflow_sdk.core.shell_function_check import check_shell_function
 from devflow_sdk.worktree_state import add_worktree
+from devflow_sdk.domain.workspace import check_manager, create as create_workspace
+from devflow_sdk.core.git.worktree import get_repo_root
+from devflow_sdk.core.git.shell_state import _persist_start_branch_for_shell
 from repo_init import detect_and_write_config
-from worktree import check_worktrunk, create_worktree, get_repo_root, _persist_branch_for_shell
 from ide_config import copy_ide_config, prompt_and_open_ide, prompt_and_open_ai_agent
-from devflow_sdk.summary import summary
-from devflow_sdk.ai import run_ai_prompt
+from devflow_sdk.core.summary import summary
+from devflow_sdk.core.ai import run_ai_prompt
 
 _INFER_TYPE_PROMPT = """\
 You are classifying a {source} issue into a git branch type.
@@ -81,7 +82,7 @@ def main():
     summary.start_rate_fetch()
     atexit.register(summary.print_summary)
 
-    check_worktrunk()
+    check_manager()
     check_shell_function(
         "# >>> start-issue shell integration >>>",
         f"ERROR: start-issue shell function is not installed or is out of date.\n"
@@ -104,7 +105,7 @@ def main():
 
     repo_root = get_repo_root()
     detect_and_write_config(repo_root)
-    worktree_path = create_worktree(branch)
+    worktree_path = create_workspace(branch)
     if worktree_path:
         issue["branch"] = branch
         issue["branch_type"] = override if override is not None else infer_type(issue)
@@ -115,7 +116,7 @@ def main():
         prompt_and_open_ide(worktree_path)
         prompt_and_open_ai_agent(worktree_path)
 
-    _persist_branch_for_shell(branch)
+    _persist_start_branch_for_shell(branch)
 
     summary.add("Issue", f"{issue['source'].upper()} {issue['id']}: {issue['title']}")
     summary.add("Branch", branch)

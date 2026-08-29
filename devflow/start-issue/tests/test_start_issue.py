@@ -16,7 +16,7 @@ start_issue = importlib.util.module_from_spec(_spec)
 sys.modules["start_issue"] = start_issue  # register so patch("start_issue.x") works
 _spec.loader.exec_module(start_issue)
 
-from devflow_sdk.ai import AiResult
+from devflow_sdk.core.ai import AiResult
 
 
 def _ai_result(type_str=None, ok=True, error=""):
@@ -140,15 +140,15 @@ class TestMainAiInferenceWiring(unittest.TestCase):
              patch("atexit.register"), \
              patch("start_issue.fetch", return_value=issue_data), \
              patch("start_issue.run_ai_prompt", return_value=ai_result_val) as mock_ai, \
-             patch("start_issue.check_worktrunk"), \
+             patch("start_issue.check_manager"), \
              patch("start_issue.check_shell_function"), \
              patch("start_issue.get_repo_root", return_value="/fake/root"), \
              patch("start_issue.detect_and_write_config"), \
-             patch("start_issue.create_worktree", return_value="/fake/worktree"), \
+             patch("start_issue.create_workspace", return_value="/fake/worktree"), \
              patch("start_issue.write_issue_context"), \
              patch("start_issue.copy_ide_config") as mock_copy_ide_config, \
              patch("start_issue.prompt_and_open_ai_agent"), \
-             patch("start_issue._persist_branch_for_shell"), \
+             patch("start_issue._persist_start_branch_for_shell"), \
              patch("start_issue.add_worktree"), \
              patch.object(start_issue.summary, "start_rate_fetch"), \
              patch.object(start_issue.summary, "add"):
@@ -176,13 +176,13 @@ class TestMainAiInferenceWiring(unittest.TestCase):
         with patch("sys.argv", ["start-issue", "VDP-1"]), \
              patch("atexit.register"), \
              patch("start_issue.fetch", return_value=self._jira_with_type()), \
-             patch("start_issue.check_worktrunk"), \
+             patch("start_issue.check_manager"), \
              patch("start_issue.check_shell_function"), \
              patch("start_issue.get_repo_root", return_value="/fake/root"), \
              patch("start_issue.detect_and_write_config"), \
-             patch("start_issue.create_worktree", return_value=None), \
+             patch("start_issue.create_workspace", return_value=None), \
              patch("start_issue.copy_ide_config") as mock_copy_ide_config, \
-             patch("start_issue._persist_branch_for_shell"), \
+             patch("start_issue._persist_start_branch_for_shell"), \
              patch("start_issue.add_worktree"), \
              patch.object(start_issue.summary, "start_rate_fetch"), \
              patch.object(start_issue.summary, "add"):
@@ -214,14 +214,14 @@ class TestMainAiInferenceWiring(unittest.TestCase):
              patch("atexit.register"), \
              patch("start_issue.fetch", return_value=issue), \
              patch("start_issue.run_ai_prompt", return_value=ai_ret), \
-             patch("start_issue.check_worktrunk"), \
+             patch("start_issue.check_manager"), \
              patch("start_issue.check_shell_function"), \
              patch("start_issue.get_repo_root", return_value="/fake/root"), \
              patch("start_issue.detect_and_write_config"), \
-             patch("start_issue.create_worktree", return_value="/fake/wt"), \
+             patch("start_issue.create_workspace", return_value="/fake/wt"), \
              patch("start_issue.write_issue_context"), \
              patch("start_issue.prompt_and_open_ai_agent"), \
-             patch("start_issue._persist_branch_for_shell"), \
+             patch("start_issue._persist_start_branch_for_shell"), \
              patch("start_issue.add_worktree"), \
              patch("start_issue.make_branch", side_effect=lambda i, override, worktree: captured.update({"override": override}) or "hotfix/wt/jira-VDP-1-fix-crash"), \
              patch.object(start_issue.summary, "start_rate_fetch"), \
@@ -244,15 +244,15 @@ class TestMainIssueContextEnrichment(unittest.TestCase):
              patch("atexit.register"), \
              patch("start_issue.fetch", return_value=issue_data), \
              patch("start_issue.run_ai_prompt", return_value=_ai_result("feat")), \
-             patch("start_issue.check_worktrunk"), \
+             patch("start_issue.check_manager"), \
              patch("start_issue.check_shell_function"), \
              patch("start_issue.get_repo_root", return_value="/fake/root"), \
              patch("start_issue.detect_and_write_config"), \
-             patch("start_issue.create_worktree", return_value="/fake/worktree"), \
+             patch("start_issue.create_workspace", return_value="/fake/worktree"), \
              patch("start_issue.write_issue_context", side_effect=capture_write), \
              patch("start_issue.copy_ide_config"), \
              patch("start_issue.prompt_and_open_ai_agent"), \
-             patch("start_issue._persist_branch_for_shell"), \
+             patch("start_issue._persist_start_branch_for_shell"), \
              patch("start_issue.add_worktree"), \
              patch.object(start_issue.summary, "start_rate_fetch"), \
              patch.object(start_issue.summary, "add"):
@@ -285,15 +285,15 @@ class TestMainIssueContextEnrichment(unittest.TestCase):
              patch("atexit.register"), \
              patch("start_issue.fetch", return_value=issue), \
              patch("start_issue.run_ai_prompt", return_value=_ai_result("feat")), \
-             patch("start_issue.check_worktrunk"), \
+             patch("start_issue.check_manager"), \
              patch("start_issue.check_shell_function"), \
              patch("start_issue.get_repo_root", return_value="/fake/root"), \
              patch("start_issue.detect_and_write_config"), \
-             patch("start_issue.create_worktree", return_value="/fake/worktree"), \
+             patch("start_issue.create_workspace", return_value="/fake/worktree"), \
              patch("start_issue.write_issue_context"), \
              patch("start_issue.copy_ide_config"), \
              patch("start_issue.prompt_and_open_ai_agent"), \
-             patch("start_issue._persist_branch_for_shell"), \
+             patch("start_issue._persist_start_branch_for_shell"), \
              patch("start_issue.add_worktree"), \
              patch.object(start_issue.summary, "start_rate_fetch"), \
              patch.object(start_issue.summary, "add",
@@ -312,14 +312,14 @@ class TestMainIssueContextWriting(unittest.TestCase):
              patch("atexit.register"), \
              patch("start_issue.fetch", return_value=issue_data), \
              patch("start_issue.run_ai_prompt", return_value=_ai_result("feat")), \
-             patch("start_issue.check_worktrunk"), \
+             patch("start_issue.check_manager"), \
              patch("start_issue.check_shell_function"), \
              patch("start_issue.get_repo_root", return_value="/fake/root"), \
              patch("start_issue.detect_and_write_config"), \
-             patch("start_issue.create_worktree", return_value=worktree_path), \
+             patch("start_issue.create_workspace", return_value=worktree_path), \
              patch("start_issue.copy_ide_config"), \
              patch("start_issue.prompt_and_open_ai_agent"), \
-             patch("start_issue._persist_branch_for_shell"), \
+             patch("start_issue._persist_start_branch_for_shell"), \
              patch("start_issue.add_worktree"), \
              patch("start_issue.write_issue_context") as mock_write, \
              patch.object(start_issue.summary, "start_rate_fetch"), \
@@ -342,14 +342,14 @@ class TestMainIssueContextWriting(unittest.TestCase):
              patch("atexit.register"), \
              patch("start_issue.fetch", return_value=issue), \
              patch("start_issue.run_ai_prompt", return_value=_ai_result("feat")), \
-             patch("start_issue.check_worktrunk"), \
+             patch("start_issue.check_manager"), \
              patch("start_issue.check_shell_function"), \
              patch("start_issue.get_repo_root", return_value="/fake/root"), \
              patch("start_issue.detect_and_write_config"), \
-             patch("start_issue.create_worktree", return_value=None), \
+             patch("start_issue.create_workspace", return_value=None), \
              patch("start_issue.copy_ide_config"), \
              patch("start_issue.prompt_and_open_ai_agent"), \
-             patch("start_issue._persist_branch_for_shell"), \
+             patch("start_issue._persist_start_branch_for_shell"), \
              patch("start_issue.add_worktree"), \
              patch("start_issue.write_issue_context") as mock_write, \
              patch.object(start_issue.summary, "start_rate_fetch"), \
@@ -367,15 +367,15 @@ class TestCheckShellFunctionCalledInStartIssue(unittest.TestCase):
              patch("atexit.register"), \
              patch("start_issue.fetch", return_value=issue), \
              patch("start_issue.run_ai_prompt", return_value=_ai_result("feat")), \
-             patch("start_issue.check_worktrunk"), \
+             patch("start_issue.check_manager"), \
              patch("start_issue.check_shell_function", side_effect=lambda *a, **kw: calls.append((a, kw))) as mock_csf, \
              patch("start_issue.get_repo_root", return_value="/fake/root"), \
              patch("start_issue.detect_and_write_config"), \
-             patch("start_issue.create_worktree", return_value="/fake/worktree"), \
+             patch("start_issue.create_workspace", return_value="/fake/worktree"), \
              patch("start_issue.write_issue_context"), \
              patch("start_issue.copy_ide_config"), \
              patch("start_issue.prompt_and_open_ai_agent"), \
-             patch("start_issue._persist_branch_for_shell"), \
+             patch("start_issue._persist_start_branch_for_shell"), \
              patch("start_issue.add_worktree"), \
              patch.object(start_issue.summary, "start_rate_fetch"), \
              patch.object(start_issue.summary, "add"):
@@ -392,15 +392,15 @@ class TestMainWorktreeStateIntegration(unittest.TestCase):
              patch("atexit.register"), \
              patch("start_issue.fetch", return_value=issue_data), \
              patch("start_issue.run_ai_prompt", return_value=_ai_result("feat")), \
-             patch("start_issue.check_worktrunk"), \
+             patch("start_issue.check_manager"), \
              patch("start_issue.check_shell_function"), \
              patch("start_issue.get_repo_root", return_value="/fake/root"), \
              patch("start_issue.detect_and_write_config"), \
-             patch("start_issue.create_worktree", return_value=worktree_path), \
+             patch("start_issue.create_workspace", return_value=worktree_path), \
              patch("start_issue.write_issue_context"), \
              patch("start_issue.copy_ide_config"), \
              patch("start_issue.prompt_and_open_ai_agent"), \
-             patch("start_issue._persist_branch_for_shell"), \
+             patch("start_issue._persist_start_branch_for_shell"), \
              patch("start_issue.add_worktree") as mock_add, \
              patch.object(start_issue.summary, "start_rate_fetch"), \
              patch.object(start_issue.summary, "add"):

@@ -7,7 +7,7 @@ from unittest.mock import patch, MagicMock, call
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 from fetch_comments import Comment
 from post_replies import generate_reply_texts, _post_reply, _resolve_thread, _edit_in_editor, confirm_and_post_replies
-from devflow_sdk.ai import AiResult
+from devflow_sdk.core.ai import AiResult
 
 
 def _make_comment(id_, kind="review_thread", author="alice", is_bot=False,
