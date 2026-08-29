@@ -18,6 +18,7 @@ from devflow_sdk.ticket_info import fetch
 from devflow_sdk.branch_name import make_branch, infer_type, VALID_TYPES
 from devflow_sdk.issue_context import write_issue_context
 from devflow_sdk.shell_function_check import check_shell_function
+from devflow_sdk.worktree_state import add_worktree
 from repo_init import detect_and_write_config
 from worktree import check_worktrunk, create_worktree, get_repo_root, _persist_branch_for_shell
 from ide_config import copy_ide_config, prompt_and_open_ide, prompt_and_open_ai_agent
@@ -109,6 +110,7 @@ def main():
         issue["branch_type"] = override if override is not None else infer_type(issue)
         issue["started_at"] = datetime.now(timezone.utc).isoformat()
         write_issue_context(worktree_path, issue)
+        add_worktree(worktree_path, issue['id'], issue['source'])
         copy_ide_config(repo_root, worktree_path)
         prompt_and_open_ide(worktree_path)
         prompt_and_open_ai_agent(worktree_path)

@@ -149,6 +149,7 @@ class TestMainAiInferenceWiring(unittest.TestCase):
              patch("start_issue.copy_ide_config") as mock_copy_ide_config, \
              patch("start_issue.prompt_and_open_ai_agent"), \
              patch("start_issue._persist_branch_for_shell"), \
+             patch("start_issue.add_worktree"), \
              patch.object(start_issue.summary, "start_rate_fetch"), \
              patch.object(start_issue.summary, "add"):
             start_issue.main()
@@ -182,6 +183,7 @@ class TestMainAiInferenceWiring(unittest.TestCase):
              patch("start_issue.create_worktree", return_value=None), \
              patch("start_issue.copy_ide_config") as mock_copy_ide_config, \
              patch("start_issue._persist_branch_for_shell"), \
+             patch("start_issue.add_worktree"), \
              patch.object(start_issue.summary, "start_rate_fetch"), \
              patch.object(start_issue.summary, "add"):
             start_issue.main()
@@ -220,6 +222,7 @@ class TestMainAiInferenceWiring(unittest.TestCase):
              patch("start_issue.write_issue_context"), \
              patch("start_issue.prompt_and_open_ai_agent"), \
              patch("start_issue._persist_branch_for_shell"), \
+             patch("start_issue.add_worktree"), \
              patch("start_issue.make_branch", side_effect=lambda i, override, worktree: captured.update({"override": override}) or "hotfix/wt/jira-VDP-1-fix-crash"), \
              patch.object(start_issue.summary, "start_rate_fetch"), \
              patch.object(start_issue.summary, "add"):
@@ -250,6 +253,7 @@ class TestMainIssueContextEnrichment(unittest.TestCase):
              patch("start_issue.copy_ide_config"), \
              patch("start_issue.prompt_and_open_ai_agent"), \
              patch("start_issue._persist_branch_for_shell"), \
+             patch("start_issue.add_worktree"), \
              patch.object(start_issue.summary, "start_rate_fetch"), \
              patch.object(start_issue.summary, "add"):
             start_issue.main()
@@ -290,6 +294,7 @@ class TestMainIssueContextEnrichment(unittest.TestCase):
              patch("start_issue.copy_ide_config"), \
              patch("start_issue.prompt_and_open_ai_agent"), \
              patch("start_issue._persist_branch_for_shell"), \
+             patch("start_issue.add_worktree"), \
              patch.object(start_issue.summary, "start_rate_fetch"), \
              patch.object(start_issue.summary, "add",
                           side_effect=lambda k, v: summary_calls.append((k, v))):
@@ -315,6 +320,7 @@ class TestMainIssueContextWriting(unittest.TestCase):
              patch("start_issue.copy_ide_config"), \
              patch("start_issue.prompt_and_open_ai_agent"), \
              patch("start_issue._persist_branch_for_shell"), \
+             patch("start_issue.add_worktree"), \
              patch("start_issue.write_issue_context") as mock_write, \
              patch.object(start_issue.summary, "start_rate_fetch"), \
              patch.object(start_issue.summary, "add"):
@@ -353,9 +359,52 @@ class TestCheckShellFunctionCalledInStartIssue(unittest.TestCase):
              patch("start_issue.copy_ide_config"), \
              patch("start_issue.prompt_and_open_ai_agent"), \
              patch("start_issue._persist_branch_for_shell"), \
+             patch("start_issue.add_worktree"), \
              patch.object(start_issue.summary, "start_rate_fetch"), \
              patch.object(start_issue.summary, "add"):
             start_issue.main()
         mock_csf.assert_called_once()
         sentinel_arg = mock_csf.call_args[0][0]
         self.assertIn("start-issue shell integration", sentinel_arg)
+
+
+class TestMainWorktreeStateIntegration(unittest.TestCase):
+    def _run_main(self, worktree_path, issue_data):
+        argv = ["start-issue", str(issue_data.get("id", "42"))]
+        with patch("sys.argv", argv), \
+             patch("atexit.register"), \
+             patch("start_issue.fetch", return_value=issue_data), \
+             patch("start_issue.run_ai_prompt", return_value=_ai_result("feat")), \
+             patch("start_issue.check_worktrunk"), \
+             patch("start_issue.check_shell_function"), \
+             patch("start_issue.get_repo_root", return_value="/fake/root"), \
+             patch("start_issue.detect_and_write_config"), \
+             patch("start_issue.create_worktree", return_value=worktree_path), \
+             patch("start_issue.write_issue_context"), \
+             patch("start_issue.copy_ide_config"), \
+             patch("start_issue.prompt_and_open_ai_agent"), \
+             patch("start_issue._persist_branch_for_shell"), \
+             patch("start_issue.add_worktree") as mock_add, \
+             patch.object(start_issue.summary, "start_rate_fetch"), \
+             patch.object(start_issue.summary, "add"):
+            start_issue.main()
+        return mock_add
+
+    def _github_issue(self):
+        return {"source": "github", "id": "42", "title": "Add dark mode",
+                "body": "", "comments": [], "issuetype": "", "labels": ["enhancement"]}
+
+    def test_add_worktree_called_with_path_ticket_id_and_source(self):
+        issue = self._github_issue()
+        mock_add = self._run_main("/fake/worktree", issue)
+        mock_add.assert_called_once_with("/fake/worktree", "42", "github")
+
+    def test_add_worktree_not_called_when_no_worktree(self):
+        mock_add = self._run_main(None, self._github_issue())
+        mock_add.assert_not_called()
+
+    def test_add_worktree_called_with_jira_source(self):
+        issue = {"source": "jira", "id": "VDP-123", "title": "Fix crash",
+                 "body": "", "comments": [], "issuetype": "Bug", "labels": []}
+        mock_add = self._run_main("/fake/worktree", issue)
+        mock_add.assert_called_once_with("/fake/worktree", "VDP-123", "jira")
