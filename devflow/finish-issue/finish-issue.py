@@ -18,6 +18,7 @@ from devflow_sdk.prompts import select, text
 from devflow_sdk.issue_context import remove_issue_context, read_issue_context
 from devflow_sdk.shell_function_check import check_shell_function
 from devflow_sdk.worktrunk import check_worktrunk, list_worktrees, find_matching_worktrees, is_dirty
+from devflow_sdk.worktree_state import remove_worktree
 from shell_state import (
     _persist_branch_for_shell,
     _persist_worktree_for_shell,
@@ -164,6 +165,7 @@ def main():
             ok = _persist_force_for_shell() and ok
         ok = _persist_worktree_path_for_shell(path) and ok
         remove_issue_context(path)
+        remove_worktree(path)
         sys.exit(0 if ok else 1)
 
     if _cwd_inside_worktree(path):
@@ -185,6 +187,7 @@ def main():
         sys.exit(1)
 
     remove_issue_context(path)
+    remove_worktree(path)
     print(f"Removing worktree...")
     if force_remove:
         # Pre-clean uncommitted changes so wt remove can proceed without --force,

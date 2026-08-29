@@ -84,6 +84,7 @@ class TestMainDirtyWorktreeHandling(unittest.TestCase):
              unittest.mock.patch.object(finish_issue, "_persist_worktree_path_for_shell", return_value=True), \
              unittest.mock.patch.object(finish_issue, "_clear_force_marker_for_shell", return_value=True) as mock_clear, \
              unittest.mock.patch.object(finish_issue, "_cwd_inside_worktree", return_value=False), \
+             unittest.mock.patch.object(finish_issue, "remove_worktree"), \
              unittest.mock.patch.object(finish_issue.subprocess, "run",
                  return_value=unittest.mock.MagicMock(returncode=0, stderr="")) as mock_run:
             try:
@@ -178,6 +179,7 @@ class TestMainIssueContextCleanup(unittest.TestCase):
              unittest.mock.patch.object(finish_issue, "_cwd_inside_worktree", return_value=False), \
              unittest.mock.patch.object(finish_issue, "remove_issue_context",
                  side_effect=lambda p: call_order.append("remove_issue_context")) as mock_remove, \
+             unittest.mock.patch.object(finish_issue, "remove_worktree"), \
              unittest.mock.patch.object(finish_issue.subprocess, "run",
                  return_value=unittest.mock.MagicMock(returncode=0, stderr="")):
             try:
@@ -222,6 +224,7 @@ class TestMainIssueAutoDetection(unittest.TestCase):
              unittest.mock.patch.object(finish_issue, "_persist_branch_for_shell", return_value=True), \
              unittest.mock.patch.object(finish_issue, "_cwd_inside_worktree", return_value=False), \
              unittest.mock.patch.object(finish_issue, "remove_issue_context"), \
+             unittest.mock.patch.object(finish_issue, "remove_worktree"), \
              unittest.mock.patch.object(finish_issue.subprocess, "run",
                  return_value=unittest.mock.MagicMock(returncode=0, stderr="")):
             try:
@@ -287,6 +290,7 @@ class TestCheckShellFunctionCalledInFinishIssue(unittest.TestCase):
              unittest.mock.patch.object(finish_issue, "_persist_worktree_for_shell"), \
              unittest.mock.patch.object(finish_issue, "_cwd_inside_worktree", return_value=False), \
              unittest.mock.patch.object(finish_issue, "remove_issue_context"), \
+             unittest.mock.patch.object(finish_issue, "remove_worktree"), \
              unittest.mock.patch.object(finish_issue.subprocess, "run",
                  return_value=unittest.mock.MagicMock(returncode=0, stderr="")):
             try:
@@ -302,6 +306,46 @@ class TestCheckShellFunctionCalledInFinishIssue(unittest.TestCase):
         self.assertTrue(any("--prepare" in f for f in fragments))
         self.assertTrue(any(".finish-issue-force" in f for f in fragments))
         self.assertTrue(any("finish-issue-worktree-path" in f for f in fragments))
+
+
+class TestMainWorktreeStateIntegration(unittest.TestCase):
+    def _run_main(self, prepare=False):
+        argv = ["finish-issue", "65"] + (["--prepare"] if prepare else [])
+        worktrees = [{"branch": "main", "path": "/repos/main", "is_main": True}]
+        match = {"branch": "feat/wt/gh65-something", "path": "/repos/gh65"}
+
+        with unittest.mock.patch("sys.argv", argv), \
+             unittest.mock.patch.object(finish_issue, "check_worktrunk"), \
+             unittest.mock.patch.object(finish_issue, "check_shell_function"), \
+             unittest.mock.patch.object(finish_issue, "fetch",
+                 return_value={"source": "github", "id": "65", "title": "t"}), \
+             unittest.mock.patch.object(finish_issue, "list_worktrees", return_value=worktrees), \
+             unittest.mock.patch.object(finish_issue, "find_matching_worktrees", return_value=[match]), \
+             unittest.mock.patch.object(finish_issue, "get_main_branch", return_value="main"), \
+             unittest.mock.patch.object(finish_issue, "is_merged", return_value=True), \
+             unittest.mock.patch.object(finish_issue, "is_dirty", return_value=False), \
+             unittest.mock.patch.object(finish_issue, "_persist_branch_for_shell", return_value=True), \
+             unittest.mock.patch.object(finish_issue, "_persist_worktree_for_shell", return_value=True), \
+             unittest.mock.patch.object(finish_issue, "_persist_worktree_path_for_shell", return_value=True), \
+             unittest.mock.patch.object(finish_issue, "_clear_force_marker_for_shell", return_value=True), \
+             unittest.mock.patch.object(finish_issue, "_cwd_inside_worktree", return_value=False), \
+             unittest.mock.patch.object(finish_issue, "remove_issue_context"), \
+             unittest.mock.patch.object(finish_issue, "remove_worktree") as mock_remove, \
+             unittest.mock.patch.object(finish_issue.subprocess, "run",
+                 return_value=unittest.mock.MagicMock(returncode=0, stderr="")):
+            try:
+                finish_issue.main()
+            except SystemExit:
+                pass
+        return mock_remove
+
+    def test_remove_worktree_called_in_direct_path(self):
+        mock_remove = self._run_main(prepare=False)
+        mock_remove.assert_called_once_with("/repos/gh65")
+
+    def test_remove_worktree_called_in_prepare_path(self):
+        mock_remove = self._run_main(prepare=True)
+        mock_remove.assert_called_once_with("/repos/gh65")
 
 
 if __name__ == "__main__":
