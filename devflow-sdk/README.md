@@ -25,7 +25,7 @@ gh release list --repo captainwonderwall/devflow-platform | grep devflow-sdk
 Subclass `DraftPrPlugin` to build a devflow plugin:
 
 ```python
-from devflow_sdk.core.plugin import DraftPrPlugin
+from devflow_sdk.plugin import DraftPrPlugin
 
 class MyPlugin(DraftPrPlugin):
     name = "My Format"
@@ -39,5 +39,7 @@ class MyPlugin(DraftPrPlugin):
     def build_body(self, ai_result: dict, user_inputs: dict) -> str:
         return f"## {ai_result['title']}\n\n{ai_result['description']}\n"
 ```
+
+> **Migration note:** Package-level imports from `devflow_sdk.core.plugin` (e.g. `from devflow_sdk.core.plugin import PluginBase`) still work but emit a `DeprecationWarning`; update imports to `devflow_sdk.plugin`. Submodule paths such as `devflow_sdk.core.plugin.contracts` are no longer available. The scaffold in `devflow-plugin-scaffold/` will be updated in a follow-up.
 
 See [devflow-plugin-scaffold](https://github.com/captainwonderwall/devflow-platform/tree/main/devflow-plugin-scaffold) to generate a plugin repo.

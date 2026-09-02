@@ -40,7 +40,7 @@ for _whl in _glob.glob(_os.path.join(_vendor, "*.whl")):
         _sys.path.insert(0, _whl)
 del _glob, _os, _sys, _vendor
 
-from devflow_sdk.core.plugin import DraftPrPlugin
+from devflow_sdk.plugin import DraftPrPlugin
 
 
 class __CLASS_NAME__(DraftPrPlugin):

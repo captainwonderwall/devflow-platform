@@ -25,10 +25,17 @@ testpaths = ["tests"]
 root_package = "devflow_sdk"
 
 [[tool.importlinter.contracts]]
-name = "Core must not import from domain"
-type = "forbidden"
-source_modules = ["devflow_sdk.core"]
-forbidden_modules = ["devflow_sdk.domain"]
+name = "SDK layers"
+type = "layers"
+layers = [
+    "devflow_sdk.domain",
+    "devflow_sdk.plugin",
+    "devflow_sdk.core",
+]
+ignore_imports = [
+    # Deprecation shim only; delete this line when core/plugin/ is removed.
+    "devflow_sdk.core.plugin -> devflow_sdk.plugin",
+]
 
 [[tool.importlinter.contracts]]
 name = "Domains are independent of each other"

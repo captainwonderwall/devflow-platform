@@ -1,14 +1,9 @@
-"""Command-line entry point for managing the devflow plugin registry.
-
-This restores the CLI that was dropped when plugin_loader.py was split into
-plugin_loader.py (abstract base) and plugin_loader_impl.py (implementation)
-during the core/domain refactor.
-"""
+"""Command-line entry point for managing the devflow plugin registry."""
 from __future__ import annotations
 
 import argparse
 
-from devflow_sdk.core.plugin.plugin_loader_impl import PluginLoader
+from devflow_sdk.plugin.plugin_loader_impl import PluginLoader
 
 
 def main() -> None:

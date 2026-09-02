@@ -1,5 +1,5 @@
 import unittest
-from devflow_sdk.core.plugin import PluginEntry
+from devflow_sdk.plugin import PluginEntry
 
 
 class TestPluginEntry(unittest.TestCase):

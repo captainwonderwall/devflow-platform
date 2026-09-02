@@ -14,7 +14,7 @@ for _whl in sorted(_glob.glob(os.path.join(VENDOR_DIR, "*.whl"))):
 from devflow_sdk.core.ai import run_ai_prompt
 from devflow_sdk.core.prompts import select, prompt
 from devflow_sdk.core.config import load_config, load_tool_config
-from devflow_sdk.core.plugin import DraftPrPlugin, select_plugin
+from devflow_sdk.plugin import DraftPrPlugin, select_plugin
 from devflow_sdk.core.config.wizard.tools.draft_pr import DraftPrConfig, resolve_plugin
 
 from gather_pr_data import collect

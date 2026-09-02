@@ -54,7 +54,7 @@ class Devflow < Formula
     (bin/"devflow-plugin").write <<~BASH
       #!/bin/bash
       export PYTHONPATH="#{python_packages}${PYTHONPATH:+:$PYTHONPATH}"
-      exec python3 -m devflow_sdk.core.plugin.cli "$@"
+      exec python3 -m devflow_sdk.plugin.cli "$@"
     BASH
     (bin/"devflow-plugin").chmod 0755
 

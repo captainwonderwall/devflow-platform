@@ -1,4 +1,4 @@
-from devflow_sdk.core.plugin import PluginBase
+from devflow_sdk.plugin import PluginBase
 
 
 def test_plugin_base_is_instantiable():
