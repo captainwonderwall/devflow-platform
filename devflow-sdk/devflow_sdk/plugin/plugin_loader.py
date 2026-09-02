@@ -2,7 +2,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import TypeVar
 
-from devflow_sdk.core.plugin.plugin_registry import PluginEntry
+from devflow_sdk.plugin.plugin_registry import PluginEntry
 
 T = TypeVar("T")
 

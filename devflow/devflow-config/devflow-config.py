@@ -1,12 +1,14 @@
 #!/usr/bin/env python3
 import shutil
+import sys
 from datetime import datetime
 from pathlib import Path
 
 from devflow_sdk.core.config.io import CONFIG_PATH, load_config, load_tool_config, repair_config
 from devflow_sdk.core.config.wizard import run_wizard
 from devflow_sdk.core.config.wizard.global_steps import ModelsStep, ProviderStep
-from devflow_sdk.core.config.wizard.tools import ALL_TOOL_STEPS
+from devflow_sdk.core.config.wizard.tools import build_tool_steps
+from devflow_sdk.plugin import PluginLoader
 
 
 def _config_is_valid(tool_registry: dict) -> bool:
@@ -67,7 +69,14 @@ def _install_opencode_config() -> None:
 
 
 def main():
-    steps = [ProviderStep(), ModelsStep()] + ALL_TOOL_STEPS
+    def _plugin_names() -> list[str]:
+        try:
+            return sorted(PluginLoader().list_plugins())
+        except Exception as e:
+            print(f"  Warning: could not read plugin registry: {e}", file=sys.stderr)
+            return []
+
+    steps = [ProviderStep(), ModelsStep()] + build_tool_steps(_plugin_names)
     tool_registry = {s.tool_name: s.schema_cls for s in steps if s.tool_name}
 
     if not _config_is_valid(tool_registry):

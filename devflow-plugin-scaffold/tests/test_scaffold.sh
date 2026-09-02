@@ -35,7 +35,7 @@ file_exists "$D/.gitignore"
 
 has_content "$D/acme_format.py"                   "class AcmePlugin"
 has_content "$D/acme_format.py"                   'name = "Acme Format"'
-has_content "$D/acme_format.py"                   "from devflow_sdk.core.plugin import DraftPrPlugin"
+has_content "$D/acme_format.py"                   "from devflow_sdk.plugin import DraftPrPlugin"
 has_content "$D/acme_format.py"                   "class AcmePlugin(DraftPrPlugin)"
 has_content "$D/tests/test_acme_format.py"        "from acme_format import AcmePlugin"
 has_content "$D/tests/test_acme_format.py"        "def test_build_body_contains_title"

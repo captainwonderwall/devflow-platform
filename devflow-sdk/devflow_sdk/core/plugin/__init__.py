@@ -1,25 +1,9 @@
-from devflow_sdk.core.plugin.plugin_base import PluginBase
-from devflow_sdk.core.plugin.plugin_loader import PluginLoaderBase
-from devflow_sdk.core.plugin.plugin_loader_impl import (
-    PluginLoader,
-    select_plugin,
-    register,
-    unregister,
-    list_plugins,
-    discover,
-)
-from devflow_sdk.core.plugin.plugin_registry import PluginEntry
-from devflow_sdk.core.plugin.contracts import DraftPrPlugin
+import warnings
+from devflow_sdk.plugin import *          # noqa: F401,F403
+from devflow_sdk.plugin import __all__    # noqa: F401
 
-__all__ = [
-    "PluginBase",
-    "PluginLoaderBase",
-    "PluginLoader",
-    "PluginEntry",
-    "DraftPrPlugin",
-    "select_plugin",
-    "register",
-    "unregister",
-    "list_plugins",
-    "discover",
-]
+warnings.warn(
+    "devflow_sdk.core.plugin is deprecated; import from devflow_sdk.plugin instead.",
+    DeprecationWarning,
+    stacklevel=2,
+)

@@ -2,8 +2,8 @@ import json
 import pytest
 from pathlib import Path
 
-from devflow_sdk.core.plugin.plugin_loader_impl import PluginLoader
-from devflow_sdk.core.plugin import PluginEntry
+from devflow_sdk.plugin import PluginLoader
+from devflow_sdk.plugin import PluginEntry
 
 
 @pytest.fixture

@@ -1,11 +1,11 @@
 from __future__ import annotations
 
 import dataclasses
+from collections.abc import Callable
 from dataclasses import dataclass, field
 
 from devflow_sdk.core.config.schema import DevflowConfig, PluginConfig
 from devflow_sdk.core.config.wizard import WizardStep
-from devflow_sdk.core.plugin.plugin_loader_impl import PluginLoader
 from devflow_sdk.core.prompts import Choice, checkbox, confirm, select, text
 
 
@@ -60,14 +60,18 @@ class DraftPrWizardStep(WizardStep):
     tool_name = "draft-pr"
     schema_cls = DraftPrConfig
 
+    def __init__(self, plugin_names: Callable[[], list[str]] | None = None):
+        self._plugin_names = plugin_names or (lambda: [])
+
     def run(self, current: DevflowConfig) -> DevflowConfig:
-        loader = PluginLoader()
-        available = loader.list_plugins()
-        if not available:
+        try:
+            plugin_names = self._plugin_names()
+        except Exception as e:
+            print(f"  Warning: could not read plugin registry: {e}")
+            return current
+        if not plugin_names:
             print("  No plugins registered — skipping draft-pr plugin routing configuration.")
             return current
-
-        plugin_names = list(available.keys())
 
         # Load existing draft-pr config
         raw_draft_pr = current.tools.get("draft-pr", {})

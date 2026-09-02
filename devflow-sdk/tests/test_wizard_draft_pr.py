@@ -1,6 +1,6 @@
-import dataclasses
 import pytest
-from unittest.mock import MagicMock, patch
+from pathlib import Path
+from unittest.mock import patch
 
 from devflow_sdk.core.config import DevflowConfig, GlobalConfig
 from devflow_sdk.core.config.wizard.tools.draft_pr import (
@@ -9,7 +9,6 @@ from devflow_sdk.core.config.wizard.tools.draft_pr import (
     DirectoryRule,
     resolve_plugin,
 )
-from devflow_sdk.core.plugin import PluginEntry
 
 
 def _make_config(draft_pr_tools=None):
@@ -17,10 +16,6 @@ def _make_config(draft_pr_tools=None):
     if draft_pr_tools is not None:
         tools["draft-pr"] = draft_pr_tools
     return DevflowConfig(global_config=GlobalConfig(), tools=tools)
-
-
-def _make_entry(name):
-    return PluginEntry(name=name, path=f"/path/{name}.py", formula=None)
 
 
 class TestDraftPrConfig:
@@ -94,24 +89,40 @@ class TestDraftPrWizardStep:
     def test_section_label(self):
         assert DraftPrWizardStep().section == "draft-pr: Plugin Routing"
 
+    def test_module_does_not_import_plugin_package(self):
+        import importlib.util
+        import devflow_sdk.core.config.wizard.tools.draft_pr as m
+        src = importlib.util.find_spec(m.__name__).origin
+        content = Path(src).read_text()
+        assert "devflow_sdk.plugin" not in content
+        assert "devflow_sdk.core.plugin" not in content
+
     def test_skips_when_no_plugins_registered(self, capsys):
+        step = DraftPrWizardStep(plugin_names=lambda: [])
+        current = _make_config()
+        result = step.run(current)
+        assert result == current
+        assert "No plugins" in capsys.readouterr().out
+
+    def test_skips_when_no_provider_given(self, capsys):
         step = DraftPrWizardStep()
         current = _make_config()
-        with patch(
-            "devflow_sdk.core.config.wizard.tools.draft_pr.PluginLoader.list_plugins",
-            return_value={},
-        ):
-            result = step.run(current)
+        result = step.run(current)
         assert result == current
-        captured = capsys.readouterr()
-        assert "No plugins" in captured.out
+
+    def test_degrades_when_provider_raises(self, capsys):
+        def _broken():
+            raise RuntimeError("registry broken")
+        step = DraftPrWizardStep(plugin_names=_broken)
+        current = _make_config()
+        result = step.run(current)
+        assert result == current
+        assert "Warning" in capsys.readouterr().out
 
     def test_sets_default_plugin(self):
-        step = DraftPrWizardStep()
+        step = DraftPrWizardStep(plugin_names=lambda: ["smoke-check"])
         current = _make_config()
-        plugins = {"smoke-check": _make_entry("smoke-check")}
         with (
-            patch("devflow_sdk.core.config.wizard.tools.draft_pr.PluginLoader.list_plugins", return_value=plugins),
             patch("devflow_sdk.core.config.wizard.tools.draft_pr.select", return_value="smoke-check"),
             patch("devflow_sdk.core.config.wizard.tools.draft_pr.checkbox", return_value=[]),
             patch("devflow_sdk.core.config.wizard.tools.draft_pr.confirm", return_value=False),
@@ -120,7 +131,7 @@ class TestDraftPrWizardStep:
         assert result.tools["draft-pr"]["plugin"]["default"] == "smoke-check"
 
     def test_existing_rules_kept_when_all_selected(self):
-        step = DraftPrWizardStep()
+        step = DraftPrWizardStep(plugin_names=lambda: ["smoke-check", "other-plugin"])
         existing_tools = {
             "plugin": {
                 "default": "smoke-check",
@@ -128,13 +139,8 @@ class TestDraftPrWizardStep:
             }
         }
         current = _make_config(draft_pr_tools=existing_tools)
-        plugins = {
-            "smoke-check": _make_entry("smoke-check"),
-            "other-plugin": _make_entry("other-plugin"),
-        }
         rule = DirectoryRule(paths=["/src"], plugin="other-plugin")
         with (
-            patch("devflow_sdk.core.config.wizard.tools.draft_pr.PluginLoader.list_plugins", return_value=plugins),
             patch("devflow_sdk.core.config.wizard.tools.draft_pr.select", return_value="smoke-check"),
             patch("devflow_sdk.core.config.wizard.tools.draft_pr.checkbox", return_value=[rule]),
             patch("devflow_sdk.core.config.wizard.tools.draft_pr.confirm", return_value=False),
@@ -144,8 +150,7 @@ class TestDraftPrWizardStep:
         assert any(r["paths"] == ["/src"] for r in rules)
 
     def test_cancel_on_rules_prompt_returns_config_unchanged(self):
-        """Ctrl+C on the 'which rules to keep' prompt should leave config unchanged."""
-        step = DraftPrWizardStep()
+        step = DraftPrWizardStep(plugin_names=lambda: ["smoke-check", "other-plugin"])
         existing_tools = {
             "plugin": {
                 "default": "smoke-check",
@@ -153,25 +158,17 @@ class TestDraftPrWizardStep:
             }
         }
         current = _make_config(draft_pr_tools=existing_tools)
-        plugins = {
-            "smoke-check": _make_entry("smoke-check"),
-            "other-plugin": _make_entry("other-plugin"),
-        }
         with (
-            patch("devflow_sdk.core.config.wizard.tools.draft_pr.PluginLoader.list_plugins", return_value=plugins),
             patch("devflow_sdk.core.config.wizard.tools.draft_pr.select", return_value="smoke-check"),
-            # None simulates Ctrl+C on the checkbox prompt
             patch("devflow_sdk.core.config.wizard.tools.draft_pr.checkbox", return_value=None),
         ):
             result = step.run(current)
         assert result == current
 
     def test_new_rule_added(self):
-        step = DraftPrWizardStep()
+        step = DraftPrWizardStep(plugin_names=lambda: ["smoke-check"])
         current = _make_config()
-        plugins = {"smoke-check": _make_entry("smoke-check")}
         with (
-            patch("devflow_sdk.core.config.wizard.tools.draft_pr.PluginLoader.list_plugins", return_value=plugins),
             patch("devflow_sdk.core.config.wizard.tools.draft_pr.select", return_value="smoke-check"),
             patch("devflow_sdk.core.config.wizard.tools.draft_pr.checkbox", return_value=[]),
             patch("devflow_sdk.core.config.wizard.tools.draft_pr.confirm", side_effect=[True, False]),

@@ -154,3 +154,66 @@ def test_main_updates_existing_opencode_shell_block_idempotently(tmp_path):
     assert "export OPENCODE_CONFIG_CONTENT=old" not in shell
     assert shell.startswith("before\n")
     assert shell.endswith("after\n")
+
+
+# ── build_tool_steps ────────────────────────────────────────────────────────────
+
+def test_build_tool_steps_with_no_argument_matches_all_tool_steps():
+    from devflow_sdk.core.config.wizard.tools import build_tool_steps, ALL_TOOL_STEPS
+    steps = build_tool_steps()
+    assert len(steps) == len(ALL_TOOL_STEPS)
+    assert type(steps[0]) is type(ALL_TOOL_STEPS[0])
+
+
+def test_build_tool_steps_with_populated_provider(capsys):
+    from devflow_sdk.core.config.wizard.tools import build_tool_steps
+    from devflow_sdk.core.config.wizard.tools.draft_pr import DraftPrWizardStep
+    from unittest.mock import patch
+
+    steps = build_tool_steps(lambda: ["smoke-check"])
+    draft_step = next(s for s in steps if isinstance(s, DraftPrWizardStep))
+
+    from devflow_sdk.core.config.schema import DevflowConfig, GlobalConfig
+    current = DevflowConfig(global_config=GlobalConfig(), tools={})
+
+    with (
+        patch("devflow_sdk.core.config.wizard.tools.draft_pr.select", return_value="smoke-check"),
+        patch("devflow_sdk.core.config.wizard.tools.draft_pr.checkbox", return_value=[]),
+        patch("devflow_sdk.core.config.wizard.tools.draft_pr.confirm", return_value=False),
+    ):
+        result = draft_step.run(current)
+
+    assert result.tools["draft-pr"]["plugin"]["default"] == "smoke-check"
+
+
+def test_build_tool_steps_with_empty_provider(capsys):
+    from devflow_sdk.core.config.wizard.tools import build_tool_steps
+    from devflow_sdk.core.config.wizard.tools.draft_pr import DraftPrWizardStep
+
+    steps = build_tool_steps(lambda: [])
+    draft_step = next(s for s in steps if isinstance(s, DraftPrWizardStep))
+
+    from devflow_sdk.core.config.schema import DevflowConfig, GlobalConfig
+    current = DevflowConfig(global_config=GlobalConfig(), tools={})
+    result = draft_step.run(current)
+
+    assert result == current
+    assert "No plugins" in capsys.readouterr().out
+
+
+def test_build_tool_steps_with_raising_provider_degrades_gracefully(capsys):
+    from devflow_sdk.core.config.wizard.tools import build_tool_steps
+    from devflow_sdk.core.config.wizard.tools.draft_pr import DraftPrWizardStep
+
+    def _broken():
+        raise RuntimeError("registry unreadable")
+
+    steps = build_tool_steps(_broken)
+    draft_step = next(s for s in steps if isinstance(s, DraftPrWizardStep))
+
+    from devflow_sdk.core.config.schema import DevflowConfig, GlobalConfig
+    current = DevflowConfig(global_config=GlobalConfig(), tools={})
+    result = draft_step.run(current)
+
+    assert result == current
+    assert "Warning" in capsys.readouterr().out
