@@ -2,7 +2,7 @@
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-OUTPUT="$REPO_ROOT/devflow-sdk/devflow_sdk/config/wizard/tools/models_catalog.json"
+OUTPUT="$REPO_ROOT/devflow-sdk/devflow_sdk/core/config/wizard/tools/models_catalog.json"
 MODELS_DEV_REPO="${MODELS_DEV_REPO:-sst/models.dev}"
 
 echo "==> Fetching models catalog from models.dev GitHub repo ($MODELS_DEV_REPO)..."
