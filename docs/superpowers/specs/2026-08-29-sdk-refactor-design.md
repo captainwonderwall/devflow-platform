@@ -169,12 +169,16 @@ Bounded context for the in-progress development workspace lifecycle. A workspace
 
 The workspace domain is implemented entirely in `__init__.py` — it has no private submodules; all delegation goes to `devflow_sdk.core.git`.
 
-**`__init__.py`** — all public API for this domain:
+**`__init__.py`** — all public API for this domain. It exposes a normalized
+`Workspace` domain record with `branch`, `path`, and `is_main` attributes;
+`Workspace.matches_issue(issue_id, source)` owns issue association. The record
+retains read-only mapping-style access for existing CLI consumers while callers
+migrate to attributes:
 
 - `check_manager() -> None` — delegates to `core.git.check_worktrunk` (re-exported from `_worktrunk`); exits if `wt` not installed
 - `create(branch: str) -> str | None` — delegates to `core.git.worktree.create_worktree()`
-- `find_for_issue(issue_id: str, source: str) -> list[dict]` — calls `core.git.worktree.list_worktrees()` then matches using `core.branch_name.parse_branch()`; this is the business rule that a workspace belongs to an issue
-- `list_workspaces() -> list` — lists active workspaces (delegates to `core.git.worktree.list_worktrees()`, excludes main)
+- `find_for_issue(issue_id: str, source: str) -> list[Workspace]` — normalizes records from `core.git.worktree.list_worktrees()` and returns non-main workspaces whose parsed branch belongs to the issue
+- `list_workspaces() -> list[Workspace]` — returns normalized active workspaces and excludes the main worktree
 
 
 ---
