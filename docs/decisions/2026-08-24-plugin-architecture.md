@@ -27,7 +27,7 @@ Target audience is macOS developers installing via Homebrew. Plugins must be ins
 ## Implementation Plan
 
 - **Paths**: `devflow/plugin-manager/plugin_loader.py`, `devflow-sdk/devflow_sdk/`
-- **Follow**: all registry writes via `_atomic_update_registry`; discovery via `PluginLoader.discover(BaseCls)`
+- **Follow**: all registry writes via the internal `RegistryStore`; discovery via `PluginLoader.discover(BaseCls)`
 - **Avoid**: direct writes to `~/.devflow/plugin-registry.json`; `pkg_resources` entry points
 
 ### Verification

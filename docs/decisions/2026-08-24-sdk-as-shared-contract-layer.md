@@ -22,7 +22,7 @@ All plugin ABCs (`PluginBase`, `DraftPrPlugin`, `PluginLoaderBase`) live in `dev
 
 ## Implementation Plan
 
-- **Paths**: `devflow-sdk/devflow_sdk/` (plugin_base, plugin_loader, plugin_registry, draft_pr_plugin), `devflow/plugin-manager/plugin_loader.py`
+- **Paths**: `devflow-sdk/devflow_sdk/` (plugin_base, plugin_loader, plugin/plugin_registry, draft_pr_plugin), `devflow/plugin-manager/plugin_loader.py`
 - **Follow**: new plugin types as ABCs in `devflow-sdk/devflow_sdk/`; new loader methods in `PluginLoaderBase` first
 - **Avoid**: importing `devflow` CLI code from inside `devflow-sdk`; optional methods on ABCs
 

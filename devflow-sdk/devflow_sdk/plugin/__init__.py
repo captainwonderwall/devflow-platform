@@ -10,6 +10,12 @@ from devflow_sdk.plugin.plugin_loader_impl import (
 )
 from devflow_sdk.plugin.plugin_registry import PluginEntry
 from devflow_sdk.plugin.contracts import DraftPrPlugin
+from devflow_sdk.plugin.registry_store import (
+    InvalidRegistrationError,
+    MalformedRegistryError,
+    RegistryError,
+    RegistryIOError,
+)
 
 __all__ = [
     "PluginBase",
@@ -22,4 +28,8 @@ __all__ = [
     "unregister",
     "list_plugins",
     "discover",
+    "RegistryError",
+    "MalformedRegistryError",
+    "RegistryIOError",
+    "InvalidRegistrationError",
 ]

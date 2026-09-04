@@ -1,119 +1,45 @@
 from __future__ import annotations
 
-import fcntl
 import importlib.util
 import inspect
-import json
 import logging
-import os
 import sys
-import tempfile
 from pathlib import Path
 from typing import TypeVar
 
 from devflow_sdk.plugin.plugin_loader import PluginLoaderBase
+from devflow_sdk.plugin.registry_store import REGISTRY_PATH, RegistryStore
 from devflow_sdk.plugin.plugin_registry import PluginEntry
 from devflow_sdk.core.prompts import select
-
-REGISTRY_PATH = Path.home() / ".devflow" / "plugin-registry.json"
-REGISTRY_VERSION = 1
+from collections.abc import Mapping
 
 T = TypeVar("T")
-
-
-def _load_registry(registry_path: Path = REGISTRY_PATH) -> dict[str, PluginEntry]:
-    if not registry_path.exists():
-        return {}
-    try:
-        data = json.loads(registry_path.read_text())
-    except (json.JSONDecodeError, OSError) as e:
-        print(f"[devflow] Warning: plugin registry is unreadable: {e}", file=sys.stderr)
-        return {}
-    if not isinstance(data, dict) or data.get("version") != REGISTRY_VERSION:
-        print("[devflow] Warning: plugin registry format is unrecognized.", file=sys.stderr)
-        return {}
-    return {
-        name: PluginEntry(name=name, path=entry["path"], formula=entry.get("formula"))
-        for name, entry in data.get("plugins", {}).items()
-        if isinstance(entry, dict) and "path" in entry
-    }
-
-
-def _save_registry(plugins: dict[str, PluginEntry], registry_path: Path = REGISTRY_PATH) -> None:
-    registry_path.parent.mkdir(parents=True, exist_ok=True)
-    payload = {
-        "version": REGISTRY_VERSION,
-        "plugins": {
-            name: {
-                "path": e.path,
-                **({"formula": e.formula} if e.formula else {}),
-            }
-            for name, e in plugins.items()
-        },
-    }
-    fd, tmp_path = tempfile.mkstemp(dir=registry_path.parent, prefix=".registry-")
-    try:
-        with os.fdopen(fd, "w") as f:
-            json.dump(payload, f, indent=2)
-            f.write("\n")
-        os.rename(tmp_path, registry_path)
-    except Exception:
-        try:
-            os.unlink(tmp_path)
-        except OSError:
-            pass
-        raise
-
-
-def _atomic_update_registry(mutation_fn, registry_path: Path = REGISTRY_PATH) -> None:
-    lock_path = registry_path.parent / ".registry.lock"
-    lock_path.parent.mkdir(parents=True, exist_ok=True)
-    with open(lock_path, "a") as lock_file:
-        fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX)
-        try:
-            plugins = _load_registry(registry_path)
-            mutation_fn(plugins)
-            _save_registry(plugins, registry_path)
-        finally:
-            fcntl.flock(lock_file.fileno(), fcntl.LOCK_UN)
 
 
 class PluginLoader(PluginLoaderBase):
 
     def __init__(self, registry_path: Path = REGISTRY_PATH) -> None:
         self._registry_path = registry_path
+        self._registry = RegistryStore(registry_path)
 
     def register(self, name: str, path: str, formula: str | None = None) -> None:
-        def mutate(plugins):
-            plugins[name] = PluginEntry(name=name, path=path, formula=formula)
-        _atomic_update_registry(mutate, self._registry_path)
+        self._registry.register(name, path, formula)
 
     def unregister(self, name: str) -> None:
-        def mutate(plugins):
-            if name in plugins:
-                del plugins[name]
-        _atomic_update_registry(mutate, self._registry_path)
+        self._registry.unregister(name)
 
-    def list_plugins(self) -> dict[str, PluginEntry]:
-        return _load_registry(self._registry_path)
+    def list_plugins(self) -> Mapping[str, PluginEntry]:
+        return self._registry.snapshot()
 
     def discover(self, base_cls: type[T]) -> dict[str, T]:
-        stale: list[str] = []
-
-        def _purge_stale(plugins: dict[str, PluginEntry]) -> None:
-            for name in list(plugins):
-                if not os.path.exists(plugins[name].path):
-                    stale.append(name)
-                    del plugins[name]
-
-        _atomic_update_registry(_purge_stale, self._registry_path)
+        plugins, stale = self._registry.purge_missing()
         for name in stale:
             logging.warning(
                 "[devflow] plugin '%s' not found on disk — purging stale registry entry.", name
             )
 
         found: dict[str, T] = {}
-        for name, entry in _load_registry(self._registry_path).items():
+        for name, entry in plugins.items():
             path = Path(entry.path)
             try:
                 spec = importlib.util.spec_from_file_location(name, path)

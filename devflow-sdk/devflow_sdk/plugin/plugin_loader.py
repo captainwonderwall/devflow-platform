@@ -1,5 +1,6 @@
 from __future__ import annotations
 from abc import ABC, abstractmethod
+from collections.abc import Mapping
 from typing import TypeVar
 
 from devflow_sdk.plugin.plugin_registry import PluginEntry
@@ -18,7 +19,7 @@ class PluginLoaderBase(ABC):
         """Remove a plugin entry. No-op if name not found."""
 
     @abstractmethod
-    def list_plugins(self) -> dict[str, PluginEntry]:
+    def list_plugins(self) -> Mapping[str, PluginEntry]:
         """Return all registered plugins keyed by name."""
 
     @abstractmethod

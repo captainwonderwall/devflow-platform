@@ -6,6 +6,7 @@ Decisions that shaped how devflow is built and distributed. Each ADR captures co
 
 | Date | Title | Status |
 |------|-------|--------|
+| 2026-09-04 | [Use a locked immutable plugin registry store](../adr/0001-locked-immutable-plugin-registry-store.md) | accepted |
 | 2026-08-24 | [Adopt path-based plugin architecture with Homebrew distribution](2026-08-24-plugin-architecture.md) | accepted |
 | 2026-08-24 | [Extract plugin contracts into a standalone devflow-sdk package](2026-08-24-sdk-as-shared-contract-layer.md) | accepted |
 | 2026-08-24 | [Use Homebrew as the sole plugin distribution channel](2026-08-24-homebrew-distribution.md) | accepted |
