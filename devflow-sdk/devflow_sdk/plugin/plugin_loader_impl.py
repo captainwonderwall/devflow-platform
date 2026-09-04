@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import logging
 import sys
+from collections.abc import Mapping
+from pathlib import Path
 from typing import TypeVar
 
 from devflow_sdk.plugin.plugin_loader import PluginLoaderBase
@@ -9,9 +11,12 @@ from devflow_sdk.plugin.registry_store import REGISTRY_PATH, RegistryStore
 from devflow_sdk.plugin.plugin_registry import PluginEntry
 from devflow_sdk.plugin.plugin_path_loader import load_plugin
 from devflow_sdk.plugin.plugin_selection import select_plugin as choose_plugin
-from collections.abc import Mapping
 
 T = TypeVar("T")
+
+
+class PluginDiscoveryInvariantError(RuntimeError):
+    """Raised when a loader collaborator violates its result contract."""
 
 
 class PluginLoader(PluginLoaderBase):
@@ -29,6 +34,29 @@ class PluginLoader(PluginLoaderBase):
     def list_plugins(self) -> Mapping[str, PluginEntry]:
         return self._registry.snapshot()
 
+    @staticmethod
+    def _format_failure(name: str, phase: str) -> str:
+        messages = {
+            "load": (
+                f"[devflow] Warning: plugin '{name}' failed to load — it may be "
+                "incompatible with this version of devflow. Check for an updated release."
+            ),
+            "class-selection": (
+                f"[devflow] Warning: plugin '{name}' does not contain exactly one "
+                "compatible plugin class. Check for an updated release."
+            ),
+            "instantiation": (
+                f"[devflow] Warning: plugin '{name}' failed to instantiate — it may be "
+                "incompatible with this version of devflow. Check for an updated release."
+            ),
+        }
+        try:
+            return messages[phase]
+        except KeyError as error:
+            raise PluginDiscoveryInvariantError(
+                f"unknown plugin load failure phase: {phase!r}"
+            ) from error
+
     def discover(self, base_cls: type[T]) -> dict[str, T]:
         plugins, stale = self._registry.purge_missing()
         for name in stale:
@@ -39,26 +67,19 @@ class PluginLoader(PluginLoaderBase):
         found: dict[str, T] = {}
         for name, entry in plugins.items():
             result = load_plugin(entry, base_cls)
-            if not result.succeeded:
-                assert result.failure is not None
-                if result.failure.phase == "instantiation":
-                    message = (
-                        f"[devflow] Warning: plugin '{name}' failed to instantiate — "
-                        "it may be incompatible with this version of devflow. "
-                        "Check for an updated release."
+            if result.succeeded:
+                if result.plugin is None or result.failure is not None:
+                    raise PluginDiscoveryInvariantError(
+                        f"plugin loader returned an inconsistent success result for '{name}'"
                     )
-                else:
-                    message = (
-                        f"[devflow] Warning: plugin '{name}' failed to load — it may be incompatible "
-                        "with this version of devflow. Check for an updated release."
-                    )
-                print(
-                    message,
-                    file=sys.stderr,
-                )
+                found[name] = result.plugin
                 continue
-            assert result.plugin is not None
-            found[name] = result.plugin
+
+            if result.failure is None or result.plugin is not None:
+                raise PluginDiscoveryInvariantError(
+                    f"plugin loader returned an inconsistent failure result for '{name}'"
+                )
+            print(self._format_failure(name, result.failure.phase), file=sys.stderr)
         return found
 
     def select_plugin(self, base_cls: type[T], configured_name: str | None = None) -> T | None:
