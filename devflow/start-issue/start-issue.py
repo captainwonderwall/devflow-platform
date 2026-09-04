@@ -105,8 +105,9 @@ def main():
 
     repo_root = get_repo_root()
     detect_and_write_config(repo_root)
-    worktree_path = create_workspace(branch)
-    if worktree_path:
+    workspace = create_workspace(branch)
+    if workspace:
+        worktree_path = workspace.path
         issue["branch"] = branch
         issue["branch_type"] = override if override is not None else infer_type(issue)
         issue["started_at"] = datetime.now(timezone.utc).isoformat()
@@ -115,6 +116,8 @@ def main():
         copy_ide_config(repo_root, worktree_path)
         prompt_and_open_ide(worktree_path)
         prompt_and_open_ai_agent(worktree_path)
+    else:
+        worktree_path = None
 
     _persist_start_branch_for_shell(branch)
 

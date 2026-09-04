@@ -1,3 +1,4 @@
+from collections.abc import Mapping
 from dataclasses import dataclass
 
 from devflow_sdk.core.branch_name import parse_branch
@@ -14,7 +15,7 @@ class Workspace:
     is_main: bool
 
     @classmethod
-    def from_worktree(cls, worktree: dict) -> "Workspace":
+    def _from_worktree(cls, worktree: Mapping[str, object]) -> "Workspace":
         """Normalize one raw worktrunk record at the domain boundary."""
         branch = worktree.get("branch")
         return cls(
@@ -34,23 +35,9 @@ class Workspace:
             and parsed["id"].lower() == str(issue_id).lower()
         )
 
-    def __getitem__(self, key: str) -> str | bool | None:
-        """Keep the established mapping-shaped SDK boundary during migration."""
-        if key not in {"branch", "path", "is_main"}:
-            raise KeyError(key)
-        return getattr(self, key)
-
-    def get(self, key: str, default: object = None) -> str | bool | object:
-        """Provide dict-like access for existing CLI consumers."""
-        try:
-            return self[key]
-        except KeyError:
-            return default
-
-
 def _workspaces() -> list[Workspace]:
     """Load and normalize worktrees once at the domain boundary."""
-    return [Workspace.from_worktree(worktree) for worktree in list_worktrees()]
+    return [Workspace._from_worktree(worktree) for worktree in list_worktrees()]
 
 
 def check_manager() -> None:
@@ -58,9 +45,12 @@ def check_manager() -> None:
     check_worktrunk()
 
 
-def create(branch: str) -> str | None:
-    """Create or switch to a worktree for branch. Returns the worktree path."""
-    return create_worktree(branch)
+def create(branch: str) -> Workspace | None:
+    """Create or switch to a branch workspace."""
+    path = create_worktree(branch)
+    if path is None:
+        return None
+    return Workspace(branch=branch, path=path, is_main=False)
 
 
 def find_for_issue(issue_id: str, source: str) -> list[Workspace]:

@@ -3,6 +3,7 @@ import os
 import unittest
 import unittest.mock
 import importlib.util
+from devflow_sdk.domain.workspace import Workspace
 
 _HERE = os.path.dirname(__file__)
 sys.path.insert(0, os.path.join(_HERE, ".."))        # finish-issue/ dir
@@ -65,7 +66,7 @@ class TestMainDirtyWorktreeHandling(unittest.TestCase):
     def _run_main_with(self, is_dirty_return, dirty_choice, prepare=False):
         argv = ["finish-issue", "65"] + (["--prepare"] if prepare else [])
         worktrees = [{"branch": "main", "path": "/repos/main", "is_main": True}]
-        match = {"branch": "feat/wt/gh65-something", "path": "/repos/gh65"}
+        match = Workspace(branch="feat/wt/gh65-something", path="/repos/gh65", is_main=False)
 
         with unittest.mock.patch("sys.argv", argv), \
              unittest.mock.patch.object(finish_issue, "check_manager"), \
@@ -159,7 +160,7 @@ class TestMainIssueContextCleanup(unittest.TestCase):
     def _run_main(self, is_dirty_return=False):
         argv = ["finish-issue", "65"]
         worktrees = [{"branch": "main", "path": "/repos/main", "is_main": True}]
-        match = {"branch": "feat/wt/gh65-something", "path": "/repos/gh65"}
+        match = Workspace(branch="feat/wt/gh65-something", path="/repos/gh65", is_main=False)
         call_order = []
 
         with unittest.mock.patch("sys.argv", argv), \
@@ -207,7 +208,7 @@ class TestMainIssueAutoDetection(unittest.TestCase):
 
     def _run_main(self, argv, issue_context=None, prompt_input=None):
         worktrees = [{"branch": "main", "path": "/repos/main", "is_main": True}]
-        match = {"branch": "feat/wt/gh65-something", "path": "/repos/gh65"}
+        match = Workspace(branch="feat/wt/gh65-something", path="/repos/gh65", is_main=False)
         fetched_issue = {"source": "github", "id": "65", "title": "t"}
 
         with unittest.mock.patch("sys.argv", argv), \
@@ -271,7 +272,7 @@ class TestMainIssueAutoDetection(unittest.TestCase):
 
 class TestCheckShellFunctionCalledInFinishIssue(unittest.TestCase):
     def _make_worktree(self):
-        return {"branch": "feat/gh-42", "path": "/repos/feat-gh-42", "is_main": False}
+         return Workspace(branch="feat/gh-42", path="/repos/feat-gh-42", is_main=False)
 
     def test_check_shell_function_called_with_finish_issue_sentinel_and_prepare(self):
         wt = self._make_worktree()
@@ -312,7 +313,7 @@ class TestMainWorktreeStateIntegration(unittest.TestCase):
     def _run_main(self, prepare=False):
         argv = ["finish-issue", "65"] + (["--prepare"] if prepare else [])
         worktrees = [{"branch": "main", "path": "/repos/main", "is_main": True}]
-        match = {"branch": "feat/wt/gh65-something", "path": "/repos/gh65"}
+        match = Workspace(branch="feat/wt/gh65-something", path="/repos/gh65", is_main=False)
 
         with unittest.mock.patch("sys.argv", argv), \
              unittest.mock.patch.object(finish_issue, "check_manager"), \

@@ -116,7 +116,7 @@ def main():
             file=sys.stderr,
         )
         for m in matches:
-            print(f"  {m['branch']} -> {m['path']}", file=sys.stderr)
+            print(f"  {m.branch} -> {m.path}", file=sys.stderr)
         print(
             "Please remove the correct one manually, e.g.: wt remove <branch>",
             file=sys.stderr,
@@ -124,7 +124,7 @@ def main():
         sys.exit(1)
 
     match = matches[0]
-    branch, path = match["branch"], match["path"]
+    branch, path = match.branch, match.path
 
     if not path:
         print(f"ERROR: Could not determine path for worktree '{branch}'.", file=sys.stderr)
