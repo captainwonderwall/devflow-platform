@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-import importlib.util
-import inspect
 import logging
 import sys
 from pathlib import Path
@@ -10,6 +8,7 @@ from typing import TypeVar
 from devflow_sdk.plugin.plugin_loader import PluginLoaderBase
 from devflow_sdk.plugin.registry_store import REGISTRY_PATH, RegistryStore
 from devflow_sdk.plugin.plugin_registry import PluginEntry
+from devflow_sdk.plugin.plugin_path_loader import load_plugin
 from devflow_sdk.core.prompts import select
 from collections.abc import Mapping
 
@@ -40,35 +39,27 @@ class PluginLoader(PluginLoaderBase):
 
         found: dict[str, T] = {}
         for name, entry in plugins.items():
-            path = Path(entry.path)
-            try:
-                spec = importlib.util.spec_from_file_location(name, path)
-                mod = importlib.util.module_from_spec(spec)
-                spec.loader.exec_module(mod)
-            except Exception:
+            result = load_plugin(entry, base_cls)
+            if not result.succeeded:
+                assert result.failure is not None
+                if result.failure.phase == "instantiation":
+                    message = (
+                        f"[devflow] Warning: plugin '{name}' failed to instantiate — "
+                        "it may be incompatible with this version of devflow. "
+                        "Check for an updated release."
+                    )
+                else:
+                    message = (
+                        f"[devflow] Warning: plugin '{name}' failed to load — it may be incompatible "
+                        "with this version of devflow. Check for an updated release."
+                    )
                 print(
-                    f"[devflow] Warning: plugin '{name}' failed to load — it may be incompatible "
-                    "with this version of devflow. Check for an updated release.",
+                    message,
                     file=sys.stderr,
                 )
                 continue
-            for attr in vars(mod).values():
-                if (
-                    isinstance(attr, type)
-                    and issubclass(attr, base_cls)
-                    and attr is not base_cls
-                    and not inspect.isabstract(attr)
-                ):
-                    try:
-                        found[name] = attr()
-                    except Exception:
-                        print(
-                            f"[devflow] Warning: plugin '{name}' failed to instantiate — "
-                            "it may be incompatible with this version of devflow. "
-                            "Check for an updated release.",
-                            file=sys.stderr,
-                        )
-                    break
+            assert result.plugin is not None
+            found[name] = result.plugin
         return found
 
     def select_plugin(self, base_cls: type[T], configured_name: str | None = None) -> T | None:

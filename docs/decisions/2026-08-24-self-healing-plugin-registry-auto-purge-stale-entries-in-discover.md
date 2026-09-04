@@ -8,13 +8,13 @@ decision-makers: captainwonderwall
 
 ## Context and Problem Statement
 
-Homebrew formulas have no `uninstall_formula` DSL hook. When a user runs `brew uninstall devflow-plugin-<name>`, Homebrew removes the plugin's `.py` file from disk but has no mechanism to notify devflow. The entry in `~/.devflow/plugin-registry.json` therefore persists after uninstall. On the next `devflow draft-pr`, `PluginLoader.discover()` encounters a registry entry whose path no longer exists, which causes a silent skip or a noisy `importlib` error depending on timing.
+Homebrew formulas have no `uninstall_formula` DSL hook. When a user runs `brew uninstall devflow-plugin-<name>`, Homebrew removes the plugin's `.py` file from disk but has no mechanism to notify devflow. The entry in `~/.devflow/plugin-registry.json` therefore persists after uninstall. On the next `devflow draft-pr`, `PluginLoader.discover()` encounters a registry entry whose path is no longer a regular file.
 
 The scaffold's formula template currently works around this with a comment asking users to manually run `devflow-plugin unregister <name>` before uninstalling — a step that is easy to miss and not enforced by Homebrew.
 
 ## Decision
 
-Modify `PluginLoader.discover()` to check `os.path.exists(entry.path)` for each registry entry. Missing entries are collected and the registry is atomically rewritten (reusing the existing `fcntl.flock` + `mkstemp` + `os.rename` pattern) before discovery proceeds. The registry becomes eventually consistent: stale entries are purged on the next `devflow draft-pr` run with no user action.
+Modify `PluginLoader.discover()` to call the internal `RegistryStore.purge_missing()`, which checks `Path.is_file()` for each registry entry. Missing or non-regular entries are collected and the registry is atomically rewritten before discovery proceeds. The registry becomes eventually consistent: stale entries are purged on the next `devflow draft-pr` run with no user action.
 
 Non-goals: proactive filesystem monitoring, Windows/Linux support, a new CLI subcommand for cleanup.
 
@@ -33,7 +33,7 @@ Non-goals: proactive filesystem monitoring, Windows/Linux support, a new CLI sub
   - `devflow-plugin-scaffold/tests/test_scaffold.sh` — assertion on formula template
 
 - **Patterns to follow**:
-  - Reuse `_atomic_update_registry` (or equivalent `fcntl.flock` + `mkstemp` + `os.rename` block) — do not write the registry file directly
+  - Reuse `RegistryStore`'s locked atomic write — do not write the registry file directly
   - Emit a `logging.warning` for each purged entry (consistent with how `unregister` logs)
   - Collect all missing entries first, then write once — not one write per missing entry
 
