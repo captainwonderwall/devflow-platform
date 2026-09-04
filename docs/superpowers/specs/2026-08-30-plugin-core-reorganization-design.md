@@ -1,6 +1,6 @@
 # Plugin/Core Re-organization (#43)
 
-Status: design, awaiting implementation plan
+Status: implemented; compatibility seam removed
 Issue: #43 — "Re-design the plugin management module/system given the lesson
 learned and the changes in the SDK"
 
@@ -9,8 +9,10 @@ learned and the changes in the SDK"
 ## Scope
 
 This spec covers **only the code re-organization of the plugin and core
-packages**. It is behaviour-preserving: the plugin registry, the
-`devflow-plugin` CLI, the scaffold, and Homebrew packaging are all untouched.
+packages**. The canonical plugin package is `devflow_sdk.plugin`; the removed
+`devflow_sdk.core.plugin` compatibility seam is not supported. The plugin
+registry, the `devflow-plugin` CLI, the scaffold, and Homebrew packaging remain
+otherwise unchanged.
 
 **Deferred to a follow-up spec** (design work already done, not discarded):
 replacing the bespoke registry with `importlib.metadata` entry points, removing
@@ -77,29 +79,19 @@ better fix, but belongs to the deferred entry-points work.
 
 ---
 
-## Deprecation Shim
+## Compatibility Seam Removal
 
-`docs/superpowers/plans/2026-08-29-sdk-refactor.md` documents
-`devflow_sdk.core.plugin` as "the committed stable surface" for external plugin
-authors, so the old import path keeps working.
-`devflow_sdk/core/plugin/__init__.py` remains as a re-export shim; every other
-file under `core/plugin/` is deleted:
+`devflow_sdk.plugin` is the sole plugin seam. The deprecated
+`devflow_sdk.core.plugin` package has been removed, so plugin authors must use
+the canonical import path:
 
 ```python
-import warnings
-from devflow_sdk.plugin import *          # noqa: F401,F403
-from devflow_sdk.plugin import __all__    # noqa: F401
-
-warnings.warn(
-    "devflow_sdk.core.plugin is deprecated; import from devflow_sdk.plugin instead.",
-    DeprecationWarning,
-    stacklevel=2,
-)
+from devflow_sdk.plugin import DraftPrPlugin
 ```
 
-Shipped as a **minor** version bump. Existing plugins that import from the old
-path keep working with a warning; nothing about how they are registered or
-loaded changes.
+The removed package is not re-exported, and imports from the old path are not a
+supported compatibility contract. Plugin registration and loading behavior are
+otherwise unchanged.
 
 ---
 
@@ -116,10 +108,6 @@ layers = [
     "devflow_sdk.plugin",
     "devflow_sdk.core",
 ]
-ignore_imports = [
-    # Deprecation shim only; delete this line when core/plugin/ is removed.
-    "devflow_sdk.core.plugin -> devflow_sdk.plugin",
-]
 ```
 
 This enforces: `core` imports neither `plugin` nor `domain`; `plugin` may
@@ -135,8 +123,7 @@ The existing **"Core must not import from domain"** contract is **deleted**
 other"** is kept unchanged, and `devflow_sdk.plugin` is deliberately *not*
 added to it, because it is not a domain.
 
-`import-linter` reports the shim as `KEPT (1 ignored import)`, keeping the
-exception visible in CI rather than silent.
+With the compatibility package removed, the contract has no ignored imports.
 
 ---
 
@@ -221,8 +208,7 @@ must not need logic changes.
 
 **`devflow-sdk/tests/test_plugin_public_api.py`** (updated): asserts
 `devflow_sdk.plugin` exports the documented names, and that
-`devflow_sdk.core.plugin` re-exports the same names while emitting
-`DeprecationWarning`.
+The removed `devflow_sdk.core.plugin` path is not a supported interface.
 
 **`devflow-sdk/tests/test_plugin_cli.py`** (new): asserts
 `devflow_sdk.plugin.cli` is importable and runnable via
@@ -238,9 +224,7 @@ plugins" rather than propagating.
 **`devflow-sdk/tests/test_wizard_draft_pr.py`** (updated): asserts the module no
 longer imports the plugin package.
 
-**CI (`lint-imports`)**: the "SDK layers" contract reports
-`KEPT (1 ignored import)`. Any additional ignored import signals the layering is
-eroding.
+**CI (`lint-imports`)**: the "SDK layers" contract has no ignored imports.
 
 ---
 
@@ -249,8 +233,7 @@ eroding.
 | File | Change |
 |---|---|
 | `devflow_sdk/plugin/*` | New location; modules moved verbatim with updated internal imports |
-| `devflow_sdk/core/plugin/__init__.py` | Becomes the deprecation shim |
-| `devflow_sdk/core/plugin/*` (all others) | Deleted |
+| `devflow_sdk/core/plugin/*` | Deleted; `devflow_sdk.plugin` is canonical |
 | `devflow_sdk/core/config/wizard/tools/draft_pr.py` | Remove `PluginLoader` import; accept injected `plugin_names` |
 | `devflow_sdk/core/config/wizard/tools/__init__.py` | Add `build_tool_steps`; keep `ALL_TOOL_STEPS` |
 | `devflow-sdk/pyproject.toml` | Add "SDK layers" contract with one scoped `ignore_imports`; delete "Core must not import from domain"; keep "Domains are independent" |
@@ -259,4 +242,4 @@ eroding.
 | `devflow/devflow-config/devflow-config.py` | Supply the plugin-names provider |
 | `devflow/devflow-config/tests/test_wizard.py` | Per the testing plan |
 | `homebrew-devflow/Formula/devflow.rb` | Update the `devflow-plugin` module path |
-| `devflow-sdk/README.md`, `DEVELOPMENT.md` | Document the new import path and the deprecation |
+| `devflow-sdk/README.md` | Documents the canonical import path |

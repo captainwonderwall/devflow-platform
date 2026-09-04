@@ -40,5 +40,4 @@ class MyPlugin(DraftPrPlugin):
         return f"## {ai_result['title']}\n\n{ai_result['description']}\n"
 ```
 
-> **Migration note:** Package-level imports from `devflow_sdk.core.plugin` (e.g. `from devflow_sdk.core.plugin import PluginBase`) still work but emit a `DeprecationWarning`; update imports to `devflow_sdk.plugin`. Submodule paths such as `devflow_sdk.core.plugin.contracts` are no longer available.
 See [devflow-plugin-scaffold](https://github.com/captainwonderwall/devflow-platform/tree/main/devflow-plugin-scaffold) to generate a plugin repo.

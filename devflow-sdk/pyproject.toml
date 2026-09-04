@@ -32,10 +32,6 @@ layers = [
     "devflow_sdk.plugin",
     "devflow_sdk.core",
 ]
-ignore_imports = [
-    # Deprecation shim only; delete this line when core/plugin/ is removed.
-    "devflow_sdk.core.plugin -> devflow_sdk.plugin",
-]
 
 [[tool.importlinter.contracts]]
 name = "Domains are independent of each other"
