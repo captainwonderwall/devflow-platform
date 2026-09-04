@@ -2,14 +2,13 @@ from __future__ import annotations
 
 import logging
 import sys
-from pathlib import Path
 from typing import TypeVar
 
 from devflow_sdk.plugin.plugin_loader import PluginLoaderBase
 from devflow_sdk.plugin.registry_store import REGISTRY_PATH, RegistryStore
 from devflow_sdk.plugin.plugin_registry import PluginEntry
 from devflow_sdk.plugin.plugin_path_loader import load_plugin
-from devflow_sdk.core.prompts import select
+from devflow_sdk.plugin.plugin_selection import select_plugin as choose_plugin
 from collections.abc import Mapping
 
 T = TypeVar("T")
@@ -63,21 +62,7 @@ class PluginLoader(PluginLoaderBase):
         return found
 
     def select_plugin(self, base_cls: type[T], configured_name: str | None = None) -> T | None:
-        plugins = self.discover(base_cls)
-        if not plugins:
-            return None
-        if configured_name:
-            if configured_name in plugins:
-                return plugins[configured_name]
-            print(
-                f"[devflow] Warning: configured plugin '{configured_name}' not found. "
-                f"Available: {', '.join(plugins.keys())}",
-                file=sys.stderr,
-            )
-        if len(plugins) == 1:
-            return next(iter(plugins.values()))
-        chosen = select("Select plugin", choices=list(plugins.keys()))
-        return plugins[chosen]
+        return choose_plugin(self.discover(base_cls), configured_name)
 
 
 _loader = PluginLoader()
