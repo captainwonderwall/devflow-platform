@@ -58,7 +58,7 @@ class PluginLoader(PluginLoaderBase):
             ) from error
 
     def discover(self, base_cls: type[T]) -> dict[str, T]:
-        plugins, stale = self._registry.purge_missing()
+        plugins, stale = self._registry._purge_missing()
         for name in stale:
             logging.warning(
                 "[devflow] plugin '%s' not found on disk — purging stale registry entry.", name

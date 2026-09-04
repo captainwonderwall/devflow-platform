@@ -69,7 +69,7 @@ class RegistryStore:
             snapshot.entry_metadata.pop(name, None)
             self._write_locked(snapshot)
 
-    def purge_missing(self) -> tuple[Mapping[str, PluginEntry], list[str]]:
+    def _purge_missing(self) -> tuple[Mapping[str, PluginEntry], list[str]]:
         with self._lock(shared=False):
             snapshot = self._read_locked()
             removed = sorted(

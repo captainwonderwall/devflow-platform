@@ -61,7 +61,7 @@ def test_purge_returns_post_purge_snapshot_and_sorted_names(tmp_path: Path) -> N
     )
     store = RegistryStore(registry)
 
-    snapshot, removed = store.purge_missing()
+    snapshot, removed = store._purge_missing()
 
     assert removed == ["z-plugin"]
     assert list(snapshot) == ["a-plugin"]

@@ -91,7 +91,7 @@ def test_discover_preserves_registry_order_and_skips_failed_plugins(registry_pat
         ]
     )
     loader = _loader_with_entries(registry_path)
-    loader._registry.purge_missing = lambda: (entries, [])
+    loader._registry._purge_missing = lambda: (entries, [])
     with patch(
         "devflow_sdk.plugin.plugin_loader_impl.load_plugin",
         side_effect=lambda entry, base_cls: next(results),
@@ -114,7 +114,7 @@ def test_discover_emits_phase_specific_diagnostics(
     registry_path, capsys, phase, expected
 ):
     loader = _loader_with_entries(registry_path)
-    loader._registry.purge_missing = lambda: (
+    loader._registry._purge_missing = lambda: (
         {"plugin": PluginEntry(name="plugin", path="/plugin.py")},
         [],
     )
@@ -128,7 +128,7 @@ def test_discover_emits_phase_specific_diagnostics(
 
 def test_discover_logs_each_stale_entry(registry_path, caplog):
     loader = _loader_with_entries(registry_path)
-    loader._registry.purge_missing = lambda: ({}, ["old-a", "old-b"])
+    loader._registry._purge_missing = lambda: ({}, ["old-a", "old-b"])
     with patch("devflow_sdk.plugin.plugin_loader_impl.load_plugin"):
         assert loader.discover(ExamplePlugin) == {}
     assert "plugin 'old-a' not found on disk" in caplog.text
@@ -138,14 +138,14 @@ def test_discover_logs_each_stale_entry(registry_path, caplog):
 def test_discover_propagates_registry_errors(registry_path):
     loader = _loader_with_entries(registry_path)
     error = RuntimeError("registry failure")
-    loader._registry.purge_missing = lambda: (_ for _ in ()).throw(error)
+    loader._registry._purge_missing = lambda: (_ for _ in ()).throw(error)
     with pytest.raises(RuntimeError, match="registry failure"):
         loader.discover(ExamplePlugin)
 
 
 def test_discover_rejects_inconsistent_success_result(registry_path):
     loader = _loader_with_entries(registry_path)
-    loader._registry.purge_missing = lambda: (
+    loader._registry._purge_missing = lambda: (
         {"plugin": PluginEntry(name="plugin", path="/plugin.py")},
         [],
     )
@@ -158,7 +158,7 @@ def test_discover_rejects_inconsistent_success_result(registry_path):
 
 def test_discover_rejects_unknown_failure_phase(registry_path):
     loader = _loader_with_entries(registry_path)
-    loader._registry.purge_missing = lambda: (
+    loader._registry._purge_missing = lambda: (
         {"plugin": PluginEntry(name="plugin", path="/plugin.py")},
         [],
     )
