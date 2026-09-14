@@ -1,6 +1,15 @@
 {
   "anthropic": {
     "models": {
+      "claude-fable-5-1": {
+        "name": "Claude Fable 5.1",
+        "cost": {
+          "input": 10.0,
+          "output": 50.0,
+          "cache_read": 0.25,
+          "cache_write": 12.5
+        }
+      },
       "claude-fable-5": {
         "name": "Claude Fable 5",
         "cost": {
@@ -95,6 +104,15 @@
   },
   "github-copilot": {
     "models": {
+      "claude-fable-5.1": {
+        "name": "Claude Fable 5.1",
+        "cost": {
+          "input": 10.0,
+          "output": 50.0,
+          "cache_read": 0.25,
+          "cache_write": 12.5
+        }
+      },
       "claude-fable-5": {
         "name": "Claude Fable 5",
         "cost": {
@@ -111,24 +129,6 @@
           "output": 5.0,
           "cache_read": 0.1,
           "cache_write": 1.25
-        }
-      },
-      "claude-opus-4.5": {
-        "name": "Claude Opus 4.5",
-        "cost": {
-          "input": 5.0,
-          "output": 25.0,
-          "cache_read": 0.5,
-          "cache_write": 6.25
-        }
-      },
-      "claude-opus-4.6": {
-        "name": "Claude Opus 4.6",
-        "cost": {
-          "input": 5.0,
-          "output": 25.0,
-          "cache_read": 0.5,
-          "cache_write": 6.25
         }
       },
       "claude-opus-4.7": {
@@ -158,26 +158,8 @@
           "cache_write": 6.25
         }
       },
-      "claude-sonnet-4.5": {
-        "name": "Claude Sonnet 4.5",
-        "cost": {
-          "input": 3.0,
-          "output": 15.0,
-          "cache_read": 0.3,
-          "cache_write": 3.75
-        }
-      },
       "claude-sonnet-4.6": {
         "name": "Claude Sonnet 4.6",
-        "cost": {
-          "input": 3.0,
-          "output": 15.0,
-          "cache_read": 0.3,
-          "cache_write": 3.75
-        }
-      },
-      "claude-sonnet-4": {
-        "name": "Claude Sonnet 4",
         "cost": {
           "input": 3.0,
           "output": 15.0,
@@ -192,14 +174,6 @@
           "output": 10.0,
           "cache_read": 0.2,
           "cache_write": 2.5
-        }
-      },
-      "gemini-3.1-pro-preview": {
-        "name": "Gemini 3.1 Pro Preview",
-        "cost": {
-          "input": 2.0,
-          "output": 12.0,
-          "cache_read": 0.2
         }
       },
       "gemini-3.5-flash": {
@@ -226,12 +200,12 @@
           "cache_read": 0.075
         }
       },
-      "gpt-4.1": {
-        "name": "GPT 4.1",
+      "gemini-3.8-flash": {
+        "name": "Gemini 3.8 Flash",
         "cost": {
-          "input": 2.0,
-          "output": 8.0,
-          "cache_read": 0.5
+          "input": 0.75,
+          "output": 3.75,
+          "cache_read": 0.075
         }
       },
       "gpt-5-mini": {
@@ -240,22 +214,6 @@
           "input": 0.25,
           "output": 2.0,
           "cache_read": 0.025
-        }
-      },
-      "gpt-5.2-codex": {
-        "name": "GPT 5.2 Codex",
-        "cost": {
-          "input": 1.75,
-          "output": 14.0,
-          "cache_read": 0.175
-        }
-      },
-      "gpt-5.2": {
-        "name": "GPT 5.2",
-        "cost": {
-          "input": 1.75,
-          "output": 14.0,
-          "cache_read": 0.175
         }
       },
       "gpt-5.3-codex": {
@@ -310,10 +268,10 @@
       "gpt-5.6-sol": {
         "name": "GPT 5.6 Sol",
         "cost": {
-          "input": 2.0,
-          "output": 10.0,
-          "cache_read": 0.2,
-          "cache_write": 2.5
+          "input": 4.0,
+          "output": 20.0,
+          "cache_read": 0.4,
+          "cache_write": 5.0
         }
       },
       "gpt-5.6-terra": {
@@ -323,6 +281,15 @@
           "output": 12.0,
           "cache_read": 0.2,
           "cache_write": 2.5
+        }
+      },
+      "gpt-6-astra": {
+        "name": "GPT 6 Astra",
+        "cost": {
+          "input": 10.0,
+          "output": 50.0,
+          "cache_read": 1.0,
+          "cache_write": 12.5
         }
       },
       "grok-4.5": {
