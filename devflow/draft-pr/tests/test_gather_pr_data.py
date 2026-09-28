@@ -55,11 +55,13 @@ class TestValidateData(unittest.TestCase):
 
 class TestGetBaseBranch(unittest.TestCase):
     def test_returns_branch_from_origin_head(self):
-        with patch("gather_pr_data.run_git", return_value="origin/main"):
+        with patch("devflow_sdk.core.git.git_ops._run_git",
+                   return_value=MagicMock(returncode=0, stdout="origin/main\n")):
             self.assertEqual(get_base_branch(), "main")
 
     def test_returns_develop_from_origin_head(self):
-        with patch("gather_pr_data.run_git", return_value="origin/develop"):
+        with patch("devflow_sdk.core.git.git_ops._run_git",
+                   return_value=MagicMock(returncode=0, stdout="origin/develop\n")):
             self.assertEqual(get_base_branch(), "develop")
 
     def test_falls_back_to_gh_when_origin_head_is_literal(self):
@@ -68,45 +70,51 @@ class TestGetBaseBranch(unittest.TestCase):
         mock_proc = MagicMock()
         mock_proc.returncode = 0
         mock_proc.stdout = "develop\n"
-        with patch("gather_pr_data.run_git", return_value="origin/HEAD"), \
-             patch("gather_pr_data.subprocess.run", return_value=mock_proc):
+        with patch("devflow_sdk.core.git.git_ops._run_git",
+                   return_value=MagicMock(returncode=0, stdout="origin/HEAD\n")), \
+             patch("devflow_sdk.core.git.git_ops.subprocess.run", return_value=mock_proc):
             self.assertEqual(get_base_branch(), "develop")
 
     def test_falls_back_to_gh_when_git_returns_none(self):
         mock_proc = MagicMock()
         mock_proc.returncode = 0
         mock_proc.stdout = "develop\n"
-        with patch("gather_pr_data.run_git", return_value=None), \
-             patch("gather_pr_data.subprocess.run", return_value=mock_proc):
+        with patch("devflow_sdk.core.git.git_ops._run_git",
+                   return_value=MagicMock(returncode=1, stdout="")), \
+             patch("devflow_sdk.core.git.git_ops.subprocess.run", return_value=mock_proc):
             self.assertEqual(get_base_branch(), "develop")
 
     def test_falls_back_to_gh_when_git_returns_no_slash(self):
         mock_proc = MagicMock()
         mock_proc.returncode = 0
         mock_proc.stdout = "develop\n"
-        with patch("gather_pr_data.run_git", return_value="HEAD"), \
-             patch("gather_pr_data.subprocess.run", return_value=mock_proc):
+        with patch("devflow_sdk.core.git.git_ops._run_git",
+                   return_value=MagicMock(returncode=0, stdout="HEAD\n")), \
+             patch("devflow_sdk.core.git.git_ops.subprocess.run", return_value=mock_proc):
             self.assertEqual(get_base_branch(), "develop")
 
     def test_falls_back_to_main_when_both_fail(self):
         mock_proc = MagicMock()
         mock_proc.returncode = 1
         mock_proc.stdout = ""
-        with patch("gather_pr_data.run_git", return_value=None), \
-             patch("gather_pr_data.subprocess.run", return_value=mock_proc):
+        with patch("devflow_sdk.core.git.git_ops._run_git",
+                   return_value=MagicMock(returncode=1, stdout="")), \
+             patch("devflow_sdk.core.git.git_ops.subprocess.run", return_value=mock_proc):
             self.assertEqual(get_base_branch(), "main")
 
     def test_falls_back_to_main_when_gh_returns_empty(self):
         mock_proc = MagicMock()
         mock_proc.returncode = 0
         mock_proc.stdout = "   \n"
-        with patch("gather_pr_data.run_git", return_value=None), \
-             patch("gather_pr_data.subprocess.run", return_value=mock_proc):
+        with patch("devflow_sdk.core.git.git_ops._run_git",
+                   return_value=MagicMock(returncode=1, stdout="")), \
+             patch("devflow_sdk.core.git.git_ops.subprocess.run", return_value=mock_proc):
             self.assertEqual(get_base_branch(), "main")
 
     def test_falls_back_to_main_when_gh_not_found(self):
-        with patch("gather_pr_data.run_git", return_value=None), \
-             patch("gather_pr_data.subprocess.run", side_effect=FileNotFoundError):
+        with patch("devflow_sdk.core.git.git_ops._run_git",
+                   return_value=MagicMock(returncode=1, stdout="")), \
+             patch("devflow_sdk.core.git.git_ops.subprocess.run", side_effect=FileNotFoundError):
             self.assertEqual(get_base_branch(), "main")
 
 
@@ -132,11 +140,8 @@ class TestGetBehindCount(unittest.TestCase):
 
 class TestCollect(unittest.TestCase):
     def _collect_with_branch(self, branch):
-        def _git(args):
-            if args == ["branch", "--show-current"]:
-                return branch
-            return ""
-        with patch("gather_pr_data.run_git", side_effect=_git), \
+        with patch("gather_pr_data.current_branch", return_value=branch), \
+             patch("gather_pr_data.run_git", return_value=""), \
              patch("gather_pr_data.get_base_branch", return_value="main"), \
              patch("gather_pr_data.get_behind_count", return_value=0):
             return collect()
