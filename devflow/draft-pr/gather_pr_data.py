@@ -11,6 +11,7 @@ for _whl in sorted(_glob.glob(os.path.join(_VENDOR_DIR, "*.whl"))):
     sys.path.insert(0, _whl)
 
 from devflow_sdk.core.branch_name import parse_branch
+from devflow_sdk.core.git.git_ops import current_branch, get_base_branch
 
 FIX_PREFIXES = {"fix", "bugfix", "hotfix"}
 
@@ -55,30 +56,8 @@ def get_behind_count(base):
         return 0
 
 
-def get_base_branch():
-    result = run_git(["rev-parse", "--abbrev-ref", "origin/HEAD"])
-    if result and "/" in result and result != "origin/HEAD":
-        return result.split("/", 1)[1]
-
-    try:
-        gh_result = subprocess.run(
-            ["gh", "repo", "view", "--json", "defaultBranchRef", "--jq", ".defaultBranchRef.name"],
-            capture_output=True,
-            text=True,
-        )
-        if gh_result.returncode == 0:
-            branch = gh_result.stdout.strip()
-            if branch:
-                return branch
-    except (FileNotFoundError, OSError):
-        pass
-
-    print("WARNING: Could not detect default branch from origin/HEAD or GitHub; assuming 'main'.", file=sys.stderr)
-    return "main"
-
-
 def collect():
-    branch = run_git(["branch", "--show-current"])
+    branch = current_branch()
     parsed = parse_branch(branch)
     prefix = parsed["type"] if parsed else None
     jira_ticket = parsed["id"] if parsed and parsed["source"] == "jira" else None
