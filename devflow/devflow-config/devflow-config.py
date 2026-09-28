@@ -83,7 +83,11 @@ def _install_claude_config() -> None:
         return
 
     stock = json.loads(_STOCK_CLAUDE_SETTINGS.read_text())
-    new_entries: list[str] = stock.get("permissions", {}).get("allow", [])
+    new_allow: list[str] = stock.get("permissions", {}).get("allow", [])
+    new_unix_sockets: list[str] = [
+        str(Path(s).expanduser())
+        for s in stock.get("sandbox", {}).get("network", {}).get("allowUnixSockets", [])
+    ]
 
     existing: dict = {}
     if _CLAUDE_SETTINGS_PATH.exists():
@@ -99,6 +103,7 @@ def _install_claude_config() -> None:
 
     if not isinstance(existing, dict):
         existing = {}
+
     permissions = existing.setdefault("permissions", {})
     if not isinstance(permissions, dict):
         existing["permissions"] = {}
@@ -106,10 +111,27 @@ def _install_claude_config() -> None:
     allow = permissions.get("allow", [])
     if not isinstance(allow, list):
         allow = []
-    for entry in new_entries:
+    for entry in new_allow:
         if entry not in allow:
             allow.append(entry)
     permissions["allow"] = allow
+
+    if new_unix_sockets:
+        sandbox = existing.setdefault("sandbox", {})
+        if not isinstance(sandbox, dict):
+            existing["sandbox"] = {}
+            sandbox = existing["sandbox"]
+        network = sandbox.setdefault("network", {})
+        if not isinstance(network, dict):
+            sandbox["network"] = {}
+            network = sandbox["network"]
+        unix_sockets = network.get("allowUnixSockets", [])
+        if not isinstance(unix_sockets, list):
+            unix_sockets = []
+        for entry in new_unix_sockets:
+            if entry not in unix_sockets:
+                unix_sockets.append(entry)
+        network["allowUnixSockets"] = unix_sockets
 
     _CLAUDE_SETTINGS_PATH.parent.mkdir(parents=True, exist_ok=True)
     _CLAUDE_SETTINGS_PATH.write_text(json.dumps(existing, indent=2) + "\n")

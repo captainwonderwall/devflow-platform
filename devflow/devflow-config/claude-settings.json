@@ -10,5 +10,10 @@
       "Bash(devflow-config *)",
       "Bash(devflow-plugin *)"
     ]
+  },
+  "sandbox": {
+    "network": {
+      "allowUnixSockets": ["~/.docker/run/docker.sock"]
+    }
   }
 }
