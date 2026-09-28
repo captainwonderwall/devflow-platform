@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(diagram *)",
+      "Bash(start-issue *)",
+      "Bash(draft-pr *)",
+      "Bash(address-pr *)",
+      "Bash(finish-issue *)",
+      "Bash(squash-commits *)",
+      "Bash(devflow-config *)",
+      "Bash(devflow-plugin *)"
+    ]
+  }
+}

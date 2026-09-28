@@ -1,6 +1,8 @@
 import importlib.util
+import json
 import os
 import sys
+from pathlib import Path
 from unittest.mock import call, patch
 
 _HERE = os.path.dirname(__file__)
@@ -22,9 +24,11 @@ from devflow_sdk.core.config.wizard.tools.draft_pr import DraftPrWizardStep
 
 # ── entry point ───────────────────────────────────────────────────────────────
 
-def test_main_calls_run_wizard_with_correct_steps(capsys):
+def test_main_calls_run_wizard_with_correct_steps(capsys, tmp_path):
     from devflow_sdk.core.config.schema import DevflowConfig
-    with patch.object(devflow_config, "run_wizard", return_value=DevflowConfig()) as mock_wizard:
+    claude_settings = tmp_path / ".claude" / "settings.json"
+    with patch.object(devflow_config, "run_wizard", return_value=DevflowConfig()) as mock_wizard, \
+         patch.object(devflow_config, "_CLAUDE_SETTINGS_PATH", claude_settings):
         devflow_config.main()
 
     assert mock_wizard.call_count == 1
@@ -34,9 +38,11 @@ def test_main_calls_run_wizard_with_correct_steps(capsys):
     assert len(steps) == 2 + len(ALL_TOOL_STEPS)
 
 
-def test_main_prints_save_confirmation(capsys):
+def test_main_prints_save_confirmation(capsys, tmp_path):
     from devflow_sdk.core.config.schema import DevflowConfig
-    with patch.object(devflow_config, "run_wizard", return_value=DevflowConfig()):
+    claude_settings = tmp_path / ".claude" / "settings.json"
+    with patch.object(devflow_config, "run_wizard", return_value=DevflowConfig()), \
+         patch.object(devflow_config, "_CLAUDE_SETTINGS_PATH", claude_settings):
         devflow_config.main()
 
     captured = capsys.readouterr()
@@ -59,9 +65,11 @@ def test_main_backs_up_invalid_config(tmp_path):
     import re
     config_path = tmp_path / "config.json"
     config_path.write_text('{"global": {"models": {"turbo": {"name": "x"}}}, "tools": {}}')
+    claude_settings = tmp_path / ".claude" / "settings.json"
 
     with patch.object(devflow_config, "CONFIG_PATH", config_path), \
-         patch.object(devflow_config, "run_wizard"):
+         patch.object(devflow_config, "run_wizard"), \
+         patch.object(devflow_config, "_CLAUDE_SETTINGS_PATH", claude_settings):
         devflow_config.main()
 
     backups = [f for f in tmp_path.iterdir() if re.match(r"config\.\d{8}-\d{6}\.bak\.json", f.name)]
@@ -72,9 +80,11 @@ def test_main_does_not_back_up_valid_config(tmp_path):
     import re
     config_path = tmp_path / "config.json"
     config_path.write_text('{"global": {"models": {"fast": {"name": "haiku"}}}, "tools": {}}')
+    claude_settings = tmp_path / ".claude" / "settings.json"
 
     with patch.object(devflow_config, "CONFIG_PATH", config_path), \
-         patch.object(devflow_config, "run_wizard"):
+         patch.object(devflow_config, "run_wizard"), \
+         patch.object(devflow_config, "_CLAUDE_SETTINGS_PATH", claude_settings):
         devflow_config.main()
 
     backups = [f for f in tmp_path.iterdir() if re.match(r"config\.\d{8}-\d{6}\.bak\.json", f.name)]
@@ -84,10 +94,12 @@ def test_main_does_not_back_up_valid_config(tmp_path):
 def test_main_repairs_config_before_wizard(tmp_path):
     config_path = tmp_path / "config.json"
     config_path.write_text('{"global": {"models": {"turbo": {"name": "x"}, "fast": {"name": "haiku"}}}, "tools": {}}')
+    claude_settings = tmp_path / ".claude" / "settings.json"
 
     import json as _json
     with patch.object(devflow_config, "CONFIG_PATH", config_path), \
-         patch.object(devflow_config, "run_wizard"):
+         patch.object(devflow_config, "run_wizard"), \
+         patch.object(devflow_config, "_CLAUDE_SETTINGS_PATH", claude_settings):
         devflow_config.main()
 
     data = _json.loads(config_path.read_text())
@@ -98,10 +110,12 @@ def test_main_repairs_config_before_wizard(tmp_path):
 def test_main_still_runs_wizard_after_repair(tmp_path):
     config_path = tmp_path / "config.json"
     config_path.write_text('{"global": {"models": {"turbo": {"name": "x"}}}, "tools": {}}')
+    claude_settings = tmp_path / ".claude" / "settings.json"
 
     from devflow_sdk.core.config.schema import DevflowConfig
     with patch.object(devflow_config, "CONFIG_PATH", config_path), \
-         patch.object(devflow_config, "run_wizard", return_value=DevflowConfig()) as mock_wiz:
+         patch.object(devflow_config, "run_wizard", return_value=DevflowConfig()) as mock_wiz, \
+         patch.object(devflow_config, "_CLAUDE_SETTINGS_PATH", claude_settings):
         devflow_config.main()
 
     assert mock_wiz.call_count == 1
@@ -111,10 +125,12 @@ def test_main_copies_opencode_config_and_updates_both_shells(tmp_path):
     from devflow_sdk.core.config.schema import DevflowConfig, GlobalConfig
 
     home = tmp_path / "home"
+    claude_settings = tmp_path / ".claude" / "settings.json"
 
     config = DevflowConfig(global_config=GlobalConfig(ai_provider="opencode"))
     with patch.object(devflow_config, "Path") as path_cls, \
-        patch.object(devflow_config, "run_wizard", return_value=config):
+        patch.object(devflow_config, "run_wizard", return_value=config), \
+        patch.object(devflow_config, "_CLAUDE_SETTINGS_PATH", claude_settings):
         path_cls.home.return_value = home
         devflow_config.main()
 
@@ -135,6 +151,7 @@ def test_main_updates_existing_opencode_shell_block_idempotently(tmp_path):
     from devflow_sdk.core.config.schema import DevflowConfig, GlobalConfig
 
     home = tmp_path / "home"
+    claude_settings = tmp_path / ".claude" / "settings.json"
     old_block = (
         "# >>> devflow opencode config >>>\n"
         "export OPENCODE_CONFIG_CONTENT=old\n"
@@ -145,7 +162,8 @@ def test_main_updates_existing_opencode_shell_block_idempotently(tmp_path):
 
     config = DevflowConfig(global_config=GlobalConfig(ai_provider="opencode"))
     with patch.object(devflow_config, "Path") as path_cls, \
-        patch.object(devflow_config, "run_wizard", return_value=config):
+        patch.object(devflow_config, "run_wizard", return_value=config), \
+        patch.object(devflow_config, "_CLAUDE_SETTINGS_PATH", claude_settings):
         path_cls.home.return_value = home
         devflow_config.main()
 
@@ -217,3 +235,83 @@ def test_build_tool_steps_with_raising_provider_degrades_gracefully(capsys):
 
     assert result == current
     assert "Warning" in capsys.readouterr().out
+
+
+# ── _install_claude_config ────────────────────────────────────────────────────────
+
+def test_install_claude_config_creates_file_when_absent(tmp_path):
+    settings_path = tmp_path / ".claude" / "settings.json"
+    with patch.object(devflow_config, "_CLAUDE_SETTINGS_PATH", settings_path):
+        devflow_config._install_claude_config()
+    data = json.loads(settings_path.read_text())
+    assert "Bash(diagram *)" in data["permissions"]["allow"]
+    assert "Bash(start-issue *)" in data["permissions"]["allow"]
+
+
+def test_install_claude_config_merges_without_clobbering(tmp_path):
+    settings_path = tmp_path / ".claude" / "settings.json"
+    settings_path.parent.mkdir(parents=True)
+    settings_path.write_text(json.dumps({
+        "permissions": {"allow": ["Bash(custom-tool *)"]},
+        "theme": "dark",
+    }))
+    with patch.object(devflow_config, "_CLAUDE_SETTINGS_PATH", settings_path):
+        devflow_config._install_claude_config()
+    data = json.loads(settings_path.read_text())
+    assert "Bash(custom-tool *)" in data["permissions"]["allow"]
+    assert "Bash(diagram *)" in data["permissions"]["allow"]
+    assert data["theme"] == "dark"
+
+
+def test_install_claude_config_no_duplicates(tmp_path):
+    settings_path = tmp_path / ".claude" / "settings.json"
+    settings_path.parent.mkdir(parents=True)
+    settings_path.write_text(json.dumps({
+        "permissions": {"allow": ["Bash(diagram *)"]}
+    }))
+    with patch.object(devflow_config, "_CLAUDE_SETTINGS_PATH", settings_path):
+        devflow_config._install_claude_config()
+        devflow_config._install_claude_config()  # second call
+    data = json.loads(settings_path.read_text())
+    assert data["permissions"]["allow"].count("Bash(diagram *)") == 1
+
+
+def test_install_claude_config_handles_missing_permissions_key(tmp_path):
+    settings_path = tmp_path / ".claude" / "settings.json"
+    settings_path.parent.mkdir(parents=True)
+    settings_path.write_text(json.dumps({"theme": "dark"}))
+    with patch.object(devflow_config, "_CLAUDE_SETTINGS_PATH", settings_path):
+        devflow_config._install_claude_config()
+    data = json.loads(settings_path.read_text())
+    assert "Bash(diagram *)" in data["permissions"]["allow"]
+    assert data["theme"] == "dark"
+
+
+def test_install_claude_config_handles_non_list_allow(tmp_path):
+    settings_path = tmp_path / ".claude" / "settings.json"
+    settings_path.parent.mkdir(parents=True)
+    settings_path.write_text(json.dumps({"permissions": {"allow": "all"}}))
+    with patch.object(devflow_config, "_CLAUDE_SETTINGS_PATH", settings_path):
+        devflow_config._install_claude_config()
+    data = json.loads(settings_path.read_text())
+    assert isinstance(data["permissions"]["allow"], list)
+    assert "Bash(diagram *)" in data["permissions"]["allow"]
+
+
+def test_main_calls_install_claude_config_for_claude_provider():
+    from devflow_sdk.core.config.schema import DevflowConfig, GlobalConfig
+    config = DevflowConfig(global_config=GlobalConfig(ai_provider="claude"))
+    with patch.object(devflow_config, "run_wizard", return_value=config):
+        with patch.object(devflow_config, "_install_claude_config") as mock_install:
+            devflow_config.main()
+    mock_install.assert_called_once()
+
+
+def test_main_does_not_call_install_claude_config_for_opencode():
+    from devflow_sdk.core.config.schema import DevflowConfig, GlobalConfig
+    config = DevflowConfig(global_config=GlobalConfig(ai_provider="opencode"))
+    with patch.object(devflow_config, "run_wizard", return_value=config):
+        with patch.object(devflow_config, "_install_claude_config") as mock_install:
+            with patch.object(devflow_config, "_install_opencode_config"):
+                devflow_config.main()
+    mock_install.assert_not_called()

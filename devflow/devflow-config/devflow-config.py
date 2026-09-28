@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import json
 import shutil
 import sys
 from datetime import datetime
@@ -68,6 +69,53 @@ def _install_opencode_config() -> None:
         rc_path.write_text(content)
 
 
+_STOCK_CLAUDE_SETTINGS = Path(__file__).with_name("claude-settings.json")
+_CLAUDE_SETTINGS_PATH = Path.home() / ".claude" / "settings.json"
+
+
+def _install_claude_config() -> None:
+    """Merge devflow's Claude Code permissions into ~/.claude/settings.json."""
+    if not _STOCK_CLAUDE_SETTINGS.exists():
+        print(
+            f"\nWarning: stock Claude settings not found at {_STOCK_CLAUDE_SETTINGS}; skipping.",
+            file=sys.stderr,
+        )
+        return
+
+    stock = json.loads(_STOCK_CLAUDE_SETTINGS.read_text())
+    new_entries: list[str] = stock.get("permissions", {}).get("allow", [])
+
+    existing: dict = {}
+    if _CLAUDE_SETTINGS_PATH.exists():
+        try:
+            existing = json.loads(_CLAUDE_SETTINGS_PATH.read_text())
+        except Exception:
+            print(
+                f"\nError: {_CLAUDE_SETTINGS_PATH} exists but could not be parsed as JSON.\n"
+                f"Fix or remove it manually, then re-run devflow-config.",
+                file=sys.stderr,
+            )
+            return
+
+    if not isinstance(existing, dict):
+        existing = {}
+    permissions = existing.setdefault("permissions", {})
+    if not isinstance(permissions, dict):
+        existing["permissions"] = {}
+        permissions = existing["permissions"]
+    allow = permissions.get("allow", [])
+    if not isinstance(allow, list):
+        allow = []
+    for entry in new_entries:
+        if entry not in allow:
+            allow.append(entry)
+    permissions["allow"] = allow
+
+    _CLAUDE_SETTINGS_PATH.parent.mkdir(parents=True, exist_ok=True)
+    _CLAUDE_SETTINGS_PATH.write_text(json.dumps(existing, indent=2) + "\n")
+    print(f"\nClaude Code settings updated: {_CLAUDE_SETTINGS_PATH}")
+
+
 def main():
     def _plugin_names() -> list[str]:
         try:
@@ -86,6 +134,8 @@ def main():
     config = run_wizard(steps)
     if config.global_config.ai_provider == "opencode":
         _install_opencode_config()
+    elif config.global_config.ai_provider == "claude":
+        _install_claude_config()
     print("\nConfig saved to ~/.devflow/config.json")
 
 
