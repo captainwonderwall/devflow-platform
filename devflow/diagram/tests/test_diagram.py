@@ -1,5 +1,7 @@
 import importlib.util
 import os
+import pathlib as _pathlib
+import subprocess as _subprocess
 import sys
 import pytest
 from unittest.mock import MagicMock, call, patch
@@ -81,37 +83,65 @@ def test_ensure_image_skips_pull_when_present():
     assert mock_run.call_count == 1
 
 
+def test_ensure_image_exits_on_pull_timeout():
+    inspect_fail = MagicMock(returncode=1)
+    with patch(
+        "diagram.subprocess.run",
+        side_effect=[inspect_fail, _subprocess.TimeoutExpired(cmd=[], timeout=300)],
+    ) as mock_run:
+        with pytest.raises(SystemExit, match="timed out"):
+            diagram._ensure_image()
+    assert mock_run.call_args_list[1].kwargs["timeout"] == diagram._PULL_TIMEOUT
+
+
+def test_ensure_image_exits_on_inspect_timeout():
+    with patch(
+        "diagram.subprocess.run",
+        side_effect=_subprocess.TimeoutExpired(cmd=[], timeout=10),
+    ):
+        with pytest.raises(SystemExit, match="Docker daemon"):
+            diagram._ensure_image()
+
+
 # ── _render ───────────────────────────────────────────────────────────────────
 
 def test_render_returns_stdout_bytes():
-    ok = MagicMock(returncode=0, stdout=b"\x89PNG", stderr=b"")
+    ok = MagicMock(returncode=0, stderr=b"")
     with patch("diagram.subprocess.run", return_value=ok):
-        result = diagram._render(b"graph TD; A-->B", "png", "default")
+        with patch("diagram.pathlib.Path.exists", return_value=True):
+            with patch("diagram.pathlib.Path.read_bytes", return_value=b"\x89PNG"):
+                result = diagram._render(b"graph TD; A-->B", "png", "default")
     assert result == b"\x89PNG"
 
 
 def test_render_includes_format_flag():
-    ok = MagicMock(returncode=0, stdout=b"<svg/>", stderr=b"")
+    ok = MagicMock(returncode=0, stderr=b"")
     with patch("diagram.subprocess.run", return_value=ok) as mock_run:
-        diagram._render(b"graph TD; A-->B", "svg", "default")
+        with patch("diagram.pathlib.Path.exists", return_value=True):
+            with patch("diagram.pathlib.Path.read_bytes", return_value=b"<svg/>"):
+                diagram._render(b"graph TD; A-->B", "svg", "default")
     cmd = mock_run.call_args[0][0]
     assert "-e" in cmd
     assert "svg" in cmd
 
 
 def test_render_includes_theme_flag_when_non_default():
-    ok = MagicMock(returncode=0, stdout=b"\x89PNG", stderr=b"")
+    ok = MagicMock(returncode=0, stderr=b"")
     with patch("diagram.subprocess.run", return_value=ok) as mock_run:
-        diagram._render(b"graph TD; A-->B", "png", "forest")
+        with patch("diagram.pathlib.Path.exists", return_value=True):
+            with patch("diagram.pathlib.Path.read_bytes", return_value=b"\x89PNG"):
+                diagram._render(b"graph TD; A-->B", "png", "forest")
     cmd = mock_run.call_args[0][0]
     assert "-t" in cmd
     assert "forest" in cmd
 
 
 def test_render_omits_theme_flag_for_default():
-    ok = MagicMock(returncode=0, stdout=b"\x89PNG", stderr=b"")
+    ok = MagicMock(returncode=0, stderr=b"")
     with patch("diagram.subprocess.run", return_value=ok) as mock_run:
-        diagram._render(b"graph TD; A-->B", "png", "default")
+        with patch("diagram.pathlib.Path.exists", return_value=True):
+            with patch("diagram.pathlib.Path.read_bytes", return_value=b"\x89PNG"):
+                diagram._render(b"graph TD; A-->B", "png", "default")
     cmd = mock_run.call_args[0][0]
     assert "-t" not in cmd
 
@@ -123,13 +153,85 @@ def test_render_exits_on_nonzero():
             diagram._render(b"graph TD; A-->B", "png", "default")
 
 
+def test_render_exits_on_timeout():
+    with patch(
+        "diagram.subprocess.run",
+        side_effect=_subprocess.TimeoutExpired(cmd=[], timeout=60),
+    ) as mock_run:
+        with pytest.raises(SystemExit, match="timed out"):
+            diagram._render(b"graph TD; A-->B", "png", "default")
+    assert mock_run.call_args_list[0].kwargs["timeout"] == diagram._RENDER_TIMEOUT
+
+
+def test_render_uses_volume_mount():
+    ok = MagicMock(returncode=0, stderr=b"")
+    with patch("diagram.subprocess.run", return_value=ok) as mock_run:
+        with patch("diagram.pathlib.Path.exists", return_value=True):
+            with patch("diagram.pathlib.Path.read_bytes", return_value=b"\x89PNG"):
+                diagram._render(b"graph TD; A-->B", "png", "default")
+    cmd = mock_run.call_args[0][0]
+    assert "-v" in cmd
+    assert any("/output" in str(a) for a in cmd)
+    assert "-u" in cmd
+
+
+def test_render_round_trips_output_file():
+    sentinel = b"%PDF-1.4 sentinel"
+
+    def fake_run(cmd, **kwargs):
+        v_idx = cmd.index("-v")
+        host_dir = cmd[v_idx + 1].split(":")[0]
+        (_pathlib.Path(host_dir) / "out.pdf").write_bytes(sentinel)
+        return MagicMock(returncode=0, stderr=b"")
+
+    with patch("diagram.subprocess.run", side_effect=fake_run):
+        result = diagram._render(b"graph TD; A-->B", "pdf", "default")
+    assert result == sentinel
+
+
+def test_render_exits_when_output_file_missing():
+    ok = MagicMock(returncode=0, stderr=b"")
+    with patch("diagram.subprocess.run", return_value=ok):
+        with pytest.raises(SystemExit, match="did not write"):
+            diagram._render(b"graph TD; A-->B", "png", "default")
+
+
+def test_render_kills_container_on_timeout():
+    calls = []
+
+    def fake_run(cmd, **kwargs):
+        calls.append(cmd)
+        if cmd[1] == "run":
+            raise _subprocess.TimeoutExpired(cmd=cmd, timeout=60)
+        return MagicMock(returncode=0)
+
+    with patch("diagram.subprocess.run", side_effect=fake_run):
+        with pytest.raises(SystemExit, match="timed out"):
+            diagram._render(b"graph TD; A-->B", "png", "default")
+
+    assert len(calls) == 2
+    assert calls[1][1] == "kill"
+    name_idx = calls[0].index("--name")
+    assert calls[1][2] == calls[0][name_idx + 1]
+
+
 # ── main ──────────────────────────────────────────────────────────────────────
+
+def test_main_exits_when_stdin_is_tty():
+    with patch("diagram.sys.argv", ["diagram"]):
+        with patch("diagram.sys.stdin", MagicMock(isatty=MagicMock(return_value=True))):
+            with patch("diagram._ensure_docker"):
+                with patch("diagram._ensure_image"):
+                    with patch("diagram._render", return_value=b""):
+                        with pytest.raises(SystemExit, match="pipe Mermaid source"):
+                            diagram.main()
+
 
 def test_main_exits_on_empty_stdin():
     mock_stdin_buffer = MagicMock()
     mock_stdin_buffer.read.return_value = b"   \n  "
     with patch("diagram.sys.argv", ["diagram"]):
-        with patch("diagram.sys.stdin", MagicMock(buffer=mock_stdin_buffer)):
+        with patch("diagram.sys.stdin", MagicMock(buffer=mock_stdin_buffer, isatty=MagicMock(return_value=False))):
             with patch("diagram._ensure_docker"):
                 with patch("diagram._ensure_image"):
                     with pytest.raises(SystemExit, match="no Mermaid source"):
@@ -142,7 +244,7 @@ def test_main_writes_to_stdout_by_default():
     mock_stdin_buffer.read.return_value = b"graph TD; A-->B"
     mock_stdout_buffer = MagicMock()
     with patch("diagram.sys.argv", ["diagram"]):
-        with patch("diagram.sys.stdin", MagicMock(buffer=mock_stdin_buffer)):
+        with patch("diagram.sys.stdin", MagicMock(buffer=mock_stdin_buffer, isatty=MagicMock(return_value=False))):
             with patch("diagram.sys.stdout", MagicMock(buffer=mock_stdout_buffer)):
                 with patch("diagram._ensure_docker"):
                     with patch("diagram._ensure_image"):
@@ -156,7 +258,7 @@ def test_main_writes_to_output_file_when_specified(tmp_path):
     png_bytes = b"\x89PNG"
     mock_stdin_buffer = MagicMock()
     mock_stdin_buffer.read.return_value = b"graph TD; A-->B"
-    with patch("diagram.sys.stdin", MagicMock(buffer=mock_stdin_buffer)):
+    with patch("diagram.sys.stdin", MagicMock(buffer=mock_stdin_buffer, isatty=MagicMock(return_value=False))):
         with patch("diagram._ensure_docker"):
             with patch("diagram._ensure_image"):
                 with patch("diagram._render", return_value=png_bytes):
