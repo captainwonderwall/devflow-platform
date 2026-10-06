@@ -1,49 +1,13 @@
 import os
 import re
 import shutil
-import subprocess
 import sys
 
 from devflow_sdk.core.prompts import select, Choice
 from devflow_sdk.core.ai import launch_interactive_session
+from devflow_sdk.domain.ide import detect_ides, prompt_and_open_ide
 
 IDE_CONFIG_FOLDERS = (".idea", ".vscode")
-
-_IDE_LAUNCHERS = [
-    (".idea",   "IntelliJ IDEA", "idea"),
-    (".vscode", "VS Code",       "code"),
-]
-
-
-def detect_ides(worktree_path):
-    """Return a list of (name, cmd) for each IDE whose config folder exists in worktree_path."""
-    return [
-        (name, cmd)
-        for folder, name, cmd in _IDE_LAUNCHERS
-        if os.path.isdir(os.path.join(worktree_path, folder))
-    ]
-
-
-_SKIP = "__skip__"
-
-
-def prompt_and_open_ide(worktree_path):
-    """Prompt the user to open the worktree in an IDE whose config folder is present, then launch it."""
-    ides = detect_ides(worktree_path)
-    if not ides:
-        return
-
-    choices = [Choice(title=f"Open in {name}", value=cmd) for name, cmd in ides]
-    choices.append(Choice(title="Skip", value=_SKIP))
-
-    cmd = select("Open the worktree in an IDE?", choices, single=True)
-    if cmd is None or cmd == _SKIP:
-        return
-
-    try:
-        subprocess.run([cmd, "."], cwd=worktree_path)
-    except FileNotFoundError:
-        print(f"WARNING: Could not launch IDE — '{cmd}' not found on PATH.", file=sys.stderr)
 
 
 _AI_AGENT_PROMPT = "Brainstorm a solution for the issue described in .issue.json"

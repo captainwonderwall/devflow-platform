@@ -42,7 +42,7 @@ class Devflow < Formula
       end
     end
 
-    %w[draft-pr address-pr squash-commits finish-issue start-issue diagram].each do |tool|
+    %w[draft-pr address-pr squash-commits finish-issue start-issue continue-issue diagram].each do |tool|
       (bin/tool).write <<~BASH
         #!/bin/bash
         export PYTHONPATH="#{python_packages}${PYTHONPATH:+:$PYTHONPATH}"

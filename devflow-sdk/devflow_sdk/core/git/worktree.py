@@ -7,6 +7,13 @@ import sys
 from devflow_sdk.core.prompts import confirm, select, Choice
 
 
+def _cwd_inside_worktree(worktree_path, cwd=None):
+    """Return True if cwd (defaults to os.getcwd()) is at or inside worktree_path."""
+    cwd = os.path.realpath(cwd if cwd is not None else os.getcwd())
+    worktree_path = os.path.realpath(worktree_path)
+    return cwd == worktree_path or cwd.startswith(worktree_path + os.sep)
+
+
 def _normalize_wt_items(data: object) -> list:
     """Normalize wt list --format json output to a flat list of {branch, path, is_main} dicts.
 

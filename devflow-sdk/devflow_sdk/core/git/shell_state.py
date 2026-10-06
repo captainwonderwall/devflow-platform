@@ -3,6 +3,23 @@ import os
 import sys
 
 
+def _persist_continue_branch_for_shell(branch: str) -> bool:
+    """Write branch to ~/.continue-issue-branch for shell integration."""
+    branch_file = os.path.join(os.path.expanduser("~"), ".continue-issue-branch")
+    try:
+        with open(branch_file, "w") as f:
+            f.write(branch)
+        return True
+    except OSError as e:
+        print(
+            f"WARNING: Could not persist branch name for shell: {e}\n"
+            "The worktree was found successfully, but shell integration will not "
+            "switch to it automatically.",
+            file=sys.stderr,
+        )
+        return False
+
+
 def _persist_start_branch_for_shell(branch: str) -> None:
     """Write new branch to ~/.start-issue-branch for shell integration."""
     branch_file = os.path.join(os.path.expanduser("~"), ".start-issue-branch")

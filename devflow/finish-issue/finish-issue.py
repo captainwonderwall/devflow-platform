@@ -17,7 +17,7 @@ from devflow_sdk.domain.issue import fetch, remove_issue_context
 from devflow_sdk.core.prompts import select
 from devflow_sdk.worktree_state import list_tracked_worktrees
 from devflow_sdk.core.shell_function_check import check_shell_function
-from devflow_sdk.core.git.worktree import list_worktrees, is_dirty
+from devflow_sdk.core.git.worktree import list_worktrees, is_dirty, _cwd_inside_worktree
 from devflow_sdk.domain.workspace import check_manager, find_for_issue
 from devflow_sdk.core.git.shell_state import (
     _persist_branch_for_shell,
@@ -30,20 +30,6 @@ from devflow_sdk.core.git.shell_state import (
 from devflow_sdk.core.git.merge_check import get_main_branch, is_merged
 from devflow_sdk.worktree_state import remove_worktree
 
-
-def _cwd_inside_worktree(worktree_path, cwd=None):
-    """Return True if the current working directory is inside worktree_path.
-
-    A Python subprocess can never change its parent shell's directory (see
-    docs/superpowers/specs/2026-08-10-finish-issue-worktree-switch-design.md).
-    If we blindly `wt remove` a worktree while the calling shell is sitting
-    inside it, the shell is left pointed at a now-deleted git worktree,
-    breaking any subsequent git command (and often the shell prompt itself)
-    with "fatal: not a git repository". This check lets us refuse instead.
-    """
-    cwd = os.path.realpath(cwd if cwd is not None else os.getcwd())
-    worktree_path = os.path.realpath(worktree_path)
-    return cwd == worktree_path or cwd.startswith(worktree_path + os.sep)
 
 
 DIRTY_ABORT = "Abort"

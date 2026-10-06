@@ -9,6 +9,7 @@ LIBEXEC="$(brew --prefix)/opt/devflow/libexec"
 
 bash "$LIBEXEC/start-issue/install.sh" --shell-only
 bash "$LIBEXEC/finish-issue/install.sh" --shell-only
+bash "$LIBEXEC/continue-issue/install.sh" --shell-only
 
 echo ""
 echo "Done. Reload your shell to activate:"
