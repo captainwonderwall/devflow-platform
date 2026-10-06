@@ -64,6 +64,20 @@ def _persist_force_for_shell() -> bool:
         return False
 
 
+def _persist_force_delete_for_shell() -> bool:
+    force_delete_file = os.path.join(os.path.expanduser("~"), ".finish-issue-force-delete")
+    try:
+        open(force_delete_file, "w").close()
+        return True
+    except OSError as e:
+        print(
+            f"WARNING: Could not persist force-delete flag for shell: {e}\n"
+            "The 'wt remove --force' flag will not be passed; removal may fail for unmerged branches.",
+            file=sys.stderr,
+        )
+        return False
+
+
 def _persist_worktree_path_for_shell(path: str) -> bool:
     path_file = os.path.join(os.path.expanduser("~"), ".finish-issue-worktree-path")
     try:
@@ -81,9 +95,10 @@ def _persist_worktree_path_for_shell(path: str) -> bool:
 
 def _clear_force_marker_for_shell() -> bool:
     force_file = os.path.join(os.path.expanduser("~"), ".finish-issue-force")
+    force_delete_file = os.path.join(os.path.expanduser("~"), ".finish-issue-force-delete")
     path_file = os.path.join(os.path.expanduser("~"), ".finish-issue-worktree-path")
     try:
-        for f in (force_file, path_file):
+        for f in (force_file, force_delete_file, path_file):
             if os.path.exists(f):
                 os.remove(f)
         return True

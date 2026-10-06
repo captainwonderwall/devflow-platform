@@ -51,11 +51,15 @@ if [ -z "$RC_FILE" ]; then
     echo "          rm -f ~/.finish-issue-branch"
     echo "      fi"
     echo "      if [ -n \"\$_remove\" ]; then"
-    echo "          wt remove \"\$_remove\" || _rc=\$?"
+    echo "          if [ -f ~/.finish-issue-force-delete ]; then"
+    echo "              wt remove --force \"\$_remove\" || _rc=\$?"
+    echo "          else"
+    echo "              wt remove \"\$_remove\" || _rc=\$?"
+    echo "          fi"
     echo "          if [ -n \"\$_worktree_path\" ] && [ -d \"\$_worktree_path\" ]; then"
     echo "              rm -rf \"\$_worktree_path\""
     echo "          fi"
-    echo "          rm -f ~/.finish-issue-remove ~/.finish-issue-force ~/.finish-issue-worktree-path"
+    echo "          rm -f ~/.finish-issue-remove ~/.finish-issue-force ~/.finish-issue-worktree-path ~/.finish-issue-force-delete"
     echo "      fi"
     echo "      return \$_rc"
     echo "  }"
@@ -63,7 +67,8 @@ if [ -z "$RC_FILE" ]; then
 elif grep -qF "$SENTINEL" "$RC_FILE" 2>/dev/null; then
     if grep -qF 'command finish-issue --prepare' "$RC_FILE" 2>/dev/null \
        && grep -qF '.finish-issue-force' "$RC_FILE" 2>/dev/null \
-       && grep -qF 'rm -rf "$_worktree_path"' "$RC_FILE" 2>/dev/null; then
+       && grep -qF 'rm -rf "$_worktree_path"' "$RC_FILE" 2>/dev/null \
+       && grep -qF 'finish-issue-force-delete' "$RC_FILE" 2>/dev/null; then
         echo "Shell function already present in $RC_FILE."
         echo ""
         echo "NOTE: If your current terminal session was started before this"
@@ -100,11 +105,15 @@ new_block = (
     "        rm -f ~/.finish-issue-branch\n"
     "    fi\n"
     "    if [ -n \"$_remove\" ]; then\n"
-    "        wt remove \"$_remove\" || _rc=$?\n"
+    "        if [ -f ~/.finish-issue-force-delete ]; then\n"
+    "            wt remove --force \"$_remove\" || _rc=$?\n"
+    "        else\n"
+    "            wt remove \"$_remove\" || _rc=$?\n"
+    "        fi\n"
     "        if [ -n \"$_worktree_path\" ] && [ -d \"$_worktree_path\" ]; then\n"
     "            rm -rf \"$_worktree_path\"\n"
     "        fi\n"
-    "        rm -f ~/.finish-issue-remove ~/.finish-issue-force ~/.finish-issue-worktree-path\n"
+    "        rm -f ~/.finish-issue-remove ~/.finish-issue-force ~/.finish-issue-worktree-path ~/.finish-issue-force-delete\n"
     "    fi\n"
     "    return $_rc\n"
     "}\n"
@@ -144,11 +153,15 @@ finish-issue() {
         rm -f ~/.finish-issue-branch
     fi
     if [ -n "$_remove" ]; then
-        wt remove "$_remove" || _rc=$?
+        if [ -f ~/.finish-issue-force-delete ]; then
+            wt remove --force "$_remove" || _rc=$?
+        else
+            wt remove "$_remove" || _rc=$?
+        fi
         if [ -n "$_worktree_path" ] && [ -d "$_worktree_path" ]; then
             rm -rf "$_worktree_path"
         fi
-        rm -f ~/.finish-issue-remove ~/.finish-issue-force ~/.finish-issue-worktree-path
+        rm -f ~/.finish-issue-remove ~/.finish-issue-force ~/.finish-issue-worktree-path ~/.finish-issue-force-delete
     fi
     return $_rc
 }

@@ -16,7 +16,10 @@ _spec.loader.exec_module(finish_issue)
 _cwd_inside_worktree = finish_issue._cwd_inside_worktree
 DIRTY_ABORT = finish_issue.DIRTY_ABORT
 DIRTY_DROP = finish_issue.DIRTY_DROP
+UNMERGED_ABORT = finish_issue.UNMERGED_ABORT
+UNMERGED_FORCE = finish_issue.UNMERGED_FORCE
 resolve_dirty_choice = finish_issue.resolve_dirty_choice
+resolve_unmerged_choice = finish_issue.resolve_unmerged_choice
 
 
 class TestCwdInsideWorktree(unittest.TestCase):
@@ -46,6 +49,17 @@ class TestResolveDirtyChoice(unittest.TestCase):
         self.assertEqual(resolve_dirty_choice(None), "abort")
 
 
+class TestResolveUnmergedChoice(unittest.TestCase):
+    def test_force_choice_returns_force(self):
+        self.assertEqual(resolve_unmerged_choice(UNMERGED_FORCE), "force")
+
+    def test_abort_choice_returns_abort(self):
+        self.assertEqual(resolve_unmerged_choice(UNMERGED_ABORT), "abort")
+
+    def test_ctrl_c_none_returns_abort(self):
+        self.assertEqual(resolve_unmerged_choice(None), "abort")
+
+
 class TestPromptDirtyTreeChoice(unittest.TestCase):
     def test_delegates_to_shared_select(self):
         import unittest.mock
@@ -56,6 +70,87 @@ class TestPromptDirtyTreeChoice(unittest.TestCase):
         mock_checkbox.assert_called_once()
         message = mock_checkbox.call_args[0][0]
         self.assertIn("feat/gh65-something", message)
+
+
+class TestPromptUnmergedChoice(unittest.TestCase):
+    def test_delegates_to_shared_select(self):
+        with unittest.mock.patch("devflow_sdk.core.prompts.questionary.checkbox") as mock_checkbox:
+            mock_checkbox.return_value.ask.return_value = [UNMERGED_FORCE]
+            result = finish_issue.prompt_unmerged_choice("feat/gh65-something", "main")
+        self.assertEqual(result, UNMERGED_FORCE)
+        mock_checkbox.assert_called_once()
+        message = mock_checkbox.call_args[0][0]
+        self.assertIn("feat/gh65-something", message)
+        self.assertIn("main", message)
+
+
+class TestMainUnmergedBranchHandling(unittest.TestCase):
+    """Exercises the force-delete path when the branch is not yet merged."""
+
+    def _run_main_with(self, unmerged_choice, prepare=False):
+        argv = ["finish-issue", "65"] + (["--prepare"] if prepare else [])
+        worktrees = [{"branch": "main", "path": "/repos/main", "is_main": True}]
+        match = Workspace(branch="feat/wt/gh65-something", path="/repos/gh65", is_main=False)
+
+        with unittest.mock.patch("sys.argv", argv), \
+             unittest.mock.patch.object(finish_issue, "check_manager"), \
+             unittest.mock.patch.object(finish_issue, "check_shell_function"), \
+             unittest.mock.patch.object(finish_issue, "fetch",
+                 return_value={"source": "github", "id": "65", "title": "t"}), \
+             unittest.mock.patch.object(finish_issue, "list_worktrees", return_value=worktrees), \
+             unittest.mock.patch.object(finish_issue, "find_for_issue", return_value=[match]), \
+             unittest.mock.patch.object(finish_issue, "get_main_branch", return_value="main"), \
+             unittest.mock.patch.object(finish_issue, "is_merged", return_value=False), \
+             unittest.mock.patch.object(finish_issue, "prompt_unmerged_choice",
+                 return_value=unmerged_choice), \
+             unittest.mock.patch.object(finish_issue, "is_dirty", return_value=False), \
+             unittest.mock.patch.object(finish_issue, "_persist_branch_for_shell", return_value=True), \
+             unittest.mock.patch.object(finish_issue, "_persist_worktree_for_shell", return_value=True), \
+             unittest.mock.patch.object(finish_issue, "_persist_force_delete_for_shell",
+                 return_value=True) as mock_force_delete, \
+             unittest.mock.patch.object(finish_issue, "_persist_worktree_path_for_shell", return_value=True), \
+             unittest.mock.patch.object(finish_issue, "_clear_force_marker_for_shell", return_value=True), \
+             unittest.mock.patch.object(finish_issue, "_cwd_inside_worktree", return_value=False), \
+             unittest.mock.patch.object(finish_issue, "remove_issue_context"), \
+             unittest.mock.patch.object(finish_issue, "remove_worktree"), \
+             unittest.mock.patch.object(finish_issue.subprocess, "run",
+                 return_value=unittest.mock.MagicMock(returncode=0, stderr="")) as mock_run:
+            try:
+                finish_issue.main()
+                exit_code = 0
+            except SystemExit as e:
+                exit_code = e.code
+        return exit_code, mock_run, mock_force_delete
+
+    def test_abort_choice_exits_1_without_removing(self):
+        exit_code, mock_run, mock_force_delete = self._run_main_with(UNMERGED_ABORT)
+        self.assertEqual(exit_code, 1)
+        mock_run.assert_not_called()
+        mock_force_delete.assert_not_called()
+
+    def test_ctrl_c_treated_as_abort(self):
+        exit_code, mock_run, mock_force_delete = self._run_main_with(None)
+        self.assertEqual(exit_code, 1)
+        mock_run.assert_not_called()
+
+    def test_force_choice_calls_wt_remove_with_force_flag(self):
+        exit_code, mock_run, mock_force_delete = self._run_main_with(UNMERGED_FORCE)
+        self.assertEqual(exit_code, 0)
+        mock_run.assert_called_once_with(
+            ["wt", "remove", "--force", "feat/wt/gh65-something"],
+            stdout=None, stderr=unittest.mock.ANY, text=True,
+        )
+
+    def test_prepare_mode_force_persists_force_delete_marker(self):
+        exit_code, mock_run, mock_force_delete = self._run_main_with(UNMERGED_FORCE, prepare=True)
+        self.assertEqual(exit_code, 0)
+        mock_force_delete.assert_called_once()
+        mock_run.assert_not_called()
+
+    def test_prepare_mode_abort_does_not_persist_force_delete_marker(self):
+        exit_code, mock_run, mock_force_delete = self._run_main_with(UNMERGED_ABORT, prepare=True)
+        self.assertEqual(exit_code, 1)
+        mock_force_delete.assert_not_called()
 
 
 class TestMainDirtyWorktreeHandling(unittest.TestCase):

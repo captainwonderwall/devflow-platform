@@ -23,6 +23,7 @@ from devflow_sdk.core.git.shell_state import (
     _persist_branch_for_shell,
     _persist_worktree_for_shell,
     _persist_force_for_shell,
+    _persist_force_delete_for_shell,
     _persist_worktree_path_for_shell,
     _clear_force_marker_for_shell,
 )
@@ -48,6 +49,9 @@ def _cwd_inside_worktree(worktree_path, cwd=None):
 DIRTY_ABORT = "Abort"
 DIRTY_DROP = "Drop uncommitted changes and continue"
 
+UNMERGED_ABORT = "Abort"
+UNMERGED_FORCE = "Force delete (branch not merged)"
+
 
 def resolve_dirty_choice(choice):
     """Map the raw questionary.select() return value to 'abort' or 'drop'.
@@ -57,10 +61,26 @@ def resolve_dirty_choice(choice):
     return "abort"
 
 
+def resolve_unmerged_choice(choice):
+    """Map the raw questionary.select() return value to 'abort' or 'force'.
+    Ctrl+C returns None from questionary, which we treat as 'abort'."""
+    if choice == UNMERGED_FORCE:
+        return "force"
+    return "abort"
+
+
 def prompt_dirty_tree_choice(branch):
     return select(
         f"Worktree for '{branch}' has uncommitted changes. What do you want to do?",
         [DIRTY_ABORT, DIRTY_DROP],
+        single=True,
+    )
+
+
+def prompt_unmerged_choice(branch, main_branch):
+    return select(
+        f"Branch '{branch}' is not yet merged into '{main_branch}'. What do you want to do?",
+        [UNMERGED_ABORT, UNMERGED_FORCE],
         single=True,
     )
 
@@ -90,7 +110,7 @@ def main():
         f"ERROR: finish-issue shell function is not installed or is out of date.\n"
         f"Re-run the installer: {os.path.join(SCRIPT_DIR, 'install.sh')}\n"
         "Then restart your shell or run: source {rc_path}",
-        required_content=["command finish-issue --prepare", ".finish-issue-force", "finish-issue-worktree-path", 'rm -rf "$_worktree_path"'],
+        required_content=["command finish-issue --prepare", ".finish-issue-force", "finish-issue-worktree-path", 'rm -rf "$_worktree_path"', "finish-issue-force-delete"],
     )
 
     if args.issue:
@@ -154,15 +174,19 @@ def main():
         print("ERROR: Could not determine the main branch from 'wt list'.", file=sys.stderr)
         sys.exit(1)
 
+    force_delete = False
     if not is_merged(path, branch, main_branch):
-        print(
-            f"Branch '{branch}' is not yet merged into '{main_branch}'. "
-            f"Merge it first, then re-run finish-issue.",
-            file=sys.stderr,
-        )
-        sys.exit(1)
-
-    print(f"Branch '{branch}' is merged into '{main_branch}'.")
+        choice = resolve_unmerged_choice(prompt_unmerged_choice(branch, main_branch))
+        if choice == "abort":
+            print(
+                f"Aborted: branch '{branch}' is not yet merged into '{main_branch}'. "
+                f"Merge it first, or re-run finish-issue and choose force delete.",
+                file=sys.stderr,
+            )
+            sys.exit(1)
+        force_delete = True
+    else:
+        print(f"Branch '{branch}' is merged into '{main_branch}'.")
 
     force_remove = False
     if is_dirty(path):
@@ -182,6 +206,8 @@ def main():
         ok = _clear_force_marker_for_shell() and ok
         if force_remove:
             ok = _persist_force_for_shell() and ok
+        if force_delete:
+            ok = _persist_force_delete_for_shell() and ok
         ok = _persist_worktree_path_for_shell(path) and ok
         remove_issue_context(path)
         remove_worktree(path)
@@ -218,7 +244,7 @@ def main():
             ["git", "-C", path, "clean", "-fd"],
             capture_output=True, check=False,
         )
-    cmd = ["wt", "remove", branch]
+    cmd = ["wt", "remove"] + (["--force"] if force_delete else []) + [branch]
     result = subprocess.run(cmd, stdout=None, stderr=subprocess.PIPE, text=True)
     if result.returncode != 0:
         print(f"ERROR: '{' '.join(cmd)}' failed:\n{result.stderr}", file=sys.stderr)
