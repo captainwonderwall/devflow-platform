@@ -14,12 +14,51 @@ def text(message, default=""):
     return questionary.text(message, default=default).ask()
 
 
-def select(message, choices):
+def _patch_checkbox_for_radio(q):
+    """Modify a questionary.checkbox Question to behave as a radio group.
+
+    Replaces the space-toggle binding so that pressing space on an item
+    deselects any previously selected item before selecting the new one.
+    Also removes the toggle-all (a) and invert (i) bindings, which have no
+    meaning in single-select mode.
+    """
+    from questionary.prompts.common import InquirerControl
+
+    app = q.application
+    kb = app.key_bindings
+    ic = next(
+        (c for c in app.layout.find_all_controls() if isinstance(c, InquirerControl)),
+        None,
+    )
+    if ic is None:
+        return
+
+    for binding in list(kb.bindings):
+        if binding.keys in ((" ",), ("a",), ("i",)):
+            kb.remove(binding.handler)
+
+    @kb.add(" ", eager=True)
+    def _radio_toggle(_event):
+        pointed_value = ic.get_pointed_at().value
+        if ic.selected_options == [pointed_value]:
+            ic.selected_options = []
+        else:
+            ic.selected_options = [pointed_value]
+
+
+def select(message, choices, single=False):
     """Single-select prompt using checkbox UI. Exactly one item must be
-    chosen. Re-prompts on empty or multi-selection. Returns the chosen
-    value, or None if the user cancelled (Ctrl+C)."""
+    chosen. Re-prompts on empty selection. Returns the chosen value, or
+    None if the user cancelled (Ctrl+C).
+
+    With single=True, selecting one item automatically deselects any
+    previously selected item (radio-button behavior).
+    """
     while True:
-        checked = questionary.checkbox(message, choices=choices).ask()
+        q = questionary.checkbox(message, choices=choices)
+        if single:
+            _patch_checkbox_for_radio(q)
+        checked = q.ask()
         if checked is None:
             return None
         if len(checked) == 0:

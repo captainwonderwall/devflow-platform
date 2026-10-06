@@ -27,13 +27,13 @@ def test_unknown_configured_plugin_warns_and_prompts(
 ) -> None:
     first = object()
     second = object()
-    monkeypatch.setattr("devflow_sdk.plugin.plugin_selection.select", lambda message, choices: "first")
+    monkeypatch.setattr("devflow_sdk.plugin.plugin_selection.select", lambda message, choices, **kw: "first")
 
     assert select_plugin({"first": first, "second": second}, "missing") is first
     assert "configured plugin 'missing' not found" in capsys.readouterr().err
 
 
 def test_prompt_cancellation_returns_none(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr("devflow_sdk.plugin.plugin_selection.select", lambda message, choices: None)
+    monkeypatch.setattr("devflow_sdk.plugin.plugin_selection.select", lambda message, choices, **kw: None)
 
     assert select_plugin({"first": object(), "second": object()}) is None

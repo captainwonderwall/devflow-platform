@@ -68,6 +68,7 @@ def prompt_dirty_tree_choice():
     return select(
         "Working tree has uncommitted changes. What do you want to do?",
         [DIRTY_ABORT, DIRTY_STASH],
+        single=True,
     )
 
 
@@ -75,6 +76,7 @@ def prompt_push_choice(branch):
     return select(
         f"Force-push the squashed commit to origin/{branch}?",
         [PUSH_YES, PUSH_NO],
+        single=True,
     )
 
 

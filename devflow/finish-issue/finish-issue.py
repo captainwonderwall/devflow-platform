@@ -13,8 +13,9 @@ import glob as _glob
 for _whl in sorted(_glob.glob(os.path.join(VENDOR_DIR, "*.whl"))):
     sys.path.insert(0, _whl)    # Dev: shared/ is at repo root
 
-from devflow_sdk.domain.issue import fetch, remove_issue_context, read_issue_context
-from devflow_sdk.core.prompts import select, text
+from devflow_sdk.domain.issue import fetch, remove_issue_context
+from devflow_sdk.core.prompts import select
+from devflow_sdk.worktree_state import list_tracked_worktrees
 from devflow_sdk.core.shell_function_check import check_shell_function
 from devflow_sdk.core.git.worktree import list_worktrees, is_dirty
 from devflow_sdk.domain.workspace import check_manager, find_for_issue
@@ -60,6 +61,7 @@ def prompt_dirty_tree_choice(branch):
     return select(
         f"Worktree for '{branch}' has uncommitted changes. What do you want to do?",
         [DIRTY_ABORT, DIRTY_DROP],
+        single=True,
     )
 
 
@@ -93,26 +95,43 @@ def main():
 
     if args.issue:
         issue = fetch(args.issue)
+        issue_id = issue['id']
+        issue_source = issue['source']
+        print(f"Issue: {issue_source.upper()} {issue_id}: {issue['title']}")
     else:
-        issue = read_issue_context(os.getcwd())
-        if issue is None:
-            issue_arg = text("Enter JIRA issue key or GitHub issue number:")
-            if issue_arg is None:
+        tracked = list_tracked_worktrees()
+        cwd_entry = next(
+            (e for e in tracked if _cwd_inside_worktree(e.path)),
+            None,
+        )
+        if cwd_entry is not None:
+            issue_id = cwd_entry.ticket_id
+            issue_source = cwd_entry.source
+            print(f"Issue: {issue_source.upper()} {issue_id}")
+        else:
+            if not tracked:
+                print("No tracked worktrees found.")
+                sys.exit(0)
+            labels = [f"{e.ticket_id} ({e.source}) → {e.path}" for e in tracked]
+            label_to_entry = {f"{e.ticket_id} ({e.source}) → {e.path}": e for e in tracked}
+            chosen_label = select("Select a worktree to finish:", labels, single=True)
+            if chosen_label is None:
                 sys.exit(1)
-            issue = fetch(issue_arg)
-
-    print(f"Issue: {issue['source'].upper()} {issue['id']}: {issue['title']}")
+            chosen_entry = label_to_entry[chosen_label]
+            issue_id = chosen_entry.ticket_id
+            issue_source = chosen_entry.source
+            print(f"Issue: {issue_source.upper()} {issue_id}")
 
     worktrees = list_worktrees()
-    matches = find_for_issue(issue['id'], issue['source'])
+    matches = find_for_issue(issue_id, issue_source)
 
     if not matches:
-        print(f"ERROR: No worktree found matching issue '{issue['id']}'.", file=sys.stderr)
+        print(f"ERROR: No worktree found matching issue '{issue_id}'.", file=sys.stderr)
         sys.exit(1)
 
     if len(matches) > 1:
         print(
-            f"ERROR: Multiple worktrees match issue '{issue['id']}':",
+            f"ERROR: Multiple worktrees match issue '{issue_id}':",
             file=sys.stderr,
         )
         for m in matches:
@@ -169,7 +188,6 @@ def main():
         sys.exit(0 if ok else 1)
 
     if _cwd_inside_worktree(path):
-        issue_id = issue["id"]
         print(
             f"ERROR: You are currently inside the worktree for '{branch}' ({path}), "
             f"and finish-issue was invoked without shell integration (a plain Python "

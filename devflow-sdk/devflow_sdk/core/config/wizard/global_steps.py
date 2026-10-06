@@ -36,7 +36,7 @@ class ProviderStep(WizardStep):
             Choice(p, checked=(p == current_provider))
             for p in _PROVIDER_CHOICES
         ]
-        provider = select("Which AI provider should devflow use?", choices=choices)
+        provider = select("Which AI provider should devflow use?", choices=choices, single=True)
         if provider is None:
             return current
         return dataclasses.replace(
@@ -78,7 +78,7 @@ class ModelsStep(WizardStep):
                 for mid, display in model_entries
             ]
 
-            chosen = select(f"{tier.capitalize()} model:", choices=model_choices)
+            chosen = select(f"{tier.capitalize()} model:", choices=model_choices, single=True)
             if chosen is None:
                 continue
             if chosen == OTHER_SENTINEL:

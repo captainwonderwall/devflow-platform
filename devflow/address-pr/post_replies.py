@@ -142,7 +142,7 @@ def confirm_and_post_replies(comments: List[Comment], owner: str, repo: str,
         print(f"\n  @{c.author}: \"{body_preview}\"")
         while True:
             print(f"  Reply: {c.reply_text}")
-            answer = select("Post this reply?", choices=["yes", "no", "edit"])
+            answer = select("Post this reply?", choices=["yes", "no", "edit"], single=True)
             if answer == "yes":
                 _post_reply(c, owner, repo, pr_number)
                 if c.is_bot and c.kind == "review_thread" and c.thread_node_id:

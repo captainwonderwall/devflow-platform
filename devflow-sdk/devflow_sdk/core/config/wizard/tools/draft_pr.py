@@ -86,7 +86,7 @@ class DraftPrWizardStep(WizardStep):
             Choice(name, checked=(name == current_default))
             for name in plugin_names
         ]
-        chosen_default = select("Default plugin for draft-pr:", choices=default_choices)
+        chosen_default = select("Default plugin for draft-pr:", choices=default_choices, single=True)
         if chosen_default is None:
             return current
 
@@ -116,7 +116,7 @@ class DraftPrWizardStep(WizardStep):
                 Choice(name, checked=(name == chosen_default))
                 for name in plugin_names
             ]
-            rule_plugin = select("Plugin for this path:", choices=rule_plugin_choices)
+            rule_plugin = select("Plugin for this path:", choices=rule_plugin_choices, single=True)
             if rule_plugin and paths:
                 kept_rules.append(DirectoryRule(paths=paths, plugin=rule_plugin))
 

@@ -66,6 +66,30 @@ class TestSelect:
         assert result is None
 
 
+class TestSelectSingle:
+    @patch("devflow_sdk.core.prompts.questionary.checkbox")
+    def test_returns_selected_value(self, mock_checkbox):
+        mock_checkbox.return_value.ask.return_value = ["Yes"]
+        result = select("Pick one", ["Yes", "No"], single=True)
+        assert result == "Yes"
+        mock_checkbox.assert_called_once_with("Pick one", choices=["Yes", "No"])
+
+    @patch("builtins.print")
+    @patch("devflow_sdk.core.prompts.questionary.checkbox")
+    def test_reprompts_when_nothing_selected(self, mock_checkbox, mock_print):
+        mock_checkbox.return_value.ask.side_effect = [[], ["Yes"]]
+        result = select("Pick one", ["Yes", "No"], single=True)
+        assert result == "Yes"
+        assert mock_checkbox.return_value.ask.call_count == 2
+        mock_print.assert_any_call("Select one option.")
+
+    @patch("devflow_sdk.core.prompts.questionary.checkbox")
+    def test_returns_none_on_cancel(self, mock_checkbox):
+        mock_checkbox.return_value.ask.return_value = None
+        result = select("Pick one", ["Yes", "No"], single=True)
+        assert result is None
+
+
 class TestConfirm:
     @patch("devflow_sdk.core.prompts.questionary.confirm")
     def test_returns_true_on_yes(self, mock_confirm):

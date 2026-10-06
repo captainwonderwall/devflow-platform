@@ -25,7 +25,7 @@ def select_plugin(
         )
     if len(plugins) == 1:
         return next(iter(plugins.values()))
-    chosen = select("Select plugin", choices=list(plugins.keys()))
+    chosen = select("Select plugin", choices=list(plugins.keys()), single=True)
     if chosen is None:
         return None
     return plugins[chosen]

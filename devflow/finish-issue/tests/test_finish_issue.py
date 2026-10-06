@@ -204,21 +204,40 @@ class TestMainIssueContextCleanup(unittest.TestCase):
 
 
 class TestMainIssueAutoDetection(unittest.TestCase):
-    """Exercises the issue resolution order: CLI arg → .issue.json → user prompt."""
+    """Exercises issue resolution: CLI arg (fetch) vs no-arg (CWD detection or picker)."""
 
-    def _run_main(self, argv, issue_context=None, prompt_input=None):
+    def _base_patches(self, argv, tracked_worktrees=None, find_return=None, cwd_inside=False):
         worktrees = [{"branch": "main", "path": "/repos/main", "is_main": True}]
         match = Workspace(branch="feat/wt/gh65-something", path="/repos/gh65", is_main=False)
         fetched_issue = {"source": "github", "id": "65", "title": "t"}
+        if tracked_worktrees is None:
+            tracked_worktrees = []
+        if find_return is None:
+            find_return = [match]
+        return dict(
+            argv=argv,
+            worktrees=worktrees,
+            fetched_issue=fetched_issue,
+            tracked_worktrees=tracked_worktrees,
+            find_return=find_return,
+            cwd_inside=cwd_inside,
+        )
 
+    def _run(self, argv, tracked_worktrees=None, find_return=None, select_return=None):
+        cfg = self._base_patches(argv, tracked_worktrees=tracked_worktrees, find_return=find_return)
         with unittest.mock.patch("sys.argv", argv), \
              unittest.mock.patch.object(finish_issue, "check_manager"), \
              unittest.mock.patch.object(finish_issue, "check_shell_function"), \
-             unittest.mock.patch.object(finish_issue, "fetch", return_value=fetched_issue) as mock_fetch, \
-             unittest.mock.patch.object(finish_issue, "read_issue_context", return_value=issue_context) as mock_read, \
-             unittest.mock.patch.object(finish_issue, "text", return_value=prompt_input) as mock_text, \
-             unittest.mock.patch.object(finish_issue, "list_worktrees", return_value=worktrees), \
-             unittest.mock.patch.object(finish_issue, "find_for_issue", return_value=[match]), \
+             unittest.mock.patch.object(finish_issue, "fetch",
+                 return_value=cfg["fetched_issue"]) as mock_fetch, \
+             unittest.mock.patch.object(finish_issue, "list_tracked_worktrees",
+                 return_value=cfg["tracked_worktrees"]), \
+             unittest.mock.patch.object(finish_issue, "select",
+                 return_value=select_return) as mock_select, \
+             unittest.mock.patch.object(finish_issue, "list_worktrees",
+                 return_value=cfg["worktrees"]), \
+             unittest.mock.patch.object(finish_issue, "find_for_issue",
+                 return_value=cfg["find_return"]), \
              unittest.mock.patch.object(finish_issue, "get_main_branch", return_value="main"), \
              unittest.mock.patch.object(finish_issue, "is_merged", return_value=True), \
              unittest.mock.patch.object(finish_issue, "is_dirty", return_value=False), \
@@ -233,38 +252,73 @@ class TestMainIssueAutoDetection(unittest.TestCase):
                 exit_code = 0
             except SystemExit as e:
                 exit_code = e.code
-        return exit_code, mock_fetch, mock_read, mock_text
+        return exit_code, mock_fetch, mock_select
 
-    def test_cli_arg_calls_fetch_and_skips_read_and_prompt(self):
-        exit_code, mock_fetch, mock_read, mock_text = self._run_main(
-            ["finish-issue", "65"],
-        )
+    def test_cli_arg_calls_fetch_skips_tracking_check(self):
+        exit_code, mock_fetch, mock_select = self._run(["finish-issue", "65"])
         self.assertEqual(exit_code, 0)
         mock_fetch.assert_called_once_with("65")
-        mock_read.assert_not_called()
-        mock_text.assert_not_called()
+        mock_select.assert_not_called()
 
-    def test_no_arg_uses_issue_context_without_calling_fetch(self):
-        stored = {"source": "github", "id": "65", "title": "t"}
-        exit_code, mock_fetch, mock_read, mock_text = self._run_main(
-            ["finish-issue"], issue_context=stored,
-        )
+    def test_no_arg_cwd_is_tracked_worktree_skips_fetch(self):
+        from devflow_sdk.worktree_state import WorktreeEntry
+        entry = WorktreeEntry(path="/repos/gh65", ticket_id="65", source="github")
+        match = Workspace(branch="feat/wt/gh65-something", path="/repos/gh65", is_main=False)
+        with unittest.mock.patch("sys.argv", ["finish-issue"]), \
+             unittest.mock.patch.object(finish_issue, "check_manager"), \
+             unittest.mock.patch.object(finish_issue, "check_shell_function"), \
+             unittest.mock.patch.object(finish_issue, "fetch") as mock_fetch, \
+             unittest.mock.patch.object(finish_issue, "list_tracked_worktrees",
+                 return_value=[entry]), \
+             unittest.mock.patch.object(finish_issue, "_cwd_inside_worktree",
+                 side_effect=[True, False]), \
+             unittest.mock.patch.object(finish_issue, "list_worktrees",
+                 return_value=[{"branch": "main", "path": "/repos/main", "is_main": True}]), \
+             unittest.mock.patch.object(finish_issue, "find_for_issue", return_value=[match]), \
+             unittest.mock.patch.object(finish_issue, "get_main_branch", return_value="main"), \
+             unittest.mock.patch.object(finish_issue, "is_merged", return_value=True), \
+             unittest.mock.patch.object(finish_issue, "is_dirty", return_value=False), \
+             unittest.mock.patch.object(finish_issue, "_persist_branch_for_shell", return_value=True), \
+             unittest.mock.patch.object(finish_issue, "remove_issue_context"), \
+             unittest.mock.patch.object(finish_issue, "remove_worktree"), \
+             unittest.mock.patch.object(finish_issue.subprocess, "run",
+                 return_value=unittest.mock.MagicMock(returncode=0, stderr="")):
+            try:
+                finish_issue.main()
+                exit_code = 0
+            except SystemExit as e:
+                exit_code = e.code
         self.assertEqual(exit_code, 0)
-        mock_read.assert_called_once()
         mock_fetch.assert_not_called()
-        mock_text.assert_not_called()
 
-    def test_no_arg_no_context_prompts_user_then_fetches(self):
-        exit_code, mock_fetch, mock_read, mock_text = self._run_main(
-            ["finish-issue"], issue_context=None, prompt_input="65",
+    def test_no_arg_empty_tracked_list_exits_0(self):
+        exit_code, mock_fetch, mock_select = self._run(["finish-issue"], tracked_worktrees=[])
+        self.assertEqual(exit_code, 0)
+        mock_fetch.assert_not_called()
+        mock_select.assert_not_called()
+
+    def test_no_arg_picker_selection_skips_fetch(self):
+        from devflow_sdk.worktree_state import WorktreeEntry
+        entry = WorktreeEntry(path="/repos/gh65", ticket_id="65", source="github")
+        match = Workspace(branch="feat/wt/gh65-something", path="/repos/gh65", is_main=False)
+        label = "65 (github) → /repos/gh65"
+        exit_code, mock_fetch, mock_select = self._run(
+            ["finish-issue"],
+            tracked_worktrees=[entry],
+            find_return=[match],
+            select_return=label,
         )
         self.assertEqual(exit_code, 0)
-        mock_text.assert_called_once()
-        mock_fetch.assert_called_once_with("65")
+        mock_fetch.assert_not_called()
+        mock_select.assert_called_once()
 
-    def test_no_arg_no_context_user_cancels_exits_1_without_fetching(self):
-        exit_code, mock_fetch, mock_read, mock_text = self._run_main(
-            ["finish-issue"], issue_context=None, prompt_input=None,
+    def test_no_arg_picker_cancel_exits_1(self):
+        from devflow_sdk.worktree_state import WorktreeEntry
+        entry = WorktreeEntry(path="/repos/gh65", ticket_id="65", source="github")
+        exit_code, mock_fetch, mock_select = self._run(
+            ["finish-issue"],
+            tracked_worktrees=[entry],
+            select_return=None,
         )
         self.assertEqual(exit_code, 1)
         mock_fetch.assert_not_called()

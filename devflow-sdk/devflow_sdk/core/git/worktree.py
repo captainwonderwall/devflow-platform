@@ -130,6 +130,7 @@ def _detect_incoming_commits(branch: str) -> None:
             Choice("Pull latest changes", value="pull"),
             Choice("Continue without pulling", value="skip"),
         ],
+        single=True,
     )
     if choice == "pull":
         subprocess.run(

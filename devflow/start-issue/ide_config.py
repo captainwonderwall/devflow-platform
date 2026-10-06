@@ -36,7 +36,7 @@ def prompt_and_open_ide(worktree_path):
     choices = [Choice(title=f"Open in {name}", value=cmd) for name, cmd in ides]
     choices.append(Choice(title="Skip", value=_SKIP))
 
-    cmd = select("Open the worktree in an IDE?", choices)
+    cmd = select("Open the worktree in an IDE?", choices, single=True)
     if cmd is None or cmd == _SKIP:
         return
 
@@ -55,7 +55,7 @@ def prompt_and_open_ai_agent(worktree_path):
         Choice(title="Open AI agent session", value="open"),
         Choice(title="Skip", value=None),
     ]
-    chosen = select("Start working with an AI agent?", choices)
+    chosen = select("Start working with an AI agent?", choices, single=True)
     if chosen == "open":
         launch_interactive_session(_AI_AGENT_PROMPT, cwd=worktree_path)
 

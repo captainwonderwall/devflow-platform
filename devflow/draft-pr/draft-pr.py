@@ -36,7 +36,7 @@ def resolve_jira(data, github_issue_arg):
     github_issue = data.get("github_issue") or github_issue_arg
 
     if jira_ticket:
-        jira = select("Confirm Jira ticket", [jira_ticket])
+        jira = select("Confirm Jira ticket", [jira_ticket], single=True)
         return jira, github_issue_arg
 
     if github_issue:
@@ -83,7 +83,7 @@ def main():
     standard_answers = prompt(build_questions(data))
     jira = standard_answers.get("jira_ticket") or jira   # user may have typed it
     issue_type = standard_answers.get("issue_type") or data.get("issue_type", "Issue")
-    answer = select("Is this a customer-visible change?", choices=["Yes", "No"])
+    answer = select("Is this a customer-visible change?", choices=["Yes", "No"], single=True)
     customer_visible = "yes" if answer == "Yes" else "no"
 
     user_inputs = {
