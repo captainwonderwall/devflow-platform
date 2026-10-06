@@ -7,6 +7,27 @@ import sys
 from devflow_sdk.core.prompts import confirm, select, Choice
 
 
+def _normalize_wt_items(data: object) -> list:
+    """Normalize wt list --format json output to a flat list of {branch, path, is_main} dicts.
+
+    Handles both the legacy flat-list format and the schema-2 dict format
+    introduced in a later wt release.
+    """
+    if isinstance(data, list):
+        return data
+    if isinstance(data, dict) and "items" in data:
+        normalized = []
+        for item in data["items"]:
+            wt = item.get("worktree", {})
+            normalized.append({
+                "branch": item.get("branch"),
+                "path": wt.get("path"),
+                "is_main": bool(wt.get("main")),
+            })
+        return normalized
+    return []
+
+
 def query_worktrees() -> list | None:
     """Return parsed wt list --format json output, or None on any failure."""
     try:
@@ -19,7 +40,7 @@ def query_worktrees() -> list | None:
     if result.returncode != 0:
         return None
     try:
-        return json.loads(result.stdout)
+        return _normalize_wt_items(json.loads(result.stdout))
     except json.JSONDecodeError:
         return None
 
@@ -39,7 +60,7 @@ def list_worktrees() -> list:
         print(f"ERROR: 'wt list' failed:\n{result.stderr}", file=sys.stderr)
         sys.exit(1)
     try:
-        return json.loads(result.stdout)
+        return _normalize_wt_items(json.loads(result.stdout))
     except json.JSONDecodeError:
         print(f"ERROR: 'wt list' returned invalid JSON:\n{result.stdout}", file=sys.stderr)
         sys.exit(1)
@@ -59,17 +80,11 @@ def is_dirty(path: str) -> bool:
 
 def get_repo_root() -> str:
     """Return the root of the main worktree (not necessarily cwd)."""
-    result = subprocess.run(
-        ["wt", "list", "--format", "json"],
-        capture_output=True, text=True,
-    )
-    if result.returncode == 0:
-        try:
-            for wt in json.loads(result.stdout):
-                if wt.get("is_main"):
-                    return wt["path"]
-        except (json.JSONDecodeError, KeyError):
-            pass
+    worktrees = query_worktrees()
+    if worktrees is not None:
+        for wt in worktrees:
+            if wt.get("is_main"):
+                return wt["path"]
 
     result = subprocess.run(
         ["git", "rev-parse", "--show-toplevel"],
