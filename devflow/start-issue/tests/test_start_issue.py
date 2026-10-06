@@ -387,6 +387,37 @@ class TestCheckShellFunctionCalledInStartIssue(unittest.TestCase):
         mock_csf.assert_called_once()
         sentinel_arg = mock_csf.call_args[0][0]
         self.assertIn("start-issue shell integration", sentinel_arg)
+        required_content = mock_csf.call_args.kwargs["required_content"]
+        self.assertIn("~/.start-issue-branch", required_content)
+        self.assertIn("~/.start-issue-worktree-path", required_content)
+        self.assertIn("wt -C", required_content)
+
+
+class TestStartIssueShellSelection(unittest.TestCase):
+    def test_persists_branch_and_absolute_worktree_path(self):
+        issue = {"source": "github", "id": "42", "title": "t",
+                 "body": "", "comments": [], "issuetype": "", "labels": ["feat"]}
+        with patch("sys.argv", ["start-issue", "42"]), \
+             patch("atexit.register"), \
+             patch("start_issue.fetch", return_value=issue), \
+             patch("start_issue.check_manager"), \
+             patch("start_issue.check_shell_function"), \
+             patch("start_issue.get_repo_root", return_value="/fake/root"), \
+             patch("start_issue.detect_and_write_config"), \
+             patch("start_issue.create_workspace", return_value=FAKE_WORKSPACE), \
+             patch("start_issue.write_issue_context"), \
+             patch("start_issue.copy_ide_config"), \
+             patch("start_issue.prompt_and_open_ai_agent"), \
+             patch("start_issue.add_worktree"), \
+             patch("start_issue._persist_start_branch_for_shell") as mock_persist, \
+             patch.object(start_issue.summary, "start_rate_fetch"), \
+             patch.object(start_issue.summary, "add"):
+            start_issue.main()
+
+        mock_persist.assert_called_once()
+        branch, path = mock_persist.call_args.args
+        self.assertTrue(branch.startswith("feat/wt/gh42-"))
+        self.assertEqual(path, "/fake/worktree")
 
 
 class TestMainWorktreeStateIntegration(unittest.TestCase):

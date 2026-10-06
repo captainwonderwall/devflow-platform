@@ -38,15 +38,16 @@ if [ -z "$RC_FILE" ]; then
     echo "  start-issue() {"
     echo "      command start-issue \"\$@\" || return"
     echo "      local _rc=0"
-    echo "      if [ -f ~/.start-issue-branch ]; then"
-    echo "          wt switch \"\$(cat ~/.start-issue-branch)\" || _rc=\$?"
+    echo "      if [ -f ~/.start-issue-branch ] && [ -f ~/.start-issue-worktree-path ]; then"
+    echo "          wt -C \"\$(cat ~/.start-issue-worktree-path)\" switch \"\$(cat ~/.start-issue-branch)\" || _rc=\$?"
     echo "      fi"
-    echo "      rm -f ~/.start-issue-branch"
+    echo "      rm -f ~/.start-issue-branch ~/.start-issue-worktree-path"
     echo "      return \$_rc"
     echo "  }"
     echo "  # <<< start-issue shell integration <<<"
 elif grep -qF "$SENTINEL" "$RC_FILE" 2>/dev/null; then
-    if grep -qF '~/.start-issue-branch' "$RC_FILE" 2>/dev/null; then
+    if grep -qF '~/.start-issue-worktree-path' "$RC_FILE" 2>/dev/null \
+        && grep -qF 'wt -C' "$RC_FILE" 2>/dev/null; then
         echo "Shell function already present in $RC_FILE."
     else
         if ! command -v python3 &>/dev/null; then
@@ -65,10 +66,10 @@ new_block = (
     "start-issue() {\n"
     "    command start-issue \"$@\" || return\n"
     "    local _rc=0\n"
-    "    if [ -f ~/.start-issue-branch ]; then\n"
-    "        wt switch \"$(cat ~/.start-issue-branch)\" || _rc=$?\n"
+    "    if [ -f ~/.start-issue-branch ] && [ -f ~/.start-issue-worktree-path ]; then\n"
+    "        wt -C \"$(cat ~/.start-issue-worktree-path)\" switch \"$(cat ~/.start-issue-branch)\" || _rc=$?\n"
     "    fi\n"
-    "    rm -f ~/.start-issue-branch\n"
+    "    rm -f ~/.start-issue-branch ~/.start-issue-worktree-path\n"
     "    return $_rc\n"
     "}\n"
     "# <<< start-issue shell integration <<<"
@@ -94,10 +95,10 @@ else
 start-issue() {
     command start-issue "$@" || return
     local _rc=0
-    if [ -f ~/.start-issue-branch ]; then
-        wt switch "$(cat ~/.start-issue-branch)" || _rc=$?
+    if [ -f ~/.start-issue-branch ] && [ -f ~/.start-issue-worktree-path ]; then
+        wt -C "$(cat ~/.start-issue-worktree-path)" switch "$(cat ~/.start-issue-branch)" || _rc=$?
     fi
-    rm -f ~/.start-issue-branch
+    rm -f ~/.start-issue-branch ~/.start-issue-worktree-path
     return $_rc
 }
 # <<< start-issue shell integration <<<

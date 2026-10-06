@@ -73,7 +73,21 @@ class TestNoArgPicker(unittest.TestCase):
         )
         self.assertEqual(exit_code, 0)
         mock_select.assert_called_once()
-        mock_persist.assert_called_once_with("feat/wt/gh65-something")
+        mock_persist.assert_called_once_with("feat/wt/gh65-something", "/repos/gh65")
+
+    def test_shell_check_requires_worktree_path_and_explicit_working_directory(self):
+        with unittest.mock.patch("sys.argv", ["continue-issue"]), \
+             unittest.mock.patch.object(continue_issue, "check_manager"), \
+             unittest.mock.patch.object(continue_issue, "check_shell_function") as mock_check, \
+             unittest.mock.patch.object(continue_issue, "list_tracked_worktrees", return_value=[]):
+            try:
+                continue_issue.main()
+            except SystemExit:
+                pass
+
+        required_content = mock_check.call_args.kwargs["required_content"]
+        self.assertIn(".continue-issue-worktree-path", required_content)
+        self.assertIn("wt -C", required_content)
 
     def test_picker_cancel_exits_1(self):
         entry = _make_entry()
@@ -107,7 +121,7 @@ class TestArgPath(unittest.TestCase):
         )
         self.assertEqual(exit_code, 0)
         mock_select.assert_not_called()
-        mock_persist.assert_called_once_with("feat/wt/gh65-something")
+        mock_persist.assert_called_once_with("feat/wt/gh65-something", "/repos/gh65")
 
     def test_arg_case_insensitive_match(self):
         entry = _make_entry(ticket_id="VDP-123", source="jira", path="/repos/vdp-123")
@@ -118,7 +132,7 @@ class TestArgPath(unittest.TestCase):
             find_return=[workspace],
         )
         self.assertEqual(exit_code, 0)
-        mock_persist.assert_called_once_with("feat/wt/jira-vdp-123")
+        mock_persist.assert_called_once_with("feat/wt/jira-vdp-123", "/repos/vdp-123")
 
     def test_unmatched_arg_exits_1(self):
         exit_code, mock_select, _, mock_persist = _run_main(

@@ -6,12 +6,74 @@ from unittest.mock import patch
 
 
 from devflow_sdk.core.git.shell_state import (
+    _persist_continue_branch_for_shell,
+    _persist_start_branch_for_shell,
     _persist_branch_for_shell,
     _persist_worktree_for_shell,
     _persist_force_for_shell,
     _persist_worktree_path_for_shell,
     _clear_force_marker_for_shell,
 )
+
+
+class TestPersistContinueSelectionForShell(unittest.TestCase):
+    def test_writes_branch_and_worktree_path(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            with patch("devflow_sdk.core.git.shell_state.os.path.expanduser", return_value=tmpdir):
+                result = _persist_continue_branch_for_shell("feat/65", "/repos/gh65")
+
+            with open(os.path.join(tmpdir, ".continue-issue-branch")) as f:
+                self.assertEqual(f.read(), "feat/65")
+            with open(os.path.join(tmpdir, ".continue-issue-worktree-path")) as f:
+                self.assertEqual(f.read(), "/repos/gh65")
+            self.assertTrue(result)
+
+    def test_removes_stale_branch_when_persist_fails(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            branch_file = os.path.join(tmpdir, ".continue-issue-branch")
+            path_file = os.path.join(tmpdir, ".continue-issue-worktree-path")
+            with open(branch_file, "w") as f:
+                f.write("stale-branch")
+            with open(path_file, "w") as f:
+                f.write("stale-path")
+            with patch("devflow_sdk.core.git.shell_state.os.path.expanduser", return_value=tmpdir), \
+                 patch("builtins.open", side_effect=OSError("disk full")), \
+                 patch("sys.stderr"):
+                result = _persist_continue_branch_for_shell("feat/65", "/repos/gh65")
+
+            self.assertFalse(result)
+            self.assertFalse(os.path.exists(branch_file))
+            self.assertFalse(os.path.exists(path_file))
+
+
+class TestPersistStartSelectionForShell(unittest.TestCase):
+    def test_writes_branch_and_worktree_path(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            with patch("devflow_sdk.core.git.shell_state.os.path.expanduser", return_value=tmpdir):
+                result = _persist_start_branch_for_shell("feat/65", "/repos/gh65")
+
+            with open(os.path.join(tmpdir, ".start-issue-branch")) as f:
+                self.assertEqual(f.read(), "feat/65")
+            with open(os.path.join(tmpdir, ".start-issue-worktree-path")) as f:
+                self.assertEqual(f.read(), "/repos/gh65")
+            self.assertTrue(result)
+
+    def test_removes_stale_selection_when_persist_fails(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            branch_file = os.path.join(tmpdir, ".start-issue-branch")
+            path_file = os.path.join(tmpdir, ".start-issue-worktree-path")
+            with open(branch_file, "w") as f:
+                f.write("stale-branch")
+            with open(path_file, "w") as f:
+                f.write("stale-path")
+            with patch("devflow_sdk.core.git.shell_state.os.path.expanduser", return_value=tmpdir), \
+                 patch("builtins.open", side_effect=OSError("disk full")), \
+                 patch("sys.stderr"):
+                result = _persist_start_branch_for_shell("feat/65", "/repos/gh65")
+
+            self.assertFalse(result)
+            self.assertFalse(os.path.exists(branch_file))
+            self.assertFalse(os.path.exists(path_file))
 
 
 class TestPersistBranchForShell(unittest.TestCase):

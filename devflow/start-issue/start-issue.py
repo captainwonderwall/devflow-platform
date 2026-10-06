@@ -88,7 +88,11 @@ def main():
         f"ERROR: start-issue shell function is not installed or is out of date.\n"
         f"Re-run the installer: {os.path.join(SCRIPT_DIR, 'install.sh')}\n"
         "Then restart your shell or run: source {rc_path}",
-        required_content="~/.start-issue-branch",
+        required_content=[
+            "~/.start-issue-branch",
+            "~/.start-issue-worktree-path",
+            "wt -C",
+        ],
     )
 
     override = None
@@ -119,7 +123,10 @@ def main():
     else:
         worktree_path = None
 
-    _persist_start_branch_for_shell(branch)
+    if worktree_path and not _persist_start_branch_for_shell(
+        branch, os.path.abspath(worktree_path)
+    ):
+        sys.exit(1)
 
     summary.add("Issue", f"{issue['source'].upper()} {issue['id']}: {issue['title']}")
     summary.add("Branch", branch)

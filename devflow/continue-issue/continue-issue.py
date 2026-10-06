@@ -40,7 +40,12 @@ def main():
         f"ERROR: continue-issue shell function is not installed or is out of date.\n"
         f"Re-run the installer: {os.path.join(SCRIPT_DIR, 'install.sh')}\n"
         "Then restart your shell or run: source {rc_path}",
-        required_content=["command continue-issue", ".continue-issue-branch"],
+        required_content=[
+            "command continue-issue",
+            ".continue-issue-branch",
+            ".continue-issue-worktree-path",
+            "wt -C",
+        ],
     )
 
     tracked = list_tracked_worktrees()
@@ -95,7 +100,7 @@ def main():
 
     prompt_and_open_ide(path)
 
-    if not _persist_continue_branch_for_shell(branch):
+    if not _persist_continue_branch_for_shell(branch, os.path.abspath(path)):
         sys.exit(1)
 
     print(f"Switching to worktree for '{entry.ticket_id}'...")

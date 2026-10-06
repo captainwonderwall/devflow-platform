@@ -38,15 +38,16 @@ if [ -z "$RC_FILE" ]; then
     echo "  continue-issue() {"
     echo "      command continue-issue \"\$@\" || return"
     echo "      local _rc=0"
-    echo "      if [ -f ~/.continue-issue-branch ]; then"
-    echo "          wt switch \"\$(cat ~/.continue-issue-branch)\" || _rc=\$?"
+    echo "      if [ -f ~/.continue-issue-branch ] && [ -f ~/.continue-issue-worktree-path ]; then"
+    echo "          wt -C \"\$(cat ~/.continue-issue-worktree-path)\" switch \"\$(cat ~/.continue-issue-branch)\" || _rc=\$?"
     echo "      fi"
-    echo "      rm -f ~/.continue-issue-branch"
+    echo "      rm -f ~/.continue-issue-branch ~/.continue-issue-worktree-path"
     echo "      return \$_rc"
     echo "  }"
     echo "  # <<< continue-issue shell integration <<<"
 elif grep -qF "$SENTINEL" "$RC_FILE" 2>/dev/null; then
-    if grep -qF '~/.continue-issue-branch' "$RC_FILE" 2>/dev/null; then
+    if grep -qF '~/.continue-issue-worktree-path' "$RC_FILE" 2>/dev/null \
+        && grep -qF 'wt -C' "$RC_FILE" 2>/dev/null; then
         echo "Shell function already present in $RC_FILE."
     else
         if ! command -v python3 &>/dev/null; then
@@ -65,10 +66,10 @@ new_block = (
     "continue-issue() {\n"
     "    command continue-issue \"$@\" || return\n"
     "    local _rc=0\n"
-    "    if [ -f ~/.continue-issue-branch ]; then\n"
-    "        wt switch \"$(cat ~/.continue-issue-branch)\" || _rc=$?\n"
+    "    if [ -f ~/.continue-issue-branch ] && [ -f ~/.continue-issue-worktree-path ]; then\n"
+    "        wt -C \"$(cat ~/.continue-issue-worktree-path)\" switch \"$(cat ~/.continue-issue-branch)\" || _rc=$?\n"
     "    fi\n"
-    "    rm -f ~/.continue-issue-branch\n"
+    "    rm -f ~/.continue-issue-branch ~/.continue-issue-worktree-path\n"
     "    return $_rc\n"
     "}\n"
     "# <<< continue-issue shell integration <<<"
@@ -94,10 +95,10 @@ else
 continue-issue() {
     command continue-issue "$@" || return
     local _rc=0
-    if [ -f ~/.continue-issue-branch ]; then
-        wt switch "$(cat ~/.continue-issue-branch)" || _rc=$?
+    if [ -f ~/.continue-issue-branch ] && [ -f ~/.continue-issue-worktree-path ]; then
+        wt -C "$(cat ~/.continue-issue-worktree-path)" switch "$(cat ~/.continue-issue-branch)" || _rc=$?
     fi
-    rm -f ~/.continue-issue-branch
+    rm -f ~/.continue-issue-branch ~/.continue-issue-worktree-path
     return $_rc
 }
 # <<< continue-issue shell integration <<<

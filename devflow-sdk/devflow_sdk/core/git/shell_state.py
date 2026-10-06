@@ -3,16 +3,26 @@ import os
 import sys
 
 
-def _persist_continue_branch_for_shell(branch: str) -> bool:
-    """Write branch to ~/.continue-issue-branch for shell integration."""
+def _persist_continue_branch_for_shell(branch: str, path: str) -> bool:
+    """Write the selected branch and worktree path for shell integration."""
     branch_file = os.path.join(os.path.expanduser("~"), ".continue-issue-branch")
+    path_file = os.path.join(os.path.expanduser("~"), ".continue-issue-worktree-path")
     try:
+        if os.path.exists(branch_file):
+            os.remove(branch_file)
+        with open(path_file, "w") as f:
+            f.write(path)
         with open(branch_file, "w") as f:
             f.write(branch)
         return True
     except OSError as e:
+        for marker in (branch_file, path_file):
+            try:
+                os.remove(marker)
+            except OSError:
+                pass
         print(
-            f"WARNING: Could not persist branch name for shell: {e}\n"
+            f"WARNING: Could not persist worktree selection for shell: {e}\n"
             "The worktree was found successfully, but shell integration will not "
             "switch to it automatically.",
             file=sys.stderr,
@@ -20,19 +30,31 @@ def _persist_continue_branch_for_shell(branch: str) -> bool:
         return False
 
 
-def _persist_start_branch_for_shell(branch: str) -> None:
-    """Write new branch to ~/.start-issue-branch for shell integration."""
+def _persist_start_branch_for_shell(branch: str, path: str) -> bool:
+    """Write the new branch and worktree path for shell integration."""
     branch_file = os.path.join(os.path.expanduser("~"), ".start-issue-branch")
+    path_file = os.path.join(os.path.expanduser("~"), ".start-issue-worktree-path")
     try:
+        if os.path.exists(branch_file):
+            os.remove(branch_file)
+        with open(path_file, "w") as f:
+            f.write(path)
         with open(branch_file, "w") as f:
             f.write(branch)
+        return True
     except OSError as e:
+        for marker in (branch_file, path_file):
+            try:
+                os.remove(marker)
+            except OSError:
+                pass
         print(
-            f"WARNING: Could not persist branch name for shell: {e}\n"
+            f"WARNING: Could not persist worktree selection for shell: {e}\n"
             "The worktree was created successfully, but shell integration will not "
             "switch to it automatically.",
             file=sys.stderr,
         )
+        return False
 
 
 def _persist_branch_for_shell(branch: str) -> bool:
