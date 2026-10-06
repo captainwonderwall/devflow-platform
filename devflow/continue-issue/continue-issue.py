@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import argparse
 import os
+import subprocess
 import sys
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -13,7 +14,7 @@ for _whl in sorted(_glob.glob(os.path.join(VENDOR_DIR, "*.whl"))):
 
 from devflow_sdk.core.prompts import select
 from devflow_sdk.core.shell_function_check import check_shell_function
-from devflow_sdk.core.git.worktree import _cwd_inside_worktree
+from devflow_sdk.core.git.worktree import query_worktrees, _cwd_inside_worktree
 from devflow_sdk.domain.workspace import check_manager, find_for_issue
 from devflow_sdk.domain.ide import prompt_and_open_ide
 from devflow_sdk.core.git.shell_state import _persist_continue_branch_for_shell
@@ -64,18 +65,33 @@ def main():
             sys.exit(1)
         entry = label_to_entry[chosen_label]
 
-    workspace_matches = find_for_issue(entry.ticket_id, entry.source)
-    if not workspace_matches:
-        print(
-            f"ERROR: Worktree for '{entry.ticket_id}' is tracked in state but not found in git. "
-            f"It may have been removed manually.",
-            file=sys.stderr,
-        )
-        sys.exit(1)
+    worktrees = query_worktrees()
 
-    workspace = workspace_matches[0]
-    branch = workspace.branch
-    path = workspace.path or entry.path
+    if worktrees is not None:
+        workspace_matches = find_for_issue(entry.ticket_id, entry.source)
+        if not workspace_matches:
+            print(
+                f"ERROR: Worktree for '{entry.ticket_id}' is tracked in state but not found in git. "
+                f"It may have been removed manually.",
+                file=sys.stderr,
+            )
+            sys.exit(1)
+        workspace = workspace_matches[0]
+        branch = workspace.branch
+        path = workspace.path or entry.path
+    else:
+        path = entry.path
+        _branch_result = subprocess.run(
+            ["git", "-C", path, "rev-parse", "--abbrev-ref", "HEAD"],
+            capture_output=True, text=True,
+        )
+        if _branch_result.returncode != 0 or not _branch_result.stdout.strip():
+            print(
+                f"ERROR: Could not determine branch for worktree at '{path}'.",
+                file=sys.stderr,
+            )
+            sys.exit(1)
+        branch = _branch_result.stdout.strip()
 
     prompt_and_open_ide(path)
 

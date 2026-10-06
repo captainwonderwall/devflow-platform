@@ -2,12 +2,43 @@ import json
 import subprocess
 import sys
 
+from devflow_sdk.core.git.worktree import _git_toplevel
 
-def get_main_branch(worktrees):
-    """Return the branch name of the worktree marked is_main, or None if not found."""
+
+def _branch_from_origin_head(ref: str) -> str | None:
+    """Extract the branch name from a `git rev-parse --abbrev-ref origin/HEAD` value.
+
+    Returns None for anything that isn't `origin/<branch>` — including the
+    literal string "HEAD" returned when the remote HEAD is detached.
+    """
+    if "/" in ref:
+        return ref.split("/", 1)[1]
+    return None
+
+
+def get_main_branch(worktrees, target_path=None):
+    """Return the branch name of the is_main worktree for target_path's repo.
+
+    When target_path is given, filters is_main entries by matching git repo
+    root so multi-repo wt setups pick the correct main branch. When
+    target_path is None, returns the first is_main entry (legacy behaviour).
+    """
+    if not worktrees:
+        return None
+    if target_path is None:
+        for wt in worktrees:
+            if wt.get("is_main"):
+                return wt.get("branch")
+        return None
+    target_root = _git_toplevel(target_path)
     for wt in worktrees:
         if wt.get("is_main"):
-            return wt.get("branch")
+            wt_path = wt.get("path")
+            if not wt_path:
+                continue
+            wt_root = _git_toplevel(wt_path)
+            if wt_root and target_root and wt_root == target_root:
+                return wt.get("branch")
     return None
 
 

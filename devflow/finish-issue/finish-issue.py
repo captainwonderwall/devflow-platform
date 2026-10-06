@@ -17,7 +17,7 @@ from devflow_sdk.domain.issue import fetch, remove_issue_context
 from devflow_sdk.core.prompts import select
 from devflow_sdk.worktree_state import list_tracked_worktrees
 from devflow_sdk.core.shell_function_check import check_shell_function
-from devflow_sdk.core.git.worktree import list_worktrees, is_dirty, _cwd_inside_worktree
+from devflow_sdk.core.git.worktree import query_worktrees, is_dirty, _cwd_inside_worktree
 from devflow_sdk.domain.workspace import check_manager, find_for_issue
 from devflow_sdk.core.git.shell_state import (
     _persist_branch_for_shell,
@@ -27,7 +27,7 @@ from devflow_sdk.core.git.shell_state import (
     _persist_worktree_path_for_shell,
     _clear_force_marker_for_shell,
 )
-from devflow_sdk.core.git.merge_check import get_main_branch, is_merged
+from devflow_sdk.core.git.merge_check import get_main_branch, is_merged, _branch_from_origin_head
 from devflow_sdk.worktree_state import remove_worktree
 
 
@@ -99,13 +99,14 @@ def main():
         required_content=["command finish-issue --prepare", ".finish-issue-force", "finish-issue-worktree-path", 'rm -rf "$_worktree_path"', "finish-issue-force-delete"],
     )
 
+    tracked = list_tracked_worktrees()
+
     if args.issue:
         issue = fetch(args.issue)
         issue_id = issue['id']
         issue_source = issue['source']
         print(f"Issue: {issue_source.upper()} {issue_id}: {issue['title']}")
     else:
-        tracked = list_tracked_worktrees()
         cwd_entry = next(
             (e for e in tracked if _cwd_inside_worktree(e.path)),
             None,
@@ -128,36 +129,63 @@ def main():
             issue_source = chosen_entry.source
             print(f"Issue: {issue_source.upper()} {issue_id}")
 
-    worktrees = list_worktrees()
-    matches = find_for_issue(issue_id, issue_source)
+    worktrees = query_worktrees()
 
-    if not matches:
-        print(f"ERROR: No worktree found matching issue '{issue_id}'.", file=sys.stderr)
-        sys.exit(1)
-
-    if len(matches) > 1:
-        print(
-            f"ERROR: Multiple worktrees match issue '{issue_id}':",
-            file=sys.stderr,
+    if worktrees is not None:
+        matches = find_for_issue(issue_id, issue_source)
+        if not matches:
+            print(f"ERROR: No worktree found matching issue '{issue_id}'.", file=sys.stderr)
+            sys.exit(1)
+        if len(matches) > 1:
+            print(
+                f"ERROR: Multiple worktrees match issue '{issue_id}':",
+                file=sys.stderr,
+            )
+            for m in matches:
+                print(f"  {m.branch} -> {m.path}", file=sys.stderr)
+            print(
+                "Please remove the correct one manually, e.g.: wt remove <branch>",
+                file=sys.stderr,
+            )
+            sys.exit(1)
+        match = matches[0]
+        branch, path = match.branch, match.path
+        if not path:
+            print(f"ERROR: Could not determine path for worktree '{branch}'.", file=sys.stderr)
+            sys.exit(1)
+    else:
+        state_entry = next(
+            (e for e in tracked if e.ticket_id.lower() == issue_id.lower()),
+            None,
         )
-        for m in matches:
-            print(f"  {m.branch} -> {m.path}", file=sys.stderr)
-        print(
-            "Please remove the correct one manually, e.g.: wt remove <branch>",
-            file=sys.stderr,
+        if state_entry is None:
+            print(f"ERROR: No tracked worktree found for '{issue_id}'.", file=sys.stderr)
+            sys.exit(1)
+        path = state_entry.path
+        _branch_result = subprocess.run(
+            ["git", "-C", path, "rev-parse", "--abbrev-ref", "HEAD"],
+            capture_output=True, text=True,
         )
-        sys.exit(1)
+        if _branch_result.returncode != 0 or not _branch_result.stdout.strip():
+            print(
+                f"ERROR: Could not determine branch for worktree at '{path}'.",
+                file=sys.stderr,
+            )
+            sys.exit(1)
+        branch = _branch_result.stdout.strip()
 
-    match = matches[0]
-    branch, path = match.branch, match.path
+    if worktrees is not None:
+        main_branch = get_main_branch(worktrees, path)
+    else:
+        _main_result = subprocess.run(
+            ["git", "-C", path, "rev-parse", "--abbrev-ref", "origin/HEAD"],
+            capture_output=True, text=True,
+        )
+        ref = _main_result.stdout.strip() if _main_result.returncode == 0 else ""
+        main_branch = _branch_from_origin_head(ref)
 
-    if not path:
-        print(f"ERROR: Could not determine path for worktree '{branch}'.", file=sys.stderr)
-        sys.exit(1)
-
-    main_branch = get_main_branch(worktrees)
     if not main_branch:
-        print("ERROR: Could not determine the main branch from 'wt list'.", file=sys.stderr)
+        print("ERROR: Could not determine the main branch.", file=sys.stderr)
         sys.exit(1)
 
     force_delete = False

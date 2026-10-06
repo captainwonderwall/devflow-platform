@@ -4,7 +4,7 @@ from unittest.mock import patch, MagicMock
 import pytest
 
 from devflow_sdk.core.git.worktree import (
-    query_worktrees, list_worktrees, is_dirty, get_repo_root,
+    query_worktrees, list_worktrees, is_dirty, get_repo_root, _git_toplevel,
 )
 from devflow_sdk.core.git import check_worktrunk
 
@@ -90,3 +90,17 @@ def test_check_worktrunk_exits_when_wt_not_found():
     with patch("subprocess.run", side_effect=FileNotFoundError):
         with pytest.raises(SystemExit):
             check_worktrunk()
+
+
+def test_git_toplevel_returns_path_on_success():
+    with patch("subprocess.run") as mock_run:
+        mock_run.return_value = MagicMock(returncode=0, stdout="/repo/main\n")
+        result = _git_toplevel("/repo/main/.worktrees/feat-33")
+    assert result == "/repo/main"
+
+
+def test_git_toplevel_returns_none_on_failure():
+    with patch("subprocess.run") as mock_run:
+        mock_run.return_value = MagicMock(returncode=128, stdout="")
+        result = _git_toplevel("/not/a/repo")
+    assert result is None

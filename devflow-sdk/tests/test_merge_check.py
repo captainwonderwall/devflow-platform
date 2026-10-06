@@ -6,12 +6,32 @@ from unittest.mock import patch, MagicMock
 
 from devflow_sdk.core.git.merge_check import (
     get_main_branch, is_merged, _is_ancestor, _check_gh_merged_pr,
-    _patch_id_matches, _git_patch_id,
+    _patch_id_matches, _git_patch_id, _branch_from_origin_head,
 )
 
 _WORKTREES = [
     {"branch": "main", "path": "/repos/main", "is_main": True},
     {"branch": "feat/33-add-x", "path": "/repos/33", "is_main": False},
+]
+
+class TestBranchFromOriginHead(unittest.TestCase):
+    def test_strips_origin_prefix(self):
+        self.assertEqual(_branch_from_origin_head("origin/main"), "main")
+
+    def test_strips_origin_prefix_with_slash_in_branch(self):
+        self.assertEqual(_branch_from_origin_head("origin/feature/x"), "feature/x")
+
+    def test_detached_head_returns_none(self):
+        self.assertIsNone(_branch_from_origin_head("HEAD"))
+
+    def test_empty_string_returns_none(self):
+        self.assertIsNone(_branch_from_origin_head(""))
+
+
+_MULTI_REPO_WORKTREES = [
+    {"branch": "main", "path": "/repos/repo-a", "is_main": True},
+    {"branch": "develop", "path": "/repos/repo-b", "is_main": True},
+    {"branch": "feat/33-add-x", "path": "/repos/repo-a/.worktrees/feat-33", "is_main": False},
 ]
 
 
@@ -21,6 +41,57 @@ class TestGetMainBranch(unittest.TestCase):
 
     def test_returns_none_when_missing(self):
         self.assertIsNone(get_main_branch([{"branch": "feat/x", "is_main": False}]))
+
+    def test_filters_by_repo_root_when_target_path_given(self):
+        def fake_toplevel(path):
+            if path.startswith("/repos/repo-a"):
+                return "/repos/repo-a"
+            if path.startswith("/repos/repo-b"):
+                return "/repos/repo-b"
+            return None
+        with patch("devflow_sdk.core.git.merge_check._git_toplevel", side_effect=fake_toplevel):
+            result = get_main_branch(
+                _MULTI_REPO_WORKTREES,
+                target_path="/repos/repo-a/.worktrees/feat-33",
+            )
+        self.assertEqual(result, "main")
+
+    def test_returns_other_repos_main_branch_when_target_path_matches(self):
+        def fake_toplevel(path):
+            if path.startswith("/repos/repo-a"):
+                return "/repos/repo-a"
+            if path.startswith("/repos/repo-b"):
+                return "/repos/repo-b"
+            return None
+        with patch("devflow_sdk.core.git.merge_check._git_toplevel", side_effect=fake_toplevel):
+            result = get_main_branch(
+                _MULTI_REPO_WORKTREES,
+                target_path="/repos/repo-b/.worktrees/feat-99",
+            )
+        self.assertEqual(result, "develop")
+
+    def test_skips_is_main_entry_with_no_path_key(self):
+        worktrees = [
+            {"branch": "main", "is_main": True},  # no "path" key
+        ]
+        with patch("devflow_sdk.core.git.merge_check._git_toplevel") as mock_tl:
+            result = get_main_branch(worktrees, target_path="/some/worktree")
+        mock_tl.assert_called_once_with("/some/worktree")  # only called for target, not for missing-path entry
+        self.assertIsNone(result)
+
+    def test_returns_none_when_no_matching_repo_root(self):
+        def fake_toplevel(path):
+            if path.startswith("/repos/repo-a"):
+                return "/repos/repo-a"
+            if path.startswith("/repos/repo-b"):
+                return "/repos/repo-b"
+            return "/repos/repo-c"
+        with patch("devflow_sdk.core.git.merge_check._git_toplevel", side_effect=fake_toplevel):
+            result = get_main_branch(
+                _MULTI_REPO_WORKTREES,
+                target_path="/repos/repo-c/worktree",
+            )
+        self.assertIsNone(result)
 
 
 class TestIsAncestor(unittest.TestCase):

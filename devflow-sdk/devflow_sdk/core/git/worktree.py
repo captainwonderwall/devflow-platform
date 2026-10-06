@@ -7,6 +7,17 @@ import sys
 from devflow_sdk.core.prompts import confirm, select, Choice
 
 
+def _git_toplevel(path: str) -> str | None:
+    """Return the git repository root for the given path, or None on failure."""
+    result = subprocess.run(
+        ["git", "-C", path, "rev-parse", "--show-toplevel"],
+        capture_output=True, text=True,
+    )
+    if result.returncode != 0:
+        return None
+    return result.stdout.strip()
+
+
 def _cwd_inside_worktree(worktree_path, cwd=None):
     """Return True if cwd (defaults to os.getcwd()) is at or inside worktree_path."""
     cwd = os.path.realpath(cwd if cwd is not None else os.getcwd())
