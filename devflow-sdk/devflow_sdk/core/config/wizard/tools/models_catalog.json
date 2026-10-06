@@ -100,6 +100,15 @@
           "cache_write": 3.75
         }
       },
+      "claude-sonnet-5-5": {
+        "name": "Claude Sonnet 5.5",
+        "cost": {
+          "input": 2.0,
+          "output": 10.0,
+          "cache_read": 0.2,
+          "cache_write": 2.5
+        }
+      },
       "claude-sonnet-5": {
         "name": "Claude Sonnet 5",
         "cost": {
@@ -183,6 +192,15 @@
           "output": 15.0,
           "cache_read": 0.3,
           "cache_write": 3.75
+        }
+      },
+      "claude-sonnet-5.5": {
+        "name": "Claude Sonnet 5.5",
+        "cost": {
+          "input": 2.0,
+          "output": 10.0,
+          "cache_read": 0.2,
+          "cache_write": 2.5
         }
       },
       "claude-sonnet-5": {
@@ -325,6 +343,15 @@
           "input": 2.0,
           "output": 10.0,
           "cache_read": 0.2,
+          "cache_write": 2.5
+        }
+      },
+      "gpt-6.1-sol": {
+        "name": "GPT 6.1 Sol",
+        "cost": {
+          "input": 2.0,
+          "output": 10.0,
+          "cache_read": 0.1,
           "cache_write": 2.5
         }
       },
