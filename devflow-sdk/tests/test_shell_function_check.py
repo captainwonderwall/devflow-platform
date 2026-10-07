@@ -23,21 +23,21 @@ class TestCheckShellFunction:
 
     def test_succeeds_when_sentinel_present_and_no_required_content(self, tmp_path):
         rc = tmp_path / ".zshrc"
-        rc.write_text(f"export PATH=$HOME/bin:$PATH\n{SENTINEL}\n")
+        rc.write_text(f"export PATH=$HOME/bin:$PATH\n{SENTINEL}\nfunction body\n# <<< my-script shell integration <<<\n")
         with patch.dict(os.environ, {"SHELL": "/bin/zsh"}), \
              patch("os.path.expanduser", return_value=str(rc)):
             check_shell_function(SENTINEL, HINT)  # must not raise
 
     def test_succeeds_when_sentinel_and_required_content_both_present(self, tmp_path):
         rc = tmp_path / ".zshrc"
-        rc.write_text(f"{SENTINEL}\n{REQUIRED}\n")
+        rc.write_text(f"{SENTINEL}\n{REQUIRED}\n# <<< my-script shell integration <<<\n")
         with patch.dict(os.environ, {"SHELL": "/bin/zsh"}), \
              patch("os.path.expanduser", return_value=str(rc)):
             check_shell_function(SENTINEL, HINT, required_content=REQUIRED)  # must not raise
 
     def test_exits_when_sentinel_present_but_required_content_missing(self, tmp_path):
         rc = tmp_path / ".zshrc"
-        rc.write_text(f"{SENTINEL}\ncommand my-script\n")  # old version, no --prepare
+        rc.write_text(f"{SENTINEL}\ncommand my-script\n# <<< my-script shell integration <<<\n")  # old version, no --prepare
         with patch.dict(os.environ, {"SHELL": "/bin/zsh"}), \
              patch("os.path.expanduser", return_value=str(rc)):
             try:
@@ -48,14 +48,14 @@ class TestCheckShellFunction:
 
     def test_succeeds_when_all_list_fragments_present(self, tmp_path):
         rc = tmp_path / ".zshrc"
-        rc.write_text(f"{SENTINEL}\n{REQUIRED}\nextra-flag\n")
+        rc.write_text(f"{SENTINEL}\n{REQUIRED}\nextra-flag\n# <<< my-script shell integration <<<\n")
         with patch.dict(os.environ, {"SHELL": "/bin/zsh"}), \
              patch("os.path.expanduser", return_value=str(rc)):
             check_shell_function(SENTINEL, HINT, required_content=[REQUIRED, "extra-flag"])
 
     def test_exits_when_one_list_fragment_missing(self, tmp_path):
         rc = tmp_path / ".zshrc"
-        rc.write_text(f"{SENTINEL}\n{REQUIRED}\n")  # "extra-flag" absent
+        rc.write_text(f"{SENTINEL}\n{REQUIRED}\n# <<< my-script shell integration <<<\n")  # "extra-flag" absent
         with patch.dict(os.environ, {"SHELL": "/bin/zsh"}), \
              patch("os.path.expanduser", return_value=str(rc)):
             try:
@@ -76,7 +76,7 @@ class TestCheckShellFunction:
 
     def test_uses_zshrc_for_zsh_shell(self, tmp_path):
         rc = tmp_path / ".zshrc"
-        rc.write_text(SENTINEL)
+        rc.write_text(f"{SENTINEL}\n# <<< my-script shell integration <<<\n")
         seen_paths = []
 
         def fake_expanduser(path):
@@ -90,7 +90,7 @@ class TestCheckShellFunction:
 
     def test_uses_bashrc_for_bash_shell(self, tmp_path):
         rc = tmp_path / ".bashrc"
-        rc.write_text(SENTINEL)
+        rc.write_text(f"{SENTINEL}\n# <<< my-script shell integration <<<\n")
         seen_paths = []
 
         def fake_expanduser(path):
@@ -124,7 +124,7 @@ class TestCheckShellFunction:
 
     def test_prints_install_hint_when_required_content_missing(self, tmp_path, capsys):
         rc = tmp_path / ".zshrc"
-        rc.write_text(f"{SENTINEL}\nold content\n")
+        rc.write_text(f"{SENTINEL}\nold content\n# <<< my-script shell integration <<<\n")
         with patch.dict(os.environ, {"SHELL": "/bin/zsh"}), \
              patch("os.path.expanduser", return_value=str(rc)):
             try:
@@ -133,3 +133,28 @@ class TestCheckShellFunction:
                 pass
         captured = capsys.readouterr()
         assert HINT in captured.err
+
+    def test_required_content_in_another_function_does_not_validate_block(self, tmp_path):
+        rc = tmp_path / ".zshrc"
+        rc.write_text(
+            f"{SENTINEL}\nold content\n# <<< my-script shell integration <<<\n"
+            f"# >>> other shell integration >>>\n{REQUIRED}\n"
+        )
+        with patch.dict(os.environ, {"SHELL": "/bin/zsh"}), \
+             patch("os.path.expanduser", return_value=str(rc)):
+            try:
+                check_shell_function(SENTINEL, HINT, required_content=REQUIRED)
+                assert False, "expected SystemExit"
+            except SystemExit as error:
+                assert error.code != 0
+
+    def test_exits_when_end_sentinel_is_missing(self, tmp_path):
+        rc = tmp_path / ".zshrc"
+        rc.write_text(f"{SENTINEL}\n{REQUIRED}\n")
+        with patch.dict(os.environ, {"SHELL": "/bin/zsh"}), \
+             patch("os.path.expanduser", return_value=str(rc)):
+            try:
+                check_shell_function(SENTINEL, HINT, required_content=REQUIRED)
+                assert False, "expected SystemExit"
+            except SystemExit as error:
+                assert error.code != 0

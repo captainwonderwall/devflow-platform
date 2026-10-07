@@ -47,7 +47,7 @@ if [ -z "$RC_FILE" ]; then
     echo "          git -C \"\$_worktree_path\" clean -fd 2>/dev/null || true"
     echo "      fi"
     echo "      if [ -n \"\$_switch_to\" ]; then"
-    echo "          wt switch \"\$_switch_to\" || return \$?"
+    echo "          wt -C \"\$_worktree_path\" switch \"\$_switch_to\" || return \$?"
     echo "          rm -f ~/.finish-issue-branch"
     echo "      fi"
     echo "      if [ -n \"\$_remove\" ]; then"
@@ -64,79 +64,23 @@ if [ -z "$RC_FILE" ]; then
     echo "      return \$_rc"
     echo "  }"
     echo "  # <<< finish-issue shell integration <<<"
-elif grep -qF "$SENTINEL" "$RC_FILE" 2>/dev/null; then
-    if grep -qF 'command finish-issue --prepare' "$RC_FILE" 2>/dev/null \
-       && grep -qF '.finish-issue-force' "$RC_FILE" 2>/dev/null \
-       && grep -qF 'rm -rf "$_worktree_path"' "$RC_FILE" 2>/dev/null \
-       && grep -qF 'finish-issue-force-delete' "$RC_FILE" 2>/dev/null; then
-        echo "Shell function already present in $RC_FILE."
-        echo ""
-        echo "NOTE: If your current terminal session was started before this"
-        echo "function was added (or before a previous version of it was fixed),"
-        echo "it is still running the old definition in memory. Restart your shell"
-        echo "or run: source \"$RC_FILE\""
-    else
-        if ! command -v python3 &>/dev/null; then
-            echo "ERROR: python3 is required to upgrade the stale shell integration but was not found." >&2
-            exit 1
-        fi
-        python3 - "$RC_FILE" << 'PYEOF'
-import sys, re
+else
+    touch "$RC_FILE"
+    if ! command -v python3 &>/dev/null; then
+        echo "ERROR: python3 is required to install the shell integration but was not found." >&2
+        exit 1
+    fi
+    python3 - "$RC_FILE" << 'PYEOF'
+import re
+import sys
 
 rc_file = sys.argv[1]
-with open(rc_file) as f:
-    content = f.read()
+with open(rc_file) as file:
+    content = file.read()
 
-new_block = (
-    "# >>> finish-issue shell integration >>>\n"
-    "finish-issue() {\n"
-    "    command finish-issue --prepare \"$@\" || return\n"
-    "    local _rc=0\n"
-    "    local _switch_to _remove _worktree_path\n"
-    "    _switch_to=\"$(cat ~/.finish-issue-branch 2>/dev/null || true)\"\n"
-    "    _remove=\"$(cat ~/.finish-issue-remove 2>/dev/null || true)\"\n"
-    "    _worktree_path=\"$(cat ~/.finish-issue-worktree-path 2>/dev/null || true)\"\n"
-    "    if [ -n \"$_worktree_path\" ] && [ -f ~/.finish-issue-force ]; then\n"
-    "        git -C \"$_worktree_path\" reset --hard HEAD 2>/dev/null || true\n"
-    "        git -C \"$_worktree_path\" clean -fd 2>/dev/null || true\n"
-    "    fi\n"
-    "    if [ -n \"$_switch_to\" ]; then\n"
-    "        wt switch \"$_switch_to\" || return $?\n"
-    "        rm -f ~/.finish-issue-branch\n"
-    "    fi\n"
-    "    if [ -n \"$_remove\" ]; then\n"
-    "        if [ -f ~/.finish-issue-force-delete ]; then\n"
-    "            wt remove --force \"$_remove\" || _rc=$?\n"
-    "        else\n"
-    "            wt remove \"$_remove\" || _rc=$?\n"
-    "        fi\n"
-    "        if [ -n \"$_worktree_path\" ] && [ -d \"$_worktree_path\" ]; then\n"
-    "            rm -rf \"$_worktree_path\"\n"
-    "        fi\n"
-    "        rm -f ~/.finish-issue-remove ~/.finish-issue-force ~/.finish-issue-worktree-path ~/.finish-issue-force-delete\n"
-    "    fi\n"
-    "    return $_rc\n"
-    "}\n"
-    "# <<< finish-issue shell integration <<<"
-)
-
-updated = re.sub(
-    r"# >>> finish-issue shell integration >>>.*?# <<< finish-issue shell integration <<<",
-    new_block,
-    content,
-    flags=re.DOTALL,
-)
-
-with open(rc_file, "w") as f:
-    f.write(updated)
-PYEOF
-        echo "Updated finish-issue shell function in $RC_FILE."
-        echo "Restart your shell or run: source $RC_FILE"
-    fi
-else
-    cat >> "$RC_FILE" << 'SHELL_FUNC'
-
-# >>> finish-issue shell integration >>>
+start = "# >>> finish-issue shell integration >>>"
+end = "# <<< finish-issue shell integration <<<"
+new_block = '''# >>> finish-issue shell integration >>>
 finish-issue() {
     command finish-issue --prepare "$@" || return
     local _rc=0
@@ -149,7 +93,7 @@ finish-issue() {
         git -C "$_worktree_path" clean -fd 2>/dev/null || true
     fi
     if [ -n "$_switch_to" ]; then
-        wt switch "$_switch_to" || return $?
+        wt -C "$_worktree_path" switch "$_switch_to" || return $?
         rm -f ~/.finish-issue-branch
     fi
     if [ -n "$_remove" ]; then
@@ -165,9 +109,27 @@ finish-issue() {
     fi
     return $_rc
 }
-# <<< finish-issue shell integration <<<
-SHELL_FUNC
-    echo "Added finish-issue shell function to $RC_FILE."
+# <<< finish-issue shell integration <<<'''
+pattern = re.compile(re.escape(start) + r".*?" + re.escape(end), re.DOTALL)
+matches = list(pattern.finditer(content))
+if matches:
+    count = 0
+
+    def replace_block(_match):
+        global count
+        count += 1
+        return new_block if count == 1 else ""
+
+    updated = pattern.sub(replace_block, content)
+    print(f"Updated finish-issue shell function in {rc_file}.")
+else:
+    separator = "" if not content else ("" if content.endswith("\n\n") else "\n" if content.endswith("\n") else "\n\n")
+    updated = content + separator + new_block + "\n"
+    print(f"Added finish-issue shell function to {rc_file}.")
+
+with open(rc_file, "w") as file:
+    file.write(updated)
+PYEOF
     echo "Restart your shell or run: source $RC_FILE"
 fi
 

@@ -45,16 +45,13 @@ if [ -z "$RC_FILE" ]; then
     echo "      return \$_rc"
     echo "  }"
     echo "  # <<< start-issue shell integration <<<"
-elif grep -qF "$SENTINEL" "$RC_FILE" 2>/dev/null; then
-    if grep -qF '~/.start-issue-worktree-path' "$RC_FILE" 2>/dev/null \
-        && grep -qF 'wt -C' "$RC_FILE" 2>/dev/null; then
-        echo "Shell function already present in $RC_FILE."
-    else
-        if ! command -v python3 &>/dev/null; then
-            echo "ERROR: python3 is required to upgrade the stale shell integration but was not found." >&2
-            exit 1
-        fi
-        python3 - "$RC_FILE" << 'PYEOF'
+else
+    touch "$RC_FILE"
+    if ! command -v python3 &>/dev/null; then
+        echo "ERROR: python3 is required to install the shell integration but was not found." >&2
+        exit 1
+    fi
+    python3 - "$RC_FILE" << 'PYEOF'
 import sys, re
 
 rc_file = sys.argv[1]
@@ -75,35 +72,29 @@ new_block = (
     "# <<< start-issue shell integration <<<"
 )
 
-updated = re.sub(
+pattern = re.compile(
     r"# >>> start-issue shell integration >>>.*?# <<< start-issue shell integration <<<",
-    new_block,
-    content,
     flags=re.DOTALL,
 )
+matches = list(pattern.finditer(content))
+if matches:
+    replacement_index = 0
+
+    def replace_block(_match):
+        global replacement_index
+        replacement_index += 1
+        return new_block if replacement_index == 1 else ""
+
+    updated = pattern.sub(replace_block, content)
+    print(f"Updated start-issue shell function in {rc_file}.")
+else:
+    separator = "" if not content else ("" if content.endswith("\n\n") else "\n" if content.endswith("\n") else "\n\n")
+    updated = content + separator + new_block + "\n"
+    print(f"Added start-issue shell function to {rc_file}.")
 
 with open(rc_file, "w") as f:
     f.write(updated)
 PYEOF
-        echo "Updated start-issue shell function in $RC_FILE."
-        echo "Restart your shell or run: source $RC_FILE"
-    fi
-else
-    cat >> "$RC_FILE" << 'SHELL_FUNC'
-
-# >>> start-issue shell integration >>>
-start-issue() {
-    command start-issue "$@" || return
-    local _rc=0
-    if [ -f ~/.start-issue-branch ] && [ -f ~/.start-issue-worktree-path ]; then
-        wt -C "$(cat ~/.start-issue-worktree-path)" switch "$(cat ~/.start-issue-branch)" || _rc=$?
-    fi
-    rm -f ~/.start-issue-branch ~/.start-issue-worktree-path
-    return $_rc
-}
-# <<< start-issue shell integration <<<
-SHELL_FUNC
-    echo "Added start-issue shell function to $RC_FILE."
     echo "Restart your shell or run: source $RC_FILE"
 fi
 

@@ -1,6 +1,9 @@
 import sys
 import os
+import subprocess
+import tempfile
 import unittest
+from pathlib import Path
 from unittest.mock import patch, MagicMock
 
 
@@ -43,13 +46,13 @@ class TestGetMainBranch(unittest.TestCase):
         self.assertIsNone(get_main_branch([{"branch": "feat/x", "is_main": False}]))
 
     def test_filters_by_repo_root_when_target_path_given(self):
-        def fake_toplevel(path):
+        def fake_common_dir(path):
             if path.startswith("/repos/repo-a"):
-                return "/repos/repo-a"
+                return "/repos/repo-a/.git"
             if path.startswith("/repos/repo-b"):
-                return "/repos/repo-b"
+                return "/repos/repo-b/.git"
             return None
-        with patch("devflow_sdk.core.git.merge_check._git_toplevel", side_effect=fake_toplevel):
+        with patch("devflow_sdk.core.git.merge_check._git_common_dir", side_effect=fake_common_dir):
             result = get_main_branch(
                 _MULTI_REPO_WORKTREES,
                 target_path="/repos/repo-a/.worktrees/feat-33",
@@ -57,13 +60,13 @@ class TestGetMainBranch(unittest.TestCase):
         self.assertEqual(result, "main")
 
     def test_returns_other_repos_main_branch_when_target_path_matches(self):
-        def fake_toplevel(path):
+        def fake_common_dir(path):
             if path.startswith("/repos/repo-a"):
-                return "/repos/repo-a"
+                return "/repos/repo-a/.git"
             if path.startswith("/repos/repo-b"):
-                return "/repos/repo-b"
+                return "/repos/repo-b/.git"
             return None
-        with patch("devflow_sdk.core.git.merge_check._git_toplevel", side_effect=fake_toplevel):
+        with patch("devflow_sdk.core.git.merge_check._git_common_dir", side_effect=fake_common_dir):
             result = get_main_branch(
                 _MULTI_REPO_WORKTREES,
                 target_path="/repos/repo-b/.worktrees/feat-99",
@@ -74,24 +77,52 @@ class TestGetMainBranch(unittest.TestCase):
         worktrees = [
             {"branch": "main", "is_main": True},  # no "path" key
         ]
-        with patch("devflow_sdk.core.git.merge_check._git_toplevel") as mock_tl:
+        with patch("devflow_sdk.core.git.merge_check._git_common_dir") as mock_common_dir:
             result = get_main_branch(worktrees, target_path="/some/worktree")
-        mock_tl.assert_called_once_with("/some/worktree")  # only called for target, not for missing-path entry
+        mock_common_dir.assert_called_once_with("/some/worktree")
         self.assertIsNone(result)
 
     def test_returns_none_when_no_matching_repo_root(self):
-        def fake_toplevel(path):
+        def fake_common_dir(path):
             if path.startswith("/repos/repo-a"):
-                return "/repos/repo-a"
+                return "/repos/repo-a/.git"
             if path.startswith("/repos/repo-b"):
-                return "/repos/repo-b"
-            return "/repos/repo-c"
-        with patch("devflow_sdk.core.git.merge_check._git_toplevel", side_effect=fake_toplevel):
+                return "/repos/repo-b/.git"
+            return "/repos/repo-c/.git"
+        with patch("devflow_sdk.core.git.merge_check._git_common_dir", side_effect=fake_common_dir):
             result = get_main_branch(
                 _MULTI_REPO_WORKTREES,
                 target_path="/repos/repo-c/worktree",
             )
         self.assertIsNone(result)
+
+    def test_returns_none_when_target_is_not_a_git_repository(self):
+        with patch("devflow_sdk.core.git.merge_check._git_common_dir", return_value=None):
+            self.assertIsNone(
+                get_main_branch(_MULTI_REPO_WORKTREES, target_path="/not/a/repository")
+            )
+
+    def test_matches_real_sibling_worktrees_using_shared_common_dir(self):
+        with tempfile.TemporaryDirectory() as directory:
+            repository = Path(directory) / "repository"
+            feature = Path(directory) / "feature"
+            repository.mkdir()
+            subprocess.run(["git", "init", "-b", "main", str(repository)], check=True, capture_output=True)
+            subprocess.run(["git", "-C", str(repository), "config", "user.name", "Test"], check=True)
+            subprocess.run(["git", "-C", str(repository), "config", "user.email", "test@example.com"], check=True)
+            (repository / "README").write_text("test\n")
+            subprocess.run(["git", "-C", str(repository), "add", "README"], check=True)
+            subprocess.run(["git", "-C", str(repository), "commit", "-m", "initial"], check=True, capture_output=True)
+            subprocess.run(["git", "-C", str(repository), "worktree", "add", "-b", "feature", str(feature)], check=True, capture_output=True)
+
+            self.assertNotEqual(repository, feature)
+            self.assertEqual(
+                get_main_branch(
+                    [{"branch": "main", "path": str(repository), "is_main": True}],
+                    target_path=str(feature),
+                ),
+                "main",
+            )
 
 
 class TestIsAncestor(unittest.TestCase):

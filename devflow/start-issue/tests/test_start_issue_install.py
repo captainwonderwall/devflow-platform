@@ -67,6 +67,36 @@ class TestShellIntegrationInstaller(unittest.TestCase):
         self.assertIn(".start-issue-worktree-path", function)
         self.assertNotIn('wt switch "$(cat ~/.start-issue-branch)"', function)
 
+    def test_replaces_block_preserves_unrelated_content_and_is_idempotent(self):
+        with tempfile.TemporaryDirectory() as home:
+            rc_file = Path(home) / ".bashrc"
+            rc_file.write_text(
+                "# keep me\n"
+                f"{_SENTINEL}\nold function\n{_END_SENTINEL}\n"
+                "# >>> finish-issue shell integration >>>\nwt -C finish-context\n"
+                "# <<< finish-issue shell integration <<<\n"
+                "# >>> continue-issue shell integration >>>\nwt -C continue-context\n"
+                "# <<< continue-issue shell integration <<<\n"
+            )
+            self._install(home)
+            self._install(home)
+            result = rc_file.read_text()
+
+        self.assertIn("# keep me", result)
+        self.assertIn("wt -C finish-context", result)
+        self.assertIn("wt -C continue-context", result)
+        self.assertNotIn("old function", result)
+        self.assertEqual(result.count(_SENTINEL), 1)
+        self.assertEqual(result.count(_END_SENTINEL), 1)
+
+    def test_appends_to_zshrc_when_block_is_absent(self):
+        with tempfile.TemporaryDirectory() as home:
+            (Path(home) / ".zshrc").write_text("# preserve this\n")
+            self._install(home, shell="/bin/zsh")
+            content = (Path(home) / ".zshrc").read_text()
+        self.assertIn("# preserve this", content)
+        self.assertIn(_SENTINEL, content)
+
     def test_switches_from_outside_git_repo_and_cleans_both_markers_on_failure(self):
         with tempfile.TemporaryDirectory() as home, tempfile.TemporaryDirectory() as bin_dir:
             self._install(home)

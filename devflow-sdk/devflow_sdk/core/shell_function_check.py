@@ -1,8 +1,15 @@
 import os
+import re
 import sys
+from collections.abc import Sequence
 
 
-def check_shell_function(sentinel: str, install_hint: str, *, required_content: str | None = None) -> None:
+def check_shell_function(
+    sentinel: str,
+    install_hint: str,
+    *,
+    required_content: str | Sequence[str] | None = None,
+) -> None:
     shell = os.environ.get("SHELL", "")
     shell_name = os.path.basename(shell)
 
@@ -20,12 +27,18 @@ def check_shell_function(sentinel: str, install_hint: str, *, required_content: 
         print(install_hint, file=sys.stderr)
         sys.exit(1)
 
-    if sentinel not in content:
+    end_sentinel = sentinel.replace("# >>>", "# <<<").replace(">>>", "<<<")
+    block_pattern = re.compile(
+        re.escape(sentinel) + r"(.*?)" + re.escape(end_sentinel),
+        flags=re.DOTALL,
+    )
+    match = block_pattern.search(content)
+    if match is None:
         print(install_hint, file=sys.stderr)
         sys.exit(1)
 
     if required_content is not None:
         fragments = [required_content] if isinstance(required_content, str) else required_content
-        if any(frag not in content for frag in fragments):
+        if any(frag not in match.group(1) for frag in fragments):
             print(install_hint, file=sys.stderr)
             sys.exit(1)

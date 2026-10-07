@@ -97,7 +97,7 @@ class TestMainUnmergedBranchHandling(unittest.TestCase):
              unittest.mock.patch.object(finish_issue, "check_shell_function"), \
              unittest.mock.patch.object(finish_issue, "fetch",
                  return_value={"source": "github", "id": "65", "title": "t"}), \
-             unittest.mock.patch.object(finish_issue, "list_worktrees", return_value=worktrees), \
+             unittest.mock.patch.object(finish_issue, "query_worktrees", return_value=worktrees), \
              unittest.mock.patch.object(finish_issue, "find_for_issue", return_value=[match]), \
              unittest.mock.patch.object(finish_issue, "get_main_branch", return_value="main"), \
              unittest.mock.patch.object(finish_issue, "is_merged", return_value=False), \
@@ -168,7 +168,7 @@ class TestMainDirtyWorktreeHandling(unittest.TestCase):
              unittest.mock.patch.object(finish_issue, "check_shell_function"), \
              unittest.mock.patch.object(finish_issue, "fetch",
                  return_value={"source": "github", "id": "65", "title": "t"}), \
-             unittest.mock.patch.object(finish_issue, "list_worktrees", return_value=worktrees), \
+             unittest.mock.patch.object(finish_issue, "query_worktrees", return_value=worktrees), \
              unittest.mock.patch.object(finish_issue, "find_for_issue", return_value=[match]), \
              unittest.mock.patch.object(finish_issue, "get_main_branch", return_value="main"), \
              unittest.mock.patch.object(finish_issue, "is_merged", return_value=True), \
@@ -263,7 +263,7 @@ class TestMainIssueContextCleanup(unittest.TestCase):
              unittest.mock.patch.object(finish_issue, "check_shell_function"), \
              unittest.mock.patch.object(finish_issue, "fetch",
                  return_value={"source": "github", "id": "65", "title": "t"}), \
-             unittest.mock.patch.object(finish_issue, "list_worktrees", return_value=worktrees), \
+             unittest.mock.patch.object(finish_issue, "query_worktrees", return_value=worktrees), \
              unittest.mock.patch.object(finish_issue, "find_for_issue", return_value=[match]), \
              unittest.mock.patch.object(finish_issue, "get_main_branch", return_value="main"), \
              unittest.mock.patch.object(finish_issue, "is_merged", return_value=True), \
@@ -329,7 +329,7 @@ class TestMainIssueAutoDetection(unittest.TestCase):
                  return_value=cfg["tracked_worktrees"]), \
              unittest.mock.patch.object(finish_issue, "select",
                  return_value=select_return) as mock_select, \
-             unittest.mock.patch.object(finish_issue, "list_worktrees",
+             unittest.mock.patch.object(finish_issue, "query_worktrees",
                  return_value=cfg["worktrees"]), \
              unittest.mock.patch.object(finish_issue, "find_for_issue",
                  return_value=cfg["find_return"]), \
@@ -367,7 +367,7 @@ class TestMainIssueAutoDetection(unittest.TestCase):
                  return_value=[entry]), \
              unittest.mock.patch.object(finish_issue, "_cwd_inside_worktree",
                  side_effect=[True, False]), \
-             unittest.mock.patch.object(finish_issue, "list_worktrees",
+             unittest.mock.patch.object(finish_issue, "query_worktrees",
                  return_value=[{"branch": "main", "path": "/repos/main", "is_main": True}]), \
              unittest.mock.patch.object(finish_issue, "find_for_issue", return_value=[match]), \
              unittest.mock.patch.object(finish_issue, "get_main_branch", return_value="main"), \
@@ -431,7 +431,7 @@ class TestCheckShellFunctionCalledInFinishIssue(unittest.TestCase):
              unittest.mock.patch.object(finish_issue, "fetch",
                  return_value={"source": "github", "id": "42", "title": "t",
                                "body": "", "comments": [], "issuetype": "", "labels": []}), \
-             unittest.mock.patch.object(finish_issue, "list_worktrees", return_value=[wt]), \
+             unittest.mock.patch.object(finish_issue, "query_worktrees", return_value=[wt]), \
              unittest.mock.patch.object(finish_issue, "find_for_issue", return_value=[wt]), \
              unittest.mock.patch.object(finish_issue, "get_main_branch", return_value="main"), \
              unittest.mock.patch.object(finish_issue, "is_merged", return_value=True), \
@@ -469,7 +469,7 @@ class TestMainWorktreeStateIntegration(unittest.TestCase):
              unittest.mock.patch.object(finish_issue, "check_shell_function"), \
              unittest.mock.patch.object(finish_issue, "fetch",
                  return_value={"source": "github", "id": "65", "title": "t"}), \
-             unittest.mock.patch.object(finish_issue, "list_worktrees", return_value=worktrees), \
+             unittest.mock.patch.object(finish_issue, "query_worktrees", return_value=worktrees), \
              unittest.mock.patch.object(finish_issue, "find_for_issue", return_value=[match]), \
              unittest.mock.patch.object(finish_issue, "get_main_branch", return_value="main"), \
              unittest.mock.patch.object(finish_issue, "is_merged", return_value=True), \

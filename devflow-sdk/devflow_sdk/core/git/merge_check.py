@@ -1,8 +1,22 @@
 import json
+import os
 import subprocess
 import sys
 
-from devflow_sdk.core.git.worktree import _git_toplevel
+
+def _git_common_dir(path: str) -> str | None:
+    """Return the canonical absolute Git common directory for ``path``."""
+    result = subprocess.run(
+        ["git", "-C", path, "rev-parse", "--path-format=absolute", "--git-common-dir"],
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode != 0:
+        return None
+    common_dir = result.stdout.strip()
+    if not common_dir:
+        return None
+    return os.path.realpath(common_dir)
 
 
 def _branch_from_origin_head(ref: str) -> str | None:
@@ -19,8 +33,9 @@ def _branch_from_origin_head(ref: str) -> str | None:
 def get_main_branch(worktrees, target_path=None):
     """Return the branch name of the is_main worktree for target_path's repo.
 
-    When target_path is given, filters is_main entries by matching git repo
-    root so multi-repo wt setups pick the correct main branch. When
+    When target_path is given, filters is_main entries by matching their Git
+    common directory so sibling worktrees in the same repository are matched
+    while multi-repo wt setups still pick the correct main branch. When
     target_path is None, returns the first is_main entry (legacy behaviour).
     """
     if not worktrees:
@@ -30,14 +45,14 @@ def get_main_branch(worktrees, target_path=None):
             if wt.get("is_main"):
                 return wt.get("branch")
         return None
-    target_root = _git_toplevel(target_path)
+    target_common_dir = _git_common_dir(target_path)
     for wt in worktrees:
         if wt.get("is_main"):
             wt_path = wt.get("path")
             if not wt_path:
                 continue
-            wt_root = _git_toplevel(wt_path)
-            if wt_root and target_root and wt_root == target_root:
+            wt_common_dir = _git_common_dir(wt_path)
+            if wt_common_dir and target_common_dir and wt_common_dir == target_common_dir:
                 return wt.get("branch")
     return None
 

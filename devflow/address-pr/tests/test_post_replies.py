@@ -364,7 +364,7 @@ class TestConfirmAndPostReplies(unittest.TestCase):
              patch("post_replies._post_reply"):
             confirm_and_post_replies([c], "owner", "repo", 1)
         mock_select.assert_called_once_with(
-            "Post this reply?", choices=["yes", "no", "edit"]
+            "Post this reply?", choices=["yes", "no", "edit"], single=True
         )
 
     def test_bot_review_thread_resolves_after_post(self):

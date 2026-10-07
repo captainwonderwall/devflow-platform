@@ -271,44 +271,44 @@ class TestPromptAndOpenIde(unittest.TestCase):
         shutil.rmtree(self.tmpdir, ignore_errors=True)
 
     def test_does_nothing_when_no_ides_detected(self):
-        with patch("ide_config.subprocess.run") as mock_run, \
-             patch("ide_config.select") as mock_select:
+        with patch("devflow_sdk.domain.ide.subprocess.run") as mock_run, \
+             patch("devflow_sdk.domain.ide.select") as mock_select:
             prompt_and_open_ide(self.tmpdir)
         mock_run.assert_not_called()
         mock_select.assert_not_called()
 
     def test_launches_vscode_when_user_selects_vscode(self):
         os.makedirs(os.path.join(self.tmpdir, ".vscode"))
-        with patch("ide_config.subprocess.run") as mock_run, \
-             patch("ide_config.select", return_value="code"):
+        with patch("devflow_sdk.domain.ide.subprocess.run") as mock_run, \
+             patch("devflow_sdk.domain.ide.select", return_value="code"):
             prompt_and_open_ide(self.tmpdir)
         mock_run.assert_called_once_with(["code", "."], cwd=self.tmpdir)
 
     def test_launches_intellij_when_user_selects_intellij(self):
         os.makedirs(os.path.join(self.tmpdir, ".idea"))
-        with patch("ide_config.subprocess.run") as mock_run, \
-             patch("ide_config.select", return_value="idea"):
+        with patch("devflow_sdk.domain.ide.subprocess.run") as mock_run, \
+             patch("devflow_sdk.domain.ide.select", return_value="idea"):
             prompt_and_open_ide(self.tmpdir)
         mock_run.assert_called_once_with(["idea", "."], cwd=self.tmpdir)
 
     def test_skips_when_user_selects_skip(self):
         os.makedirs(os.path.join(self.tmpdir, ".vscode"))
-        with patch("ide_config.subprocess.run") as mock_run, \
-             patch("ide_config.select", return_value=None):
+        with patch("devflow_sdk.domain.ide.subprocess.run") as mock_run, \
+             patch("devflow_sdk.domain.ide.select", return_value=None):
             prompt_and_open_ide(self.tmpdir)
         mock_run.assert_not_called()
 
     def test_skips_when_user_cancels_with_ctrl_c(self):
         os.makedirs(os.path.join(self.tmpdir, ".vscode"))
-        with patch("ide_config.subprocess.run") as mock_run, \
-             patch("ide_config.select", return_value=None):
+        with patch("devflow_sdk.domain.ide.subprocess.run") as mock_run, \
+             patch("devflow_sdk.domain.ide.select", return_value=None):
             prompt_and_open_ide(self.tmpdir)
         mock_run.assert_not_called()
 
     def test_warns_and_continues_when_ide_command_not_on_path(self):
         os.makedirs(os.path.join(self.tmpdir, ".vscode"))
-        with patch("ide_config.subprocess.run", side_effect=FileNotFoundError), \
-             patch("ide_config.select", return_value="code"), \
+        with patch("devflow_sdk.domain.ide.subprocess.run", side_effect=FileNotFoundError), \
+             patch("devflow_sdk.domain.ide.select", return_value="code"), \
              patch("ide_config.sys.stderr") as mock_stderr:
             prompt_and_open_ide(self.tmpdir)  # must not raise
         mock_stderr.write.assert_called()
@@ -316,8 +316,8 @@ class TestPromptAndOpenIde(unittest.TestCase):
     def test_launches_intellij_when_both_detected_and_intellij_chosen(self):
         os.makedirs(os.path.join(self.tmpdir, ".idea"))
         os.makedirs(os.path.join(self.tmpdir, ".vscode"))
-        with patch("ide_config.subprocess.run") as mock_run, \
-             patch("ide_config.select", return_value="idea"):
+        with patch("devflow_sdk.domain.ide.subprocess.run") as mock_run, \
+             patch("devflow_sdk.domain.ide.select", return_value="idea"):
             prompt_and_open_ide(self.tmpdir)
         mock_run.assert_called_once_with(["idea", "."], cwd=self.tmpdir)
 
