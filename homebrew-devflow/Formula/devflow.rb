@@ -2,8 +2,8 @@ class Devflow < Formula
   desc "AI-powered developer workflow scripts"
   homepage "https://github.com/captainwonderwall/devflow-platform"
   url "https://github.com/captainwonderwall/devflow-platform.git",
-      tag:      "devflow/v1.9.0",
-      revision: "99cbce4d7f57ecb6fe83b83a5d69f7e14b0cf68e"
+      tag:      "devflow/v1.10.0",
+      revision: "aaffc8536b8147ace3e09c0215fe32012dc2966e"
   license "MIT"
   head "https://github.com/captainwonderwall/devflow-platform.git", branch: "main"
 
