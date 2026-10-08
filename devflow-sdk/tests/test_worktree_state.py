@@ -70,6 +70,18 @@ class TestAddWorktree(unittest.TestCase):
         self.assertIn("/repos/new", paths)
         self.assertNotIn("not_a_dict", paths)
 
+    def test_stores_parent_branch_when_provided(self):
+        add_worktree("/repos/feat-42", "42", "github",
+                     parent_branch="feat/wt/issue-1-some-base",
+                     state_path=self._state_path)
+        entries = self._load()
+        self.assertEqual(entries[0]["parent_branch"], "feat/wt/issue-1-some-base")
+
+    def test_omits_parent_branch_when_not_provided(self):
+        add_worktree("/repos/feat-42", "42", "github", state_path=self._state_path)
+        entries = self._load()
+        self.assertNotIn("parent_branch", entries[0])
+
 
 class TestRemoveWorktree(unittest.TestCase):
     def setUp(self):
@@ -162,6 +174,25 @@ class TestListWorktrees(unittest.TestCase):
         result = list_tracked_worktrees(purge_stale=False, state_path=self._state_path)
         self.assertEqual(len(result), 1)
         self.assertEqual(result[0].ticket_id, "1")
+
+    def test_roundtrips_parent_branch(self):
+        dir1 = Path(self._tmp.name) / "wt1"
+        dir1.mkdir()
+        add_worktree(str(dir1), "42", "github",
+                     parent_branch="feat/wt/issue-1-base",
+                     state_path=self._state_path)
+        result = list_tracked_worktrees(state_path=self._state_path)
+        self.assertEqual(result[0].parent_branch, "feat/wt/issue-1-base")
+
+    def test_parent_branch_defaults_to_none_when_absent_in_json(self):
+        dir1 = Path(self._tmp.name) / "wt1"
+        dir1.mkdir()
+        # Write entry without parent_branch (old format)
+        self._state_path.write_text(json.dumps({"worktrees": [
+            {"path": str(dir1), "ticket_id": "1", "source": "github"}
+        ]}))
+        result = list_tracked_worktrees(purge_stale=False, state_path=self._state_path)
+        self.assertIsNone(result[0].parent_branch)
 
 
 if __name__ == "__main__":

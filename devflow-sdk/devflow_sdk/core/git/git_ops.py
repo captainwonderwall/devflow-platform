@@ -16,8 +16,18 @@ def current_branch():
 
 
 def get_base_branch():
-    """Detect the branch's target/base branch: origin/HEAD, falling back to
-    the GitHub default branch via `gh`, falling back to 'main'."""
+    """Detect the branch's target/base branch: parent branch for stacked worktrees,
+    otherwise origin/HEAD, falling back to the GitHub default branch via `gh`,
+    falling back to 'main'."""
+    try:
+        from devflow_sdk.worktree_state import list_tracked_worktrees
+        from devflow_sdk.core.git.worktree import _cwd_inside_worktree
+        for entry in list_tracked_worktrees(purge_stale=False):
+            if entry.parent_branch and _cwd_inside_worktree(entry.path):
+                return entry.parent_branch
+    except Exception:
+        pass
+
     result = _run_git(["rev-parse", "--abbrev-ref", "origin/HEAD"])
     if result.returncode == 0:
         value = result.stdout.strip()

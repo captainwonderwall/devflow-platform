@@ -168,7 +168,7 @@ def _branch_exists_locally(branch: str) -> bool:
     return bool(result.stdout.strip())
 
 
-def create_worktree(branch: str) -> str | None:
+def create_worktree(branch: str, *, base: str | None = None) -> str | None:
     """Create or switch to a worktree for branch. Returns the worktree path."""
     if _branch_exists_locally(branch):
         _detect_incoming_commits(branch)
@@ -183,7 +183,11 @@ def create_worktree(branch: str) -> str | None:
         return _find_worktree_path(branch)
 
     print(f"Creating worktree for '{branch}' (pre-start hooks may take a few minutes)...")
-    result = subprocess.run(["wt", "switch", "--create", "--no-cd", branch], text=True)
+    cmd = ["wt", "switch", "--create", "--no-cd"]
+    if base:
+        cmd += ["--base", base]
+    cmd.append(branch)
+    result = subprocess.run(cmd, text=True)
     if result.returncode != 0:
         sys.exit(1)
     return _find_worktree_path(branch)

@@ -39,6 +39,11 @@ class TestCurrentBranch(unittest.TestCase):
 
 
 class TestGetBaseBranch(unittest.TestCase):
+    def setUp(self):
+        patcher = patch("devflow_sdk.worktree_state.list_tracked_worktrees", return_value=[])
+        self.mock_wt = patcher.start()
+        self.addCleanup(patcher.stop)
+
     def test_uses_origin_head_when_available(self):
         with patch(
             "devflow_sdk.core.git.git_ops.subprocess.run",
@@ -59,6 +64,40 @@ class TestGetBaseBranch(unittest.TestCase):
         ):
             with contextlib.redirect_stderr(io.StringIO()):
                 self.assertEqual(get_base_branch(), "main")
+
+    def test_returns_parent_branch_when_in_stacked_worktree(self):
+        from devflow_sdk.worktree_state import WorktreeEntry
+        mock_entry = WorktreeEntry(
+            path="/repos/wt/feat-base",
+            ticket_id="42",
+            source="github",
+            parent_branch="feat/wt/issue-1-some-base",
+        )
+        with patch("devflow_sdk.worktree_state.list_tracked_worktrees", return_value=[mock_entry]), \
+             patch("devflow_sdk.core.git.worktree._cwd_inside_worktree", return_value=True):
+            self.assertEqual(get_base_branch(), "feat/wt/issue-1-some-base")
+
+    def test_falls_through_when_no_parent_branch_in_worktree(self):
+        from devflow_sdk.worktree_state import WorktreeEntry
+        mock_entry = WorktreeEntry(path="/repos/wt/feat", ticket_id="1", source="github")
+        with patch("devflow_sdk.worktree_state.list_tracked_worktrees", return_value=[mock_entry]), \
+             patch("devflow_sdk.core.git.worktree._cwd_inside_worktree", return_value=True), \
+             patch("devflow_sdk.core.git.git_ops.subprocess.run",
+                   return_value=_proc(stdout="origin/main\n")):
+            self.assertEqual(get_base_branch(), "main")
+
+    def test_falls_through_when_not_in_any_tracked_worktree(self):
+        with patch("devflow_sdk.worktree_state.list_tracked_worktrees", return_value=[]), \
+             patch("devflow_sdk.core.git.git_ops.subprocess.run",
+                   return_value=_proc(stdout="origin/develop\n")):
+            self.assertEqual(get_base_branch(), "develop")
+
+    def test_falls_through_gracefully_when_worktree_state_raises(self):
+        with patch("devflow_sdk.worktree_state.list_tracked_worktrees",
+                   side_effect=Exception("disk error")), \
+             patch("devflow_sdk.core.git.git_ops.subprocess.run",
+                   return_value=_proc(stdout="origin/main\n")):
+            self.assertEqual(get_base_branch(), "main")
 
 
 class TestIsDirty(unittest.TestCase):

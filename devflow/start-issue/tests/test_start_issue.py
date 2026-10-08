@@ -2,10 +2,17 @@ import sys
 import os
 import importlib.util
 import unittest
-from unittest.mock import patch
+from unittest.mock import patch, MagicMock
 
 _HERE = os.path.dirname(__file__)
 sys.path.insert(0, os.path.join(_HERE, ".."))
+
+# Add devflow-sdk to path
+_ROOT = os.path.join(_HERE, "..", "..", "..")
+sys.path.insert(0, _ROOT)
+_SDK_PATH = os.path.join(_ROOT, "devflow-sdk")
+if os.path.isdir(_SDK_PATH):
+    sys.path.insert(0, _SDK_PATH)
 
 # start-issue.py has a hyphen so it can't be imported normally
 _spec = importlib.util.spec_from_file_location(
@@ -449,7 +456,7 @@ class TestMainWorktreeStateIntegration(unittest.TestCase):
     def test_add_worktree_called_with_path_ticket_id_and_source(self):
         issue = self._github_issue()
         mock_add = self._run_main("/fake/worktree", issue)
-        mock_add.assert_called_once_with("/fake/worktree", "42", "github")
+        mock_add.assert_called_once_with("/fake/worktree", "42", "github", parent_branch=None)
 
     def test_add_worktree_not_called_when_no_worktree(self):
         mock_add = self._run_main(None, self._github_issue())
@@ -459,4 +466,82 @@ class TestMainWorktreeStateIntegration(unittest.TestCase):
         issue = {"source": "jira", "id": "VDP-123", "title": "Fix crash",
                  "body": "", "comments": [], "issuetype": "Bug", "labels": []}
         mock_add = self._run_main("/fake/worktree", issue)
-        mock_add.assert_called_once_with("/fake/worktree", "VDP-123", "jira")
+        mock_add.assert_called_once_with("/fake/worktree", "VDP-123", "jira", parent_branch=None)
+
+
+def _entry(path, parent_branch=None):
+    from devflow_sdk.worktree_state import WorktreeEntry
+    return WorktreeEntry(path=path, ticket_id="1", source="github",
+                         parent_branch=parent_branch)
+
+
+class TestDetectStackParent(unittest.TestCase):
+    def test_returns_none_when_not_in_tracked_worktree(self):
+        with patch("devflow_sdk.worktree_state.list_tracked_worktrees", return_value=[]), \
+             patch("devflow_sdk.core.git.worktree._cwd_inside_worktree", return_value=False):
+            self.assertIsNone(start_issue._detect_stack_parent())
+
+    def test_returns_current_branch_when_in_tracked_worktree(self):
+        proc = MagicMock(); proc.returncode = 0; proc.stdout = "feat/wt/issue-1-base\n"
+        with patch("devflow_sdk.worktree_state.list_tracked_worktrees",
+                   return_value=[_entry("/repos/wt/feat-base")]), \
+             patch("devflow_sdk.core.git.worktree._cwd_inside_worktree", return_value=True), \
+             patch("subprocess.run", return_value=proc):
+            self.assertEqual(start_issue._detect_stack_parent(), "feat/wt/issue-1-base")
+
+    def test_returns_none_when_git_branch_fails(self):
+        proc = MagicMock(); proc.returncode = 128; proc.stdout = ""
+        with patch("devflow_sdk.worktree_state.list_tracked_worktrees",
+                   return_value=[_entry("/repos/wt/feat-base")]), \
+             patch("devflow_sdk.core.git.worktree._cwd_inside_worktree", return_value=True), \
+             patch("subprocess.run", return_value=proc):
+            self.assertIsNone(start_issue._detect_stack_parent())
+
+
+class TestValidateBaseBranch(unittest.TestCase):
+    def _proc(self, returncode=0, stdout=""):
+        p = MagicMock(); p.returncode = returncode; p.stdout = stdout
+        return p
+
+    def test_returns_true_when_up_to_date(self):
+        fetch_ok = self._proc(0)
+        behind_zero = self._proc(0, "0\n")
+        with patch("subprocess.run", side_effect=[fetch_ok, behind_zero]):
+            self.assertTrue(start_issue._validate_base_branch("feat/wt/issue-1-base"))
+
+    def test_returns_true_when_behind_count_unreadable(self):
+        fetch_ok = self._proc(0)
+        count_fail = self._proc(1, "")
+        with patch("subprocess.run", side_effect=[fetch_ok, count_fail]):
+            self.assertTrue(start_issue._validate_base_branch("feat/wt/issue-1-base"))
+
+    def test_accept_prints_warning_and_returns_true(self):
+        fetch_ok = self._proc(0)
+        behind_five = self._proc(0, "5\n")
+        with patch("subprocess.run", side_effect=[fetch_ok, behind_five]), \
+             patch("devflow_sdk.core.prompts.select", return_value="Accept (proceed with stale base)"), \
+             patch("sys.stderr"):
+            result = start_issue._validate_base_branch("feat/wt/issue-1-base")
+        self.assertTrue(result)
+
+    def test_update_success_returns_true(self):
+        fetch_ok = self._proc(0)
+        behind_two = self._proc(0, "2\n")
+        pull_ok = self._proc(0)
+        with patch("subprocess.run", side_effect=[fetch_ok, behind_two, pull_ok]) as mock_run, \
+             patch("devflow_sdk.core.prompts.select", return_value="Update (git pull --rebase)"):
+            self.assertTrue(start_issue._validate_base_branch("feat/wt/issue-1-base"))
+        pull_call = mock_run.call_args_list[2][0][0]
+        self.assertIn("origin", pull_call)
+        self.assertIn("feat/wt/issue-1-base", pull_call)
+
+    def test_update_rebase_conflict_aborts_and_exits(self):
+        fetch_ok = self._proc(0)
+        behind_two = self._proc(0, "2\n")
+        pull_fail = self._proc(1)
+        abort_ok = self._proc(0)
+        with patch("subprocess.run", side_effect=[fetch_ok, behind_two, pull_fail, abort_ok]), \
+             patch("devflow_sdk.core.prompts.select", return_value="Update (git pull --rebase)"), \
+             self.assertRaises(SystemExit) as cm:
+            start_issue._validate_base_branch("feat/wt/issue-1-base")
+        self.assertEqual(cm.exception.code, 1)

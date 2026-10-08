@@ -91,6 +91,25 @@ class TestWriteCreateScript(unittest.TestCase):
                 content = f.read()
             self.assertIn("git push -u origin HEAD", content)
 
+    def test_script_contains_base_flag_when_provided(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            body_path = os.path.join(tmp, "pr-body.md")
+            script_path = os.path.join(tmp, "create-pr.sh")
+            write_create_script("Title", body_path, script_path,
+                                 base="feat/wt/issue-1-some-base")
+            with open(script_path) as f:
+                content = f.read()
+            self.assertIn("--base 'feat/wt/issue-1-some-base'", content)
+
+    def test_script_omits_base_flag_when_not_provided(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            body_path = os.path.join(tmp, "pr-body.md")
+            script_path = os.path.join(tmp, "create-pr.sh")
+            write_create_script("Title", body_path, script_path)
+            with open(script_path) as f:
+                content = f.read()
+            self.assertNotIn("--base", content)
+
 
 if __name__ == "__main__":
     unittest.main()

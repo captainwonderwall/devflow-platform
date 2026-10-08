@@ -45,9 +45,9 @@ def check_manager() -> None:
     check_worktrunk()
 
 
-def create(branch: str) -> Workspace | None:
+def create(branch: str, *, base: str | None = None) -> Workspace | None:
     """Create or switch to a branch workspace."""
-    path = create_worktree(branch)
+    path = create_worktree(branch, base=base)
     if path is None:
         return None
     return Workspace(branch=branch, path=path, is_main=False)
