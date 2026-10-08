@@ -88,6 +88,7 @@ def _install_claude_config() -> None:
         str(Path(s).expanduser())
         for s in stock.get("sandbox", {}).get("network", {}).get("allowUnixSockets", [])
     ]
+    new_excluded_commands: list[str] = stock.get("sandbox", {}).get("excludedCommands", [])
 
     existing: dict = {}
     if _CLAUDE_SETTINGS_PATH.exists():
@@ -132,6 +133,19 @@ def _install_claude_config() -> None:
             if entry not in unix_sockets:
                 unix_sockets.append(entry)
         network["allowUnixSockets"] = unix_sockets
+
+    if new_excluded_commands:
+        sandbox = existing.setdefault("sandbox", {})
+        if not isinstance(sandbox, dict):
+            existing["sandbox"] = {}
+            sandbox = existing["sandbox"]
+        excluded = sandbox.get("excludedCommands", [])
+        if not isinstance(excluded, list):
+            excluded = []
+        for entry in new_excluded_commands:
+            if entry not in excluded:
+                excluded.append(entry)
+        sandbox["excludedCommands"] = excluded
 
     _CLAUDE_SETTINGS_PATH.parent.mkdir(parents=True, exist_ok=True)
     _CLAUDE_SETTINGS_PATH.write_text(json.dumps(existing, indent=2) + "\n")
