@@ -8,7 +8,9 @@
       "Bash(finish-issue *)",
       "Bash(squash-commits *)",
       "Bash(devflow-config *)",
-      "Bash(devflow-plugin *)"
+      "Bash(devflow-plugin *)",
+      "Bash(plannotator review *)",
+      "Bash(plannotator review)"
     ]
   },
   "sandbox": {
