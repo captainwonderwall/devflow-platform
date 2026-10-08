@@ -26,25 +26,29 @@ def _make_workspace(branch="feat/wt/gh65-something", path="/repos/gh65"):
 
 def _run_main(argv, tracked=None, find_return=None, select_return=None,
               cwd_inside=False, persist_return=True):
+    import contextlib
     if tracked is None:
         tracked = []
     if find_return is None:
         find_return = [_make_workspace()]
 
-    with unittest.mock.patch("sys.argv", argv), \
-         unittest.mock.patch.object(continue_issue, "check_manager"), \
-         unittest.mock.patch.object(continue_issue, "check_shell_function"), \
-         unittest.mock.patch.object(continue_issue, "list_tracked_worktrees",
-             return_value=tracked), \
-         unittest.mock.patch.object(continue_issue, "_cwd_inside_worktree",
-             return_value=cwd_inside), \
-         unittest.mock.patch.object(continue_issue, "select",
-             return_value=select_return) as mock_select, \
-         unittest.mock.patch.object(continue_issue, "find_for_issue",
-             return_value=find_return), \
-         unittest.mock.patch.object(continue_issue, "prompt_and_open_ide") as mock_ide, \
-         unittest.mock.patch.object(continue_issue, "_persist_continue_branch_for_shell",
-             return_value=persist_return) as mock_persist:
+    with contextlib.ExitStack() as stack:
+        stack.enter_context(unittest.mock.patch("sys.argv", argv))
+        stack.enter_context(unittest.mock.patch.object(continue_issue, "check_manager"))
+        stack.enter_context(unittest.mock.patch.object(continue_issue, "check_shell_function"))
+        stack.enter_context(unittest.mock.patch.object(continue_issue, "list_tracked_worktrees",
+            return_value=tracked))
+        stack.enter_context(unittest.mock.patch.object(continue_issue, "_cwd_inside_worktree",
+            return_value=cwd_inside))
+        mock_select = stack.enter_context(unittest.mock.patch.object(continue_issue, "select",
+            return_value=select_return))
+        stack.enter_context(unittest.mock.patch.object(continue_issue, "query_worktrees",
+            return_value=[]))
+        stack.enter_context(unittest.mock.patch.object(continue_issue, "find_for_issue",
+            return_value=find_return))
+        mock_ide = stack.enter_context(unittest.mock.patch.object(continue_issue, "prompt_and_open_ide"))
+        mock_persist = stack.enter_context(unittest.mock.patch.object(
+            continue_issue, "_persist_continue_branch_for_shell", return_value=persist_return))
         try:
             continue_issue.main()
             exit_code = 0
