@@ -1,3 +1,4 @@
+import contextlib
 import sys
 import os
 import unittest
@@ -92,29 +93,31 @@ class TestMainUnmergedBranchHandling(unittest.TestCase):
         worktrees = [{"branch": "main", "path": "/repos/main", "is_main": True}]
         match = Workspace(branch="feat/wt/gh65-something", path="/repos/gh65", is_main=False)
 
-        with unittest.mock.patch("sys.argv", argv), \
-             unittest.mock.patch.object(finish_issue, "check_manager"), \
-             unittest.mock.patch.object(finish_issue, "check_shell_function"), \
-             unittest.mock.patch.object(finish_issue, "fetch",
-                 return_value={"source": "github", "id": "65", "title": "t"}), \
-             unittest.mock.patch.object(finish_issue, "query_worktrees", return_value=worktrees), \
-             unittest.mock.patch.object(finish_issue, "find_for_issue", return_value=[match]), \
-             unittest.mock.patch.object(finish_issue, "get_main_branch", return_value="main"), \
-             unittest.mock.patch.object(finish_issue, "is_merged", return_value=False), \
-             unittest.mock.patch.object(finish_issue, "prompt_unmerged_choice",
-                 return_value=unmerged_choice), \
-             unittest.mock.patch.object(finish_issue, "is_dirty", return_value=False), \
-             unittest.mock.patch.object(finish_issue, "_persist_branch_for_shell", return_value=True), \
-             unittest.mock.patch.object(finish_issue, "_persist_worktree_for_shell", return_value=True), \
-             unittest.mock.patch.object(finish_issue, "_persist_force_delete_for_shell",
-                 return_value=True) as mock_force_delete, \
-             unittest.mock.patch.object(finish_issue, "_persist_worktree_path_for_shell", return_value=True), \
-             unittest.mock.patch.object(finish_issue, "_clear_force_marker_for_shell", return_value=True), \
-             unittest.mock.patch.object(finish_issue, "_cwd_inside_worktree", return_value=False), \
-             unittest.mock.patch.object(finish_issue, "remove_issue_context"), \
-             unittest.mock.patch.object(finish_issue, "remove_worktree"), \
-             unittest.mock.patch.object(finish_issue.subprocess, "run",
-                 return_value=unittest.mock.MagicMock(returncode=0, stderr="")) as mock_run:
+        with contextlib.ExitStack() as stack:
+            stack.enter_context(unittest.mock.patch("sys.argv", argv))
+            stack.enter_context(unittest.mock.patch.object(finish_issue, "check_manager"))
+            stack.enter_context(unittest.mock.patch.object(finish_issue, "check_shell_function"))
+            stack.enter_context(unittest.mock.patch.object(finish_issue, "fetch",
+                return_value={"source": "github", "id": "65", "title": "t"}))
+            stack.enter_context(unittest.mock.patch.object(finish_issue, "query_worktrees", return_value=worktrees))
+            stack.enter_context(unittest.mock.patch.object(finish_issue, "find_for_issue", return_value=[match]))
+            stack.enter_context(unittest.mock.patch.object(finish_issue, "get_main_branch", return_value="main"))
+            stack.enter_context(unittest.mock.patch.object(finish_issue, "is_merged", return_value=False))
+            stack.enter_context(unittest.mock.patch.object(finish_issue, "prompt_unmerged_choice",
+                return_value=unmerged_choice))
+            stack.enter_context(unittest.mock.patch.object(finish_issue, "is_dirty", return_value=False))
+            stack.enter_context(unittest.mock.patch.object(finish_issue, "_persist_branch_for_shell", return_value=True))
+            stack.enter_context(unittest.mock.patch.object(finish_issue, "_persist_worktree_for_shell", return_value=True))
+            mock_force_delete = stack.enter_context(unittest.mock.patch.object(
+                finish_issue, "_persist_force_delete_for_shell", return_value=True))
+            stack.enter_context(unittest.mock.patch.object(finish_issue, "_persist_worktree_path_for_shell", return_value=True))
+            stack.enter_context(unittest.mock.patch.object(finish_issue, "_clear_force_marker_for_shell", return_value=True))
+            stack.enter_context(unittest.mock.patch.object(finish_issue, "_cwd_inside_worktree", return_value=False))
+            stack.enter_context(unittest.mock.patch.object(finish_issue, "remove_issue_context"))
+            stack.enter_context(unittest.mock.patch.object(finish_issue, "remove_worktree"))
+            mock_run = stack.enter_context(unittest.mock.patch.object(
+                finish_issue.subprocess, "run",
+                return_value=unittest.mock.MagicMock(returncode=0, stderr="")))
             try:
                 finish_issue.main()
                 exit_code = 0
@@ -163,26 +166,30 @@ class TestMainDirtyWorktreeHandling(unittest.TestCase):
         worktrees = [{"branch": "main", "path": "/repos/main", "is_main": True}]
         match = Workspace(branch="feat/wt/gh65-something", path="/repos/gh65", is_main=False)
 
-        with unittest.mock.patch("sys.argv", argv), \
-             unittest.mock.patch.object(finish_issue, "check_manager"), \
-             unittest.mock.patch.object(finish_issue, "check_shell_function"), \
-             unittest.mock.patch.object(finish_issue, "fetch",
-                 return_value={"source": "github", "id": "65", "title": "t"}), \
-             unittest.mock.patch.object(finish_issue, "query_worktrees", return_value=worktrees), \
-             unittest.mock.patch.object(finish_issue, "find_for_issue", return_value=[match]), \
-             unittest.mock.patch.object(finish_issue, "get_main_branch", return_value="main"), \
-             unittest.mock.patch.object(finish_issue, "is_merged", return_value=True), \
-             unittest.mock.patch.object(finish_issue, "is_dirty", return_value=is_dirty_return), \
-             unittest.mock.patch.object(finish_issue, "prompt_dirty_tree_choice", return_value=dirty_choice), \
-             unittest.mock.patch.object(finish_issue, "_persist_branch_for_shell", return_value=True), \
-             unittest.mock.patch.object(finish_issue, "_persist_worktree_for_shell", return_value=True), \
-             unittest.mock.patch.object(finish_issue, "_persist_force_for_shell", return_value=True) as mock_force, \
-             unittest.mock.patch.object(finish_issue, "_persist_worktree_path_for_shell", return_value=True), \
-             unittest.mock.patch.object(finish_issue, "_clear_force_marker_for_shell", return_value=True) as mock_clear, \
-             unittest.mock.patch.object(finish_issue, "_cwd_inside_worktree", return_value=False), \
-             unittest.mock.patch.object(finish_issue, "remove_worktree"), \
-             unittest.mock.patch.object(finish_issue.subprocess, "run",
-                 return_value=unittest.mock.MagicMock(returncode=0, stderr="")) as mock_run:
+        with contextlib.ExitStack() as stack:
+            stack.enter_context(unittest.mock.patch("sys.argv", argv))
+            stack.enter_context(unittest.mock.patch.object(finish_issue, "check_manager"))
+            stack.enter_context(unittest.mock.patch.object(finish_issue, "check_shell_function"))
+            stack.enter_context(unittest.mock.patch.object(finish_issue, "fetch",
+                return_value={"source": "github", "id": "65", "title": "t"}))
+            stack.enter_context(unittest.mock.patch.object(finish_issue, "query_worktrees", return_value=worktrees))
+            stack.enter_context(unittest.mock.patch.object(finish_issue, "find_for_issue", return_value=[match]))
+            stack.enter_context(unittest.mock.patch.object(finish_issue, "get_main_branch", return_value="main"))
+            stack.enter_context(unittest.mock.patch.object(finish_issue, "is_merged", return_value=True))
+            stack.enter_context(unittest.mock.patch.object(finish_issue, "is_dirty", return_value=is_dirty_return))
+            stack.enter_context(unittest.mock.patch.object(finish_issue, "prompt_dirty_tree_choice", return_value=dirty_choice))
+            stack.enter_context(unittest.mock.patch.object(finish_issue, "_persist_branch_for_shell", return_value=True))
+            stack.enter_context(unittest.mock.patch.object(finish_issue, "_persist_worktree_for_shell", return_value=True))
+            mock_force = stack.enter_context(unittest.mock.patch.object(
+                finish_issue, "_persist_force_for_shell", return_value=True))
+            stack.enter_context(unittest.mock.patch.object(finish_issue, "_persist_worktree_path_for_shell", return_value=True))
+            mock_clear = stack.enter_context(unittest.mock.patch.object(
+                finish_issue, "_clear_force_marker_for_shell", return_value=True))
+            stack.enter_context(unittest.mock.patch.object(finish_issue, "_cwd_inside_worktree", return_value=False))
+            stack.enter_context(unittest.mock.patch.object(finish_issue, "remove_worktree"))
+            mock_run = stack.enter_context(unittest.mock.patch.object(
+                finish_issue.subprocess, "run",
+                return_value=unittest.mock.MagicMock(returncode=0, stderr="")))
             try:
                 finish_issue.main()
                 exit_code = 0
@@ -258,26 +265,27 @@ class TestMainIssueContextCleanup(unittest.TestCase):
         match = Workspace(branch="feat/wt/gh65-something", path="/repos/gh65", is_main=False)
         call_order = []
 
-        with unittest.mock.patch("sys.argv", argv), \
-             unittest.mock.patch.object(finish_issue, "check_manager"), \
-             unittest.mock.patch.object(finish_issue, "check_shell_function"), \
-             unittest.mock.patch.object(finish_issue, "fetch",
-                 return_value={"source": "github", "id": "65", "title": "t"}), \
-             unittest.mock.patch.object(finish_issue, "query_worktrees", return_value=worktrees), \
-             unittest.mock.patch.object(finish_issue, "find_for_issue", return_value=[match]), \
-             unittest.mock.patch.object(finish_issue, "get_main_branch", return_value="main"), \
-             unittest.mock.patch.object(finish_issue, "is_merged", return_value=True), \
-             unittest.mock.patch.object(finish_issue, "is_dirty",
-                 side_effect=lambda p: call_order.append("is_dirty") or is_dirty_return), \
-             unittest.mock.patch.object(finish_issue, "prompt_dirty_tree_choice",
-                 return_value=finish_issue.DIRTY_ABORT), \
-             unittest.mock.patch.object(finish_issue, "_persist_branch_for_shell"), \
-             unittest.mock.patch.object(finish_issue, "_cwd_inside_worktree", return_value=False), \
-             unittest.mock.patch.object(finish_issue, "remove_issue_context",
-                 side_effect=lambda p: call_order.append("remove_issue_context")) as mock_remove, \
-             unittest.mock.patch.object(finish_issue, "remove_worktree"), \
-             unittest.mock.patch.object(finish_issue.subprocess, "run",
-                 return_value=unittest.mock.MagicMock(returncode=0, stderr="")):
+        with contextlib.ExitStack() as stack:
+            stack.enter_context(unittest.mock.patch("sys.argv", argv))
+            stack.enter_context(unittest.mock.patch.object(finish_issue, "check_manager"))
+            stack.enter_context(unittest.mock.patch.object(finish_issue, "check_shell_function"))
+            stack.enter_context(unittest.mock.patch.object(finish_issue, "fetch",
+                return_value={"source": "github", "id": "65", "title": "t"}))
+            stack.enter_context(unittest.mock.patch.object(finish_issue, "query_worktrees", return_value=worktrees))
+            stack.enter_context(unittest.mock.patch.object(finish_issue, "find_for_issue", return_value=[match]))
+            stack.enter_context(unittest.mock.patch.object(finish_issue, "get_main_branch", return_value="main"))
+            stack.enter_context(unittest.mock.patch.object(finish_issue, "is_merged", return_value=True))
+            stack.enter_context(unittest.mock.patch.object(finish_issue, "is_dirty",
+                side_effect=lambda p: call_order.append("is_dirty") or is_dirty_return))
+            stack.enter_context(unittest.mock.patch.object(finish_issue, "prompt_dirty_tree_choice",
+                return_value=finish_issue.DIRTY_ABORT))
+            stack.enter_context(unittest.mock.patch.object(finish_issue, "_persist_branch_for_shell"))
+            stack.enter_context(unittest.mock.patch.object(finish_issue, "_cwd_inside_worktree", return_value=False))
+            mock_remove = stack.enter_context(unittest.mock.patch.object(finish_issue, "remove_issue_context",
+                side_effect=lambda p: call_order.append("remove_issue_context")))
+            stack.enter_context(unittest.mock.patch.object(finish_issue, "remove_worktree"))
+            stack.enter_context(unittest.mock.patch.object(finish_issue.subprocess, "run",
+                return_value=unittest.mock.MagicMock(returncode=0, stderr="")))
             try:
                 finish_issue.main()
             except SystemExit:
@@ -320,28 +328,30 @@ class TestMainIssueAutoDetection(unittest.TestCase):
 
     def _run(self, argv, tracked_worktrees=None, find_return=None, select_return=None):
         cfg = self._base_patches(argv, tracked_worktrees=tracked_worktrees, find_return=find_return)
-        with unittest.mock.patch("sys.argv", argv), \
-             unittest.mock.patch.object(finish_issue, "check_manager"), \
-             unittest.mock.patch.object(finish_issue, "check_shell_function"), \
-             unittest.mock.patch.object(finish_issue, "fetch",
-                 return_value=cfg["fetched_issue"]) as mock_fetch, \
-             unittest.mock.patch.object(finish_issue, "list_tracked_worktrees",
-                 return_value=cfg["tracked_worktrees"]), \
-             unittest.mock.patch.object(finish_issue, "select",
-                 return_value=select_return) as mock_select, \
-             unittest.mock.patch.object(finish_issue, "query_worktrees",
-                 return_value=cfg["worktrees"]), \
-             unittest.mock.patch.object(finish_issue, "find_for_issue",
-                 return_value=cfg["find_return"]), \
-             unittest.mock.patch.object(finish_issue, "get_main_branch", return_value="main"), \
-             unittest.mock.patch.object(finish_issue, "is_merged", return_value=True), \
-             unittest.mock.patch.object(finish_issue, "is_dirty", return_value=False), \
-             unittest.mock.patch.object(finish_issue, "_persist_branch_for_shell", return_value=True), \
-             unittest.mock.patch.object(finish_issue, "_cwd_inside_worktree", return_value=False), \
-             unittest.mock.patch.object(finish_issue, "remove_issue_context"), \
-             unittest.mock.patch.object(finish_issue, "remove_worktree"), \
-             unittest.mock.patch.object(finish_issue.subprocess, "run",
-                 return_value=unittest.mock.MagicMock(returncode=0, stderr="")):
+
+        with contextlib.ExitStack() as stack:
+            stack.enter_context(unittest.mock.patch("sys.argv", argv))
+            stack.enter_context(unittest.mock.patch.object(finish_issue, "check_manager"))
+            stack.enter_context(unittest.mock.patch.object(finish_issue, "check_shell_function"))
+            mock_fetch = stack.enter_context(unittest.mock.patch.object(finish_issue, "fetch",
+                return_value=cfg["fetched_issue"]))
+            stack.enter_context(unittest.mock.patch.object(finish_issue, "list_tracked_worktrees",
+                return_value=cfg["tracked_worktrees"]))
+            mock_select = stack.enter_context(unittest.mock.patch.object(finish_issue, "select",
+                return_value=select_return))
+            stack.enter_context(unittest.mock.patch.object(finish_issue, "query_worktrees",
+                return_value=cfg["worktrees"]))
+            stack.enter_context(unittest.mock.patch.object(finish_issue, "find_for_issue",
+                return_value=cfg["find_return"]))
+            stack.enter_context(unittest.mock.patch.object(finish_issue, "get_main_branch", return_value="main"))
+            stack.enter_context(unittest.mock.patch.object(finish_issue, "is_merged", return_value=True))
+            stack.enter_context(unittest.mock.patch.object(finish_issue, "is_dirty", return_value=False))
+            stack.enter_context(unittest.mock.patch.object(finish_issue, "_persist_branch_for_shell", return_value=True))
+            stack.enter_context(unittest.mock.patch.object(finish_issue, "_cwd_inside_worktree", return_value=False))
+            stack.enter_context(unittest.mock.patch.object(finish_issue, "remove_issue_context"))
+            stack.enter_context(unittest.mock.patch.object(finish_issue, "remove_worktree"))
+            stack.enter_context(unittest.mock.patch.object(finish_issue.subprocess, "run",
+                return_value=unittest.mock.MagicMock(returncode=0, stderr="")))
             try:
                 finish_issue.main()
                 exit_code = 0
@@ -359,25 +369,27 @@ class TestMainIssueAutoDetection(unittest.TestCase):
         from devflow_sdk.worktree_state import WorktreeEntry
         entry = WorktreeEntry(path="/repos/gh65", ticket_id="65", source="github")
         match = Workspace(branch="feat/wt/gh65-something", path="/repos/gh65", is_main=False)
-        with unittest.mock.patch("sys.argv", ["finish-issue"]), \
-             unittest.mock.patch.object(finish_issue, "check_manager"), \
-             unittest.mock.patch.object(finish_issue, "check_shell_function"), \
-             unittest.mock.patch.object(finish_issue, "fetch") as mock_fetch, \
-             unittest.mock.patch.object(finish_issue, "list_tracked_worktrees",
-                 return_value=[entry]), \
-             unittest.mock.patch.object(finish_issue, "_cwd_inside_worktree",
-                 side_effect=[True, False]), \
-             unittest.mock.patch.object(finish_issue, "query_worktrees",
-                 return_value=[{"branch": "main", "path": "/repos/main", "is_main": True}]), \
-             unittest.mock.patch.object(finish_issue, "find_for_issue", return_value=[match]), \
-             unittest.mock.patch.object(finish_issue, "get_main_branch", return_value="main"), \
-             unittest.mock.patch.object(finish_issue, "is_merged", return_value=True), \
-             unittest.mock.patch.object(finish_issue, "is_dirty", return_value=False), \
-             unittest.mock.patch.object(finish_issue, "_persist_branch_for_shell", return_value=True), \
-             unittest.mock.patch.object(finish_issue, "remove_issue_context"), \
-             unittest.mock.patch.object(finish_issue, "remove_worktree"), \
-             unittest.mock.patch.object(finish_issue.subprocess, "run",
-                 return_value=unittest.mock.MagicMock(returncode=0, stderr="")):
+
+        with contextlib.ExitStack() as stack:
+            stack.enter_context(unittest.mock.patch("sys.argv", ["finish-issue"]))
+            stack.enter_context(unittest.mock.patch.object(finish_issue, "check_manager"))
+            stack.enter_context(unittest.mock.patch.object(finish_issue, "check_shell_function"))
+            mock_fetch = stack.enter_context(unittest.mock.patch.object(finish_issue, "fetch"))
+            stack.enter_context(unittest.mock.patch.object(finish_issue, "list_tracked_worktrees",
+                return_value=[entry]))
+            stack.enter_context(unittest.mock.patch.object(finish_issue, "_cwd_inside_worktree",
+                side_effect=[True, False]))
+            stack.enter_context(unittest.mock.patch.object(finish_issue, "query_worktrees",
+                return_value=[{"branch": "main", "path": "/repos/main", "is_main": True}]))
+            stack.enter_context(unittest.mock.patch.object(finish_issue, "find_for_issue", return_value=[match]))
+            stack.enter_context(unittest.mock.patch.object(finish_issue, "get_main_branch", return_value="main"))
+            stack.enter_context(unittest.mock.patch.object(finish_issue, "is_merged", return_value=True))
+            stack.enter_context(unittest.mock.patch.object(finish_issue, "is_dirty", return_value=False))
+            stack.enter_context(unittest.mock.patch.object(finish_issue, "_persist_branch_for_shell", return_value=True))
+            stack.enter_context(unittest.mock.patch.object(finish_issue, "remove_issue_context"))
+            stack.enter_context(unittest.mock.patch.object(finish_issue, "remove_worktree"))
+            stack.enter_context(unittest.mock.patch.object(finish_issue.subprocess, "run",
+                return_value=unittest.mock.MagicMock(returncode=0, stderr="")))
             try:
                 finish_issue.main()
                 exit_code = 0
@@ -425,28 +437,31 @@ class TestCheckShellFunctionCalledInFinishIssue(unittest.TestCase):
 
     def test_check_shell_function_called_with_finish_issue_sentinel_and_prepare(self):
         wt = self._make_worktree()
-        with unittest.mock.patch("sys.argv", ["finish-issue", "42"]), \
-             unittest.mock.patch.object(finish_issue, "check_manager"), \
-             unittest.mock.patch.object(finish_issue, "check_shell_function") as mock_csf, \
-             unittest.mock.patch.object(finish_issue, "fetch",
-                 return_value={"source": "github", "id": "42", "title": "t",
-                               "body": "", "comments": [], "issuetype": "", "labels": []}), \
-             unittest.mock.patch.object(finish_issue, "query_worktrees", return_value=[wt]), \
-             unittest.mock.patch.object(finish_issue, "find_for_issue", return_value=[wt]), \
-             unittest.mock.patch.object(finish_issue, "get_main_branch", return_value="main"), \
-             unittest.mock.patch.object(finish_issue, "is_merged", return_value=True), \
-             unittest.mock.patch.object(finish_issue, "is_dirty", return_value=False), \
-             unittest.mock.patch.object(finish_issue, "_persist_branch_for_shell"), \
-             unittest.mock.patch.object(finish_issue, "_persist_worktree_for_shell"), \
-             unittest.mock.patch.object(finish_issue, "_cwd_inside_worktree", return_value=False), \
-             unittest.mock.patch.object(finish_issue, "remove_issue_context"), \
-             unittest.mock.patch.object(finish_issue, "remove_worktree"), \
-             unittest.mock.patch.object(finish_issue.subprocess, "run",
-                 return_value=unittest.mock.MagicMock(returncode=0, stderr="")):
+
+        with contextlib.ExitStack() as stack:
+            stack.enter_context(unittest.mock.patch("sys.argv", ["finish-issue", "42"]))
+            stack.enter_context(unittest.mock.patch.object(finish_issue, "check_manager"))
+            mock_csf = stack.enter_context(unittest.mock.patch.object(finish_issue, "check_shell_function"))
+            stack.enter_context(unittest.mock.patch.object(finish_issue, "fetch",
+                return_value={"source": "github", "id": "42", "title": "t",
+                              "body": "", "comments": [], "issuetype": "", "labels": []}))
+            stack.enter_context(unittest.mock.patch.object(finish_issue, "query_worktrees", return_value=[wt]))
+            stack.enter_context(unittest.mock.patch.object(finish_issue, "find_for_issue", return_value=[wt]))
+            stack.enter_context(unittest.mock.patch.object(finish_issue, "get_main_branch", return_value="main"))
+            stack.enter_context(unittest.mock.patch.object(finish_issue, "is_merged", return_value=True))
+            stack.enter_context(unittest.mock.patch.object(finish_issue, "is_dirty", return_value=False))
+            stack.enter_context(unittest.mock.patch.object(finish_issue, "_persist_branch_for_shell"))
+            stack.enter_context(unittest.mock.patch.object(finish_issue, "_persist_worktree_for_shell"))
+            stack.enter_context(unittest.mock.patch.object(finish_issue, "_cwd_inside_worktree", return_value=False))
+            stack.enter_context(unittest.mock.patch.object(finish_issue, "remove_issue_context"))
+            stack.enter_context(unittest.mock.patch.object(finish_issue, "remove_worktree"))
+            stack.enter_context(unittest.mock.patch.object(finish_issue.subprocess, "run",
+                return_value=unittest.mock.MagicMock(returncode=0, stderr="")))
             try:
                 finish_issue.main()
             except SystemExit:
                 pass
+
         mock_csf.assert_called_once()
         sentinel_arg = mock_csf.call_args[0][0]
         required_content_kwarg = mock_csf.call_args[1].get("required_content")
@@ -464,25 +479,26 @@ class TestMainWorktreeStateIntegration(unittest.TestCase):
         worktrees = [{"branch": "main", "path": "/repos/main", "is_main": True}]
         match = Workspace(branch="feat/wt/gh65-something", path="/repos/gh65", is_main=False)
 
-        with unittest.mock.patch("sys.argv", argv), \
-             unittest.mock.patch.object(finish_issue, "check_manager"), \
-             unittest.mock.patch.object(finish_issue, "check_shell_function"), \
-             unittest.mock.patch.object(finish_issue, "fetch",
-                 return_value={"source": "github", "id": "65", "title": "t"}), \
-             unittest.mock.patch.object(finish_issue, "query_worktrees", return_value=worktrees), \
-             unittest.mock.patch.object(finish_issue, "find_for_issue", return_value=[match]), \
-             unittest.mock.patch.object(finish_issue, "get_main_branch", return_value="main"), \
-             unittest.mock.patch.object(finish_issue, "is_merged", return_value=True), \
-             unittest.mock.patch.object(finish_issue, "is_dirty", return_value=False), \
-             unittest.mock.patch.object(finish_issue, "_persist_branch_for_shell", return_value=True), \
-             unittest.mock.patch.object(finish_issue, "_persist_worktree_for_shell", return_value=True), \
-             unittest.mock.patch.object(finish_issue, "_persist_worktree_path_for_shell", return_value=True), \
-             unittest.mock.patch.object(finish_issue, "_clear_force_marker_for_shell", return_value=True), \
-             unittest.mock.patch.object(finish_issue, "_cwd_inside_worktree", return_value=False), \
-             unittest.mock.patch.object(finish_issue, "remove_issue_context"), \
-             unittest.mock.patch.object(finish_issue, "remove_worktree") as mock_remove, \
-             unittest.mock.patch.object(finish_issue.subprocess, "run",
-                 return_value=unittest.mock.MagicMock(returncode=0, stderr="")):
+        with contextlib.ExitStack() as stack:
+            stack.enter_context(unittest.mock.patch("sys.argv", argv))
+            stack.enter_context(unittest.mock.patch.object(finish_issue, "check_manager"))
+            stack.enter_context(unittest.mock.patch.object(finish_issue, "check_shell_function"))
+            stack.enter_context(unittest.mock.patch.object(finish_issue, "fetch",
+                return_value={"source": "github", "id": "65", "title": "t"}))
+            stack.enter_context(unittest.mock.patch.object(finish_issue, "query_worktrees", return_value=worktrees))
+            stack.enter_context(unittest.mock.patch.object(finish_issue, "find_for_issue", return_value=[match]))
+            stack.enter_context(unittest.mock.patch.object(finish_issue, "get_main_branch", return_value="main"))
+            stack.enter_context(unittest.mock.patch.object(finish_issue, "is_merged", return_value=True))
+            stack.enter_context(unittest.mock.patch.object(finish_issue, "is_dirty", return_value=False))
+            stack.enter_context(unittest.mock.patch.object(finish_issue, "_persist_branch_for_shell", return_value=True))
+            stack.enter_context(unittest.mock.patch.object(finish_issue, "_persist_worktree_for_shell", return_value=True))
+            stack.enter_context(unittest.mock.patch.object(finish_issue, "_persist_worktree_path_for_shell", return_value=True))
+            stack.enter_context(unittest.mock.patch.object(finish_issue, "_clear_force_marker_for_shell", return_value=True))
+            stack.enter_context(unittest.mock.patch.object(finish_issue, "_cwd_inside_worktree", return_value=False))
+            stack.enter_context(unittest.mock.patch.object(finish_issue, "remove_issue_context"))
+            mock_remove = stack.enter_context(unittest.mock.patch.object(finish_issue, "remove_worktree"))
+            stack.enter_context(unittest.mock.patch.object(finish_issue.subprocess, "run",
+                return_value=unittest.mock.MagicMock(returncode=0, stderr="")))
             try:
                 finish_issue.main()
             except SystemExit:

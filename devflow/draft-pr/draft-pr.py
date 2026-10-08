@@ -115,7 +115,7 @@ def main():
     with open(body_path, "w") as f:
         f.write(body_str)
 
-    write_create_script(title, body_path, script_path)
+    write_create_script(title, body_path, script_path, base=data.get("base"))
     url, error = run_create_script(script_path)
     if url:
         print(f"\nPR created: {url}")

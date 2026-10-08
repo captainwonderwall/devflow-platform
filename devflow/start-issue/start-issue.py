@@ -63,6 +63,68 @@ def _ai_infer_type(issue):
     return inferred
 
 
+def _detect_stack_parent() -> str | None:
+    """Return the current branch if running inside a devflow-managed worktree, else None."""
+    try:
+        from devflow_sdk.worktree_state import list_tracked_worktrees
+        from devflow_sdk.core.git.worktree import _cwd_inside_worktree
+        for entry in list_tracked_worktrees(purge_stale=False):
+            if _cwd_inside_worktree(entry.path):
+                result = subprocess.run(
+                    ["git", "branch", "--show-current"],
+                    capture_output=True, text=True,
+                )
+                if result.returncode == 0 and result.stdout.strip():
+                    return result.stdout.strip()
+    except Exception:
+        pass
+    return None
+
+
+def _validate_base_branch(parent_branch: str) -> bool:
+    """Fetch and check if parent_branch is behind remote. Prompts user if behind.
+    Returns True to proceed, exits with code 1 on rebase conflict."""
+    subprocess.run(
+        ["git", "fetch", "origin", parent_branch],
+        capture_output=True, text=True,
+    )
+    result = subprocess.run(
+        ["git", "rev-list", "--count", f"HEAD..origin/{parent_branch}"],
+        capture_output=True, text=True,
+    )
+    if result.returncode != 0:
+        return True
+    try:
+        behind = int(result.stdout.strip())
+    except ValueError:
+        return True
+    if behind == 0:
+        return True
+
+    from devflow_sdk.core.prompts import select
+    answer = select(
+        f"Base branch '{parent_branch}' is {behind} commit(s) behind origin/{parent_branch}.",
+        choices=["Accept (proceed with stale base)", "Update (git pull --rebase)"],
+        single=True,
+    )
+    if not answer or answer.startswith("Accept"):
+        print(
+            "⚠️  Proceeding with stale base — your stack may need rebasing later.",
+            file=sys.stderr,
+        )
+        return True
+
+    pull = subprocess.run(["git", "pull", "--rebase", "origin", parent_branch])
+    if pull.returncode != 0:
+        subprocess.run(["git", "rebase", "--abort"], capture_output=True)
+        print(
+            f"ERROR: Rebase of '{parent_branch}' failed. Resolve conflicts and re-run start-issue.",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+    return True
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="Create a branch and worktree from a JIRA or GitHub issue."
@@ -108,15 +170,18 @@ def main():
     print(f"Branch: {branch}")
 
     repo_root = get_repo_root()
+    parent_branch = _detect_stack_parent()
+    if parent_branch is not None:
+        _validate_base_branch(parent_branch)
     detect_and_write_config(repo_root)
-    workspace = create_workspace(branch)
+    workspace = create_workspace(branch, base=parent_branch)
     if workspace:
         worktree_path = workspace.path
         issue["branch"] = branch
         issue["branch_type"] = override if override is not None else infer_type(issue)
         issue["started_at"] = datetime.now(timezone.utc).isoformat()
         write_issue_context(worktree_path, issue)
-        add_worktree(worktree_path, issue['id'], issue['source'])
+        add_worktree(worktree_path, issue['id'], issue['source'], parent_branch=parent_branch)
         copy_ide_config(repo_root, worktree_path)
         prompt_and_open_ide(worktree_path)
         prompt_and_open_ai_agent(worktree_path)

@@ -15,6 +15,7 @@ class WorktreeEntry:
     path: str
     ticket_id: str
     source: str
+    parent_branch: str | None = None
 
 
 def _load_raw(state_path: Path) -> list[dict]:
@@ -54,7 +55,10 @@ def _parse_entry(raw: dict) -> WorktreeEntry | None:
         source = raw["source"]
         if not isinstance(path, str) or not isinstance(ticket_id, str) or not isinstance(source, str):
             return None
-        return WorktreeEntry(path=path, ticket_id=ticket_id, source=source)
+        parent_branch = raw.get("parent_branch")
+        if parent_branch is not None and not isinstance(parent_branch, str):
+            parent_branch = None
+        return WorktreeEntry(path=path, ticket_id=ticket_id, source=source, parent_branch=parent_branch)
     except (KeyError, TypeError):
         return None
 
@@ -64,13 +68,17 @@ def add_worktree(
     ticket_id: str,
     source: str,
     *,
+    parent_branch: str | None = None,
     state_path: Path | None = None,
 ) -> None:
     target = state_path or STATE_PATH
     try:
         raw_entries = _load_raw(target)
         raw_entries = [e for e in raw_entries if e.get("path") != path]
-        raw_entries.append({"path": path, "ticket_id": ticket_id, "source": source})
+        entry: dict = {"path": path, "ticket_id": ticket_id, "source": source}
+        if parent_branch is not None:
+            entry["parent_branch"] = parent_branch
+        raw_entries.append(entry)
         _save_raw(raw_entries, target)
     except Exception as e:
         print(f"[devflow] Warning: could not update worktree state: {e}", file=sys.stderr)
