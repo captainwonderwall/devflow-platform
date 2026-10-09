@@ -264,13 +264,23 @@ def test_opencode_redact_command_redacts_positional_prompt():
 def test_claude_build_interactive_command_includes_prompt():
     provider = ClaudeProvider()
     cmd = provider.build_interactive_command("Brainstorm a solution")
-    assert cmd == ["claude", "Brainstorm a solution"]
+    assert cmd == ["claude", "--permission-mode", "plan", "Brainstorm a solution"]
+
+
+def test_claude_build_interactive_env_is_empty():
+    provider = ClaudeProvider()
+    assert provider.build_interactive_env() == {}
 
 
 def test_opencode_build_interactive_command_includes_prompt():
     provider = OpenCodeProvider()
     cmd = provider.build_interactive_command("Brainstorm a solution")
     assert cmd == ["opencode", "--prompt", "Brainstorm a solution"]
+
+
+def test_opencode_build_interactive_env_sets_plan_mode():
+    provider = OpenCodeProvider()
+    assert provider.build_interactive_env() == {"OPENCODE_EXPERIMENTAL_PLAN_MODE": "true"}
 
 
 class TestProviderAttributes:

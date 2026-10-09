@@ -1,3 +1,4 @@
+import os
 import re
 import shlex
 import shutil
@@ -69,7 +70,8 @@ def launch_interactive_session(
         return
 
     cmd = provider.build_interactive_command(initial_prompt)
-    subprocess.run(cmd, cwd=cwd)
+    env = {**os.environ, **provider.build_interactive_env()}
+    subprocess.run(cmd, cwd=cwd, env=env)
 
 
 def run_ai_prompt(

@@ -114,6 +114,9 @@ class OpenCodeProvider(AiProvider):
             cmd += ["--prompt", initial_prompt]
         return cmd
 
+    def build_interactive_env(self) -> dict[str, str]:
+        return {"OPENCODE_EXPERIMENTAL_PLAN_MODE": "true"}
+
     def build_interactive_resume_command(self, session_id: str | None) -> list[str]:
         cmd = ["opencode", "--auto"]
         if session_id:

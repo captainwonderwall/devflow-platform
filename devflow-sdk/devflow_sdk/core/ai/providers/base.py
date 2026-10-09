@@ -66,6 +66,9 @@ class AiProvider(ABC):
     def build_interactive_resume_command(self, session_id: str | None) -> list[str]:
         raise NotImplementedError
 
+    def build_interactive_env(self) -> dict[str, str]:
+        return {}
+
     def redact_command(self, cmd: list) -> list:
         """Return a copy of cmd with prompt/sensitive arguments redacted for
         safe logging. Default: redact the argument following any flag in

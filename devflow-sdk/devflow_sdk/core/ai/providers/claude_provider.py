@@ -44,7 +44,7 @@ class ClaudeProvider(AiProvider):
                                       provider_label="Claude", as_json=False)
 
     def build_interactive_command(self, initial_prompt: str) -> list[str]:
-        return ["claude", initial_prompt]
+        return ["claude", "--permission-mode", "plan", initial_prompt]
 
     def build_interactive_resume_command(self, session_id: str | None) -> list[str]:
         cmd = ["claude", "--permission-mode", "bypassPermissions"]
