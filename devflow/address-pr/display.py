@@ -6,6 +6,7 @@ from fetch_comments import Comment
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 from devflow_sdk.core.prompts import Choice, checkbox
+from devflow_sdk.core.ui import info
 
 
 def display_comments(
@@ -14,8 +15,8 @@ def display_comments(
     pr_branch: str,
     pr_base: str,
 ) -> None:
-    print(f'\nPR: "{pr_title}" ({pr_branch} → {pr_base})')
-    print(f"\nUnresolved comments ({len(comments)}):\n")
+    info(f'\nPR: "{pr_title}" ({pr_branch} → {pr_base})')
+    info(f"\nUnresolved comments ({len(comments)}):\n")
     for i, c in enumerate(comments, 1):
         bot_label = " (bot)" if c.is_bot else ""
         if c.kind == "review_thread":
@@ -26,10 +27,10 @@ def display_comments(
             location = "PR comment"
         body_preview = c.body[:120] + "..." if len(c.body) > 120 else c.body
         verdict_str = f"{c.verdict} — {c.reason}" if c.verdict else "—"
-        print(f"[{i}] @{c.author}{bot_label} — {location}")
-        print(f'    "{body_preview}"')
-        print(f"    AI: {verdict_str}")
-        print()
+        info(f"[{i}] @{c.author}{bot_label} — {location}")
+        info(f'    "{body_preview}"')
+        info(f"    AI: {verdict_str}")
+        info("")
 
 
 def resolve_selection(

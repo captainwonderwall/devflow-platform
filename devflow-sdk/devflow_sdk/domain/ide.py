@@ -1,8 +1,9 @@
 import os
 import subprocess
-import sys
 
+from devflow_sdk.core.ai import launch_interactive_session
 from devflow_sdk.core.prompts import Choice, select
+from devflow_sdk.core.ui import error
 
 _IDE_LAUNCHERS = [
     (".idea",   "IntelliJ IDEA", "idea"),
@@ -37,4 +38,18 @@ def prompt_and_open_ide(worktree_path):
     try:
         subprocess.run([cmd, "."], cwd=worktree_path)
     except FileNotFoundError:
-        print(f"WARNING: Could not launch IDE — '{cmd}' not found on PATH.", file=sys.stderr)
+        error(f"Could not launch IDE — '{cmd}' not found on PATH.")
+
+
+_AI_AGENT_PROMPT = "Brainstorm a solution for the issue described in .issue.json"
+
+
+def prompt_and_open_ai_agent(worktree_path):
+    """Prompt the user to open an interactive AI agent session in the worktree."""
+    choices = [
+        Choice(title="Open AI agent session", value="open"),
+        Choice(title="Skip", value=None),
+    ]
+    chosen = select("Start working with an AI agent?", choices, single=True)
+    if chosen == "open":
+        launch_interactive_session(_AI_AGENT_PROMPT, cwd=worktree_path)

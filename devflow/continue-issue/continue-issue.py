@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import argparse
+import atexit
 import os
 import subprocess
 import sys
@@ -15,13 +16,17 @@ for _whl in sorted(_glob.glob(os.path.join(VENDOR_DIR, "*.whl"))):
 from devflow_sdk.core.prompts import select
 from devflow_sdk.core.shell_function_check import check_shell_function
 from devflow_sdk.core.git.worktree import query_worktrees, _cwd_inside_worktree
+from devflow_sdk.core.ui import status, error, info
+from devflow_sdk.core.summary import summary
 from devflow_sdk.domain.workspace import check_manager, find_for_issue
-from devflow_sdk.domain.ide import prompt_and_open_ide
+from devflow_sdk.domain.ide import prompt_and_open_ide, prompt_and_open_ai_agent
 from devflow_sdk.core.git.shell_state import _persist_continue_branch_for_shell
 from devflow_sdk.worktree_state import list_tracked_worktrees
 
 
 def main():
+    atexit.register(summary.print_summary)
+
     parser = argparse.ArgumentParser(
         description="Continue work on an issue by switching to its worktree."
     )
@@ -54,14 +59,14 @@ def main():
         issue_arg = args.issue.strip()
         matches = [e for e in tracked if e.ticket_id.lower() == issue_arg.lower()]
         if not matches:
-            print(f"ERROR: No tracked worktree found for '{issue_arg}'.", file=sys.stderr)
-            print(f"Run 'start-issue {issue_arg}' to create a worktree for it.", file=sys.stderr)
+            error(f"ERROR: No tracked worktree found for '{issue_arg}'.")
+            error(f"Run 'start-issue {issue_arg}' to create a worktree for it.")
             sys.exit(1)
         entry = matches[0]
     else:
         available = [e for e in tracked if not _cwd_inside_worktree(e.path)]
         if not available:
-            print("No other tracked worktrees found.")
+            info("No other tracked worktrees found.")
             sys.exit(0)
         labels = [f"{e.ticket_id} ({e.source}) → {e.path}" for e in available]
         label_to_entry = dict(zip(labels, available))
@@ -75,10 +80,9 @@ def main():
     if worktrees is not None:
         workspace_matches = find_for_issue(entry.ticket_id, entry.source)
         if not workspace_matches:
-            print(
+            error(
                 f"ERROR: Worktree for '{entry.ticket_id}' is tracked in state but not found in git. "
-                f"It may have been removed manually.",
-                file=sys.stderr,
+                f"It may have been removed manually."
             )
             sys.exit(1)
         workspace = workspace_matches[0]
@@ -91,19 +95,22 @@ def main():
             capture_output=True, text=True,
         )
         if _branch_result.returncode != 0 or not _branch_result.stdout.strip():
-            print(
-                f"ERROR: Could not determine branch for worktree at '{path}'.",
-                file=sys.stderr,
+            error(
+                f"ERROR: Could not determine branch for worktree at '{path}'."
             )
             sys.exit(1)
         branch = _branch_result.stdout.strip()
 
+    summary.add("Worktree", path)
+    summary.add("Branch", branch)
+
     prompt_and_open_ide(path)
+    prompt_and_open_ai_agent(path)
 
     if not _persist_continue_branch_for_shell(branch, os.path.abspath(path)):
         sys.exit(1)
 
-    print(f"Switching to worktree for '{entry.ticket_id}'...")
+    status(f"Switching to worktree for '{entry.ticket_id}'...")
 
 
 if __name__ == "__main__":

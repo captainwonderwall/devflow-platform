@@ -5,6 +5,16 @@ import sys
 from dataclasses import dataclass
 from typing import List, Optional
 
+# Add vendor path for SDK imports
+import os as _os
+import glob as _glob_fetch
+_SCRIPT_DIR = _os.path.dirname(_os.path.abspath(__file__))
+_REPO_ROOT = _os.path.dirname(_SCRIPT_DIR)
+_VENDOR_DIR = _os.path.join(_REPO_ROOT, "vendor")
+for _whl in sorted(_glob_fetch.glob(_os.path.join(_VENDOR_DIR, "*.whl"))):
+    sys.path.insert(0, _whl)
+from devflow_sdk.core.ui import error
+
 
 @dataclass
 class Comment:
@@ -103,8 +113,7 @@ def build_pr_comments(raw: list, pr_author: str) -> List[Comment]:
 def _run_gh(args: list) -> dict:
     result = subprocess.run(["gh"] + args, capture_output=True, text=True)
     if result.returncode != 0:
-        print(f"ERROR: gh {' '.join(args[:2])} failed: {result.stderr.strip()}",
-              file=sys.stderr)
+        error(f"gh {' '.join(args[:2])} failed: {result.stderr.strip()}")
         sys.exit(1)
     return json.loads(result.stdout)
 
@@ -121,7 +130,7 @@ def get_pr_info() -> dict:
         capture_output=True, text=True,
     )
     if result.returncode != 0:
-        print("ERROR: no open PR on the current branch", file=sys.stderr)
+        error("no open PR on the current branch")
         sys.exit(1)
     return json.loads(result.stdout)
 

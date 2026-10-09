@@ -15,6 +15,7 @@ for _whl in sorted(_glob.glob(os.path.join(VENDOR_DIR, "*.whl"))):
     sys.path.insert(0, _whl)
 from devflow_sdk.core.ai import configured_provider_display_name, run_ai_prompt
 from devflow_sdk.core.prompts import select
+from devflow_sdk.core.ui import error, info
 
 
 def _edit_in_editor(text: str) -> str:
@@ -32,13 +33,11 @@ def _edit_in_editor(text: str) -> str:
         try:
             proc = subprocess.run([*shlex.split(editor), tmp.name])
         except (FileNotFoundError, OSError) as e:
-            print(f"WARNING: failed to launch editor '{editor}': {e}",
-                  file=sys.stderr)
+            error(f"failed to launch editor '{editor}': {e}")
             return text
         if proc.returncode != 0:
-            print(f"WARNING: editor '{editor}' exited with code "
-                  f"{proc.returncode}; keeping original text",
-                  file=sys.stderr)
+            error(f"editor '{editor}' exited with code "
+                  f"{proc.returncode}; keeping original text")
             return text
         with open(tmp.name) as f:
             edited = f.read().strip()
@@ -81,10 +80,9 @@ def generate_reply_texts(comments: List[Comment],
         debug=debug
     )
     if not ai_result.ok:
-        print(
-            f"ERROR: {configured_provider_display_name()} failed generating replies: "
-            f"{ai_result.error.strip()}",
-              file=sys.stderr)
+        error(
+            f"{configured_provider_display_name()} failed generating replies: "
+            f"{ai_result.error.strip()}")
         sys.exit(1)
     replies = ai_result.result
 
@@ -106,8 +104,8 @@ def _post_reply(c: Comment, owner: str, repo: str, pr_number: int) -> None:
         text=True,
     )
     if result.returncode != 0:
-        print(f"WARNING: failed to post reply for comment {c.id}: "
-              f"{result.stderr.strip()}", file=sys.stderr)
+        error(f"failed to post reply for comment {c.id}: "
+              f"{result.stderr.strip()}")
 
 
 def _resolve_thread(thread_node_id: str) -> None:
@@ -124,24 +122,24 @@ def _resolve_thread(thread_node_id: str) -> None:
         text=True,
     )
     if result.returncode != 0:
-        print(f"WARNING: failed to resolve thread {thread_node_id}: "
-              f"{result.stderr.strip()}", file=sys.stderr)
+        error(f"failed to resolve thread {thread_node_id}: "
+              f"{result.stderr.strip()}")
 
 
 def confirm_and_post_replies(comments: List[Comment], owner: str, repo: str,
                               pr_number: int) -> None:
     if not comments:
         return
-    print("\nProposed replies:")
+    info("\nProposed replies:")
     for c in comments:
         if not c.reply_text:
-            print(f"\n  @{c.author}: skipping - no reply text was generated "
-                  f"for comment {c.id}", file=sys.stderr)
+            error(f"@{c.author}: skipping - no reply text was generated "
+                  f"for comment {c.id}")
             continue
         body_preview = c.body[:80] + "..." if len(c.body) > 80 else c.body
-        print(f"\n  @{c.author}: \"{body_preview}\"")
+        info(f"\n  @{c.author}: \"{body_preview}\"")
         while True:
-            print(f"  Reply: {c.reply_text}")
+            info(f"  Reply: {c.reply_text}")
             answer = select("Post this reply?", choices=["yes", "no", "edit"], single=True)
             if answer == "yes":
                 _post_reply(c, owner, repo, pr_number)

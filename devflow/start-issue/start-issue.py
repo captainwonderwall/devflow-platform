@@ -25,6 +25,7 @@ from repo_init import detect_and_write_config
 from ide_config import copy_ide_config, prompt_and_open_ide, prompt_and_open_ai_agent
 from devflow_sdk.core.summary import summary
 from devflow_sdk.core.ai import run_ai_prompt
+from devflow_sdk.core.ui import error, info
 
 _INFER_TYPE_PROMPT = """\
 You are classifying a {source} issue into a git branch type.
@@ -54,11 +55,11 @@ def _ai_infer_type(issue):
     )
     result = run_ai_prompt(prompt, tier="fast", result_type="json", stateless=True)
     if not result.ok:
-        print(f"WARNING: AI type inference failed — defaulting to 'feat'.\n{result.error}", file=sys.stderr)
+        error(f"WARNING: AI type inference failed — defaulting to 'feat'.\n{result.error}")
         return "feat"
     inferred = result.result.get("type", "feat")
     if inferred not in VALID_TYPES:
-        print(f"WARNING: AI returned unknown type '{inferred}' — defaulting to 'feat'.", file=sys.stderr)
+        error(f"WARNING: AI returned unknown type '{inferred}' — defaulting to 'feat'.")
         return "feat"
     return inferred
 
@@ -108,19 +109,13 @@ def _validate_base_branch(parent_branch: str) -> bool:
         single=True,
     )
     if not answer or answer.startswith("Accept"):
-        print(
-            "⚠️  Proceeding with stale base — your stack may need rebasing later.",
-            file=sys.stderr,
-        )
+        error("⚠️  Proceeding with stale base — your stack may need rebasing later.")
         return True
 
     pull = subprocess.run(["git", "pull", "--rebase", "origin", parent_branch])
     if pull.returncode != 0:
         subprocess.run(["git", "rebase", "--abort"], capture_output=True)
-        print(
-            f"ERROR: Rebase of '{parent_branch}' failed. Resolve conflicts and re-run start-issue.",
-            file=sys.stderr,
-        )
+        error(f"ERROR: Rebase of '{parent_branch}' failed. Resolve conflicts and re-run start-issue.")
         sys.exit(1)
     return True
 
@@ -167,7 +162,7 @@ def main():
     if override is None and _needs_ai_inference(issue):
         override = _ai_infer_type(issue)
     branch = make_branch(issue, override=override, worktree=True)
-    print(f"Branch: {branch}")
+    info(f"Branch: {branch}")
 
     repo_root = get_repo_root()
     parent_branch = _detect_stack_parent()

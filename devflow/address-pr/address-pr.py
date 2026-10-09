@@ -23,6 +23,7 @@ from devflow_sdk.core.summary import summary
 from devflow_sdk.domain.issue import check_gh
 from devflow_sdk.core.prompts import confirm
 from devflow_sdk.core.ai import configured_provider_display_name
+from devflow_sdk.core.ui import status, info, error, success
 
 
 def parse_args():
@@ -119,7 +120,7 @@ def commit_changes(authors: list, paths: Optional[list] = None) -> Optional[str]
     (so unrelated pre-existing dirty files are never swept into the
     commit); if it's an empty list, no-op immediately."""
     if paths is not None and not paths:
-        print("No file changes to commit.")
+        info("No file changes to commit.")
         return None
 
     author_list = ", ".join(f"@{a}" for a in authors)
@@ -144,7 +145,7 @@ def commit_changes(authors: list, paths: Optional[list] = None) -> Optional[str]
                                              ["git", "diff", "--cached", "--quiet"])
     else:
         # No staged changes
-        print("No file changes to commit.")
+        info("No file changes to commit.")
         return None
 
 
@@ -152,17 +153,17 @@ def prompt_and_push() -> bool:
     result = subprocess.run(
         ["git", "log", "--oneline", "-1"], capture_output=True, text=True
     )
-    print(f"\nCommit: {result.stdout.strip()}")
+    info(f"\nCommit: {result.stdout.strip()}")
     stat = subprocess.run(
         ["git", "diff", "HEAD~1", "--stat"], capture_output=True, text=True
     )
-    print(stat.stdout)
+    info(stat.stdout)
     if confirm("Push these changes?"):
         subprocess.run(["git", "push"], check=True)
-        print("Pushed.")
+        success("Pushed.")
         return True
     else:
-        print("Push skipped. Run 'git push' when ready.")
+        info("Push skipped. Run 'git push' when ready.")
         return False
 
 
@@ -174,7 +175,7 @@ def main():
 
     data = collect()
     if not data["comments"]:
-        print("No unresolved comments found.")
+        info("No unresolved comments found.")
         summary.print_summary()
         return
 
@@ -189,24 +190,23 @@ def main():
 
     selected = prompt_selection(comments)
     if selected is None:
-        print("Quitting.")
+        info("Quitting.")
         summary.print_summary()
         return
 
     chosen = [comments[i] for i in selected]
 
-    print(
-        f"\nAddressing comments with {configured_provider_display_name()}...\n"
+    status(
+        f"Addressing comments with {configured_provider_display_name()}..."
     )
     status_before = get_working_tree_status()
     sha_before = get_current_sha()
-    success = apply_changes(data["pr_title"], data["pr_description"], chosen,
-                            session_id=session_id, debug=args.debug)
-    if not success:
-        print(
-            f"ERROR: {configured_provider_display_name()} session failed. "
-            "No changes committed.",
-              file=sys.stderr)
+    apply_success = apply_changes(data["pr_title"], data["pr_description"], chosen,
+                                  session_id=session_id, debug=args.debug)
+    if not apply_success:
+        error(
+            f"{configured_provider_display_name()} session failed. "
+            "No changes committed.")
         sys.exit(1)
 
     sha_after = get_current_sha()
@@ -216,11 +216,10 @@ def main():
 
     if sha_before != sha_after:
         if not head_advanced_via_commit():
-            print(
-                "WARNING: HEAD moved but the last reflog entry doesn't look "
+            error(
+                "HEAD moved but the last reflog entry doesn't look "
                 "like a commit (possible reset/checkout). Treating any "
-                "remaining changes as uncommitted.",
-                file=sys.stderr,
+                "remaining changes as uncommitted."
             )
         sha = sha_after
     else:
@@ -234,7 +233,7 @@ def main():
         sha = leftover_sha
 
     if sha is None:
-        print("\nNo commit was made. Proceeding with reply.")
+        info("No commit was made. Proceeding with reply.")
         commit_sha = "no commit"
     else:
         commit_sha = sha

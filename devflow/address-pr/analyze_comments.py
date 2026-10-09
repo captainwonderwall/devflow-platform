@@ -11,6 +11,7 @@ import glob as _glob
 for _whl in sorted(_glob.glob(os.path.join(VENDOR_DIR, "*.whl"))):
     sys.path.insert(0, _whl)
 from devflow_sdk.core.ai import configured_provider_display_name, run_ai_prompt
+from devflow_sdk.core.ui import error
 
 REUSE_TOKEN_LIMIT = 160_000
 
@@ -51,10 +52,9 @@ def analyze_comments(pr_title: str, pr_branch: str,
     ai_result = run_ai_prompt(prompt, tier="capable",
                               result_type="json", debug=debug)
     if not ai_result.ok:
-        print(
-            f"ERROR: {configured_provider_display_name()} failed during analysis: "
-            f"{ai_result.error.strip()}",
-              file=sys.stderr)
+        error(
+            f"{configured_provider_display_name()} failed during analysis: "
+            f"{ai_result.error.strip()}")
         sys.exit(1)
 
     verdicts = ai_result.result

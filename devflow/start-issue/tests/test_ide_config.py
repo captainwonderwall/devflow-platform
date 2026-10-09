@@ -309,9 +309,9 @@ class TestPromptAndOpenIde(unittest.TestCase):
         os.makedirs(os.path.join(self.tmpdir, ".vscode"))
         with patch("devflow_sdk.domain.ide.subprocess.run", side_effect=FileNotFoundError), \
              patch("devflow_sdk.domain.ide.select", return_value="code"), \
-             patch("ide_config.sys.stderr") as mock_stderr:
+             patch("builtins.print") as mock_print:
             prompt_and_open_ide(self.tmpdir)  # must not raise
-        mock_stderr.write.assert_called()
+        mock_print.assert_called()
 
     def test_launches_intellij_when_both_detected_and_intellij_chosen(self):
         os.makedirs(os.path.join(self.tmpdir, ".idea"))
@@ -330,8 +330,8 @@ class TestPromptAndOpenAiAgent(unittest.TestCase):
         shutil.rmtree(self.tmpdir, ignore_errors=True)
 
     def test_launches_agent_when_user_selects_open(self):
-        with patch("ide_config.select", return_value="open"), \
-             patch("ide_config.launch_interactive_session") as mock_launch:
+        with patch("devflow_sdk.domain.ide.select", return_value="open"), \
+             patch("devflow_sdk.domain.ide.launch_interactive_session") as mock_launch:
             prompt_and_open_ai_agent(self.tmpdir)
         mock_launch.assert_called_once_with(
             "Brainstorm a solution for the issue described in .issue.json",
@@ -339,8 +339,8 @@ class TestPromptAndOpenAiAgent(unittest.TestCase):
         )
 
     def test_skips_when_user_selects_none(self):
-        with patch("ide_config.select", return_value=None), \
-             patch("ide_config.launch_interactive_session") as mock_launch:
+        with patch("devflow_sdk.domain.ide.select", return_value=None), \
+             patch("devflow_sdk.domain.ide.launch_interactive_session") as mock_launch:
             prompt_and_open_ai_agent(self.tmpdir)
         mock_launch.assert_not_called()
 

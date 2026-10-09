@@ -15,6 +15,7 @@ for _whl in sorted(_glob.glob(os.path.join(VENDOR_DIR, "*.whl"))):
 from devflow_sdk.core.ai import configured_provider_display_name, run_ai_prompt
 from devflow_sdk.core.ai.providers import get_provider
 from devflow_sdk.core.config import load_config
+from devflow_sdk.core.ui import error, info, status
 
 
 class FileEdit(NamedTuple):
@@ -211,10 +212,10 @@ def build_apply_prompt(pr_title: str, pr_description: str,
     return "\n".join(lines)
 
 
-def _build_retry_prompt(error: str) -> str:
+def _build_retry_prompt(apply_error: str) -> str:
     return (
         "Your previous <edits> block could not be applied for this reason:\n"
-        f"{error}\n\n"
+        f"{apply_error}\n\n"
         "Re-read ALL the files involved in ALL the review comments above, "
         "then output a COMPLETE corrected <edits> block that addresses "
         "every comment — not just the one that failed. Make sure every "
@@ -244,10 +245,10 @@ def apply_changes(pr_title: str, pr_description: str,
         )
 
         if ai_result.needs_interaction:
-            print(f"{configured_provider_display_name()} needs write permission to modify files "
-                  "(bypass permissions may be disabled by an org policy).")
-            print("Resuming interactively — answer the approval prompt when "
-                  "it appears.\n")
+            status(f"{configured_provider_display_name()} needs write permission to modify files "
+                   "(bypass permissions may be disabled by an org policy).")
+            info("Resuming interactively — answer the approval prompt when "
+                 "it appears.\n")
             try:
                 config = load_config()
                 provider = get_provider(config.global_config)
@@ -255,18 +256,17 @@ def apply_changes(pr_title: str, pr_description: str,
                 interactive_proc = subprocess.run(resume_cmd)
                 return interactive_proc.returncode == 0
             except OSError as e:
-                print(
-                    f"Error: Could not run {configured_provider_display_name()}: {e}",
-                    file=sys.stderr,
+                error(
+                    f"Error: Could not run {configured_provider_display_name()}: {e}"
                 )
                 return False
             except KeyboardInterrupt:
-                print("\nCancelled.", file=sys.stderr)
+                error("Cancelled.")
                 return False
 
         if not ai_result.ok:
             if ai_result.error:
-                print(ai_result.error, end="", file=sys.stderr)
+                error(ai_result.error.rstrip())
             return False
 
         current_session_id = ai_result.session_id or current_session_id
@@ -274,23 +274,21 @@ def apply_changes(pr_title: str, pr_description: str,
 
         edits = extract_edits(result_text)
         if edits is None:
-            print(
-                f"{configured_provider_display_name()} did not produce any edits.",
-                file=sys.stderr,
+            error(
+                f"{configured_provider_display_name()} did not produce any edits."
             )
             return False
 
         if not edits:
             return True
 
-        ok, error = apply_edits(edits)
+        ok, apply_error = apply_edits(edits)
         if ok:
             return True
 
-        last_error = error
-        print(f"Attempt {attempt} failed to apply edits: {error}",
-              file=sys.stderr)
+        last_error = apply_error
+        error(f"Attempt {attempt} failed to apply edits: {apply_error}")
 
-    print(f"ERROR: could not apply edits after {MAX_APPLY_ATTEMPTS} "
-          f"attempts: {last_error}", file=sys.stderr)
+    error(f"could not apply edits after {MAX_APPLY_ATTEMPTS} "
+          f"attempts: {last_error}")
     return False

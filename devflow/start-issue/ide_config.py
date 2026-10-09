@@ -1,37 +1,17 @@
 import os
 import re
 import shutil
-import sys
 
-from devflow_sdk.core.prompts import select, Choice
-from devflow_sdk.core.ai import launch_interactive_session
-from devflow_sdk.domain.ide import detect_ides, prompt_and_open_ide
+from devflow_sdk.core.ui import error, success
+from devflow_sdk.domain.ide import detect_ides, prompt_and_open_ide, prompt_and_open_ai_agent
 
 IDE_CONFIG_FOLDERS = (".idea", ".vscode")
-
-
-_AI_AGENT_PROMPT = "Brainstorm a solution for the issue described in .issue.json"
-
-
-def prompt_and_open_ai_agent(worktree_path):
-    """Prompt the user to open an interactive AI agent session in the worktree."""
-    choices = [
-        Choice(title="Open AI agent session", value="open"),
-        Choice(title="Skip", value=None),
-    ]
-    chosen = select("Start working with an AI agent?", choices, single=True)
-    if chosen == "open":
-        launch_interactive_session(_AI_AGENT_PROMPT, cwd=worktree_path)
 
 
 def _copy_folder(src, dest):
     if not os.path.isdir(src):
         return False
     if os.path.exists(dest):
-        print(
-            f"NOTICE: {os.path.basename(dest)} already exists in the new "
-            f"worktree — skipping copy."
-        )
         return False
     try:
         shutil.copytree(src, dest)
@@ -82,6 +62,6 @@ def copy_ide_config(main_root, worktree_path):
             copied = _copy_folder(src, dest)
             if copied:
                 _rewrite_paths(dest, main_root, worktree_path)
-                print(f"Copied {folder} config (paths updated).")
+                success(f"Copied {folder} config (paths updated).")
         except Exception as e:
-            print(f"WARNING: could not copy {folder} config: {e}", file=sys.stderr)
+            error(f"could not copy {folder} config: {e}")

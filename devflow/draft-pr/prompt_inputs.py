@@ -1,6 +1,15 @@
 #!/usr/bin/env python3
 import json
 import sys
+import os as _os
+import glob as _glob_pi
+
+_SCRIPT_DIR = _os.path.dirname(_os.path.abspath(__file__))
+_REPO_ROOT = _os.path.dirname(_SCRIPT_DIR)
+_VENDOR_DIR = _os.path.join(_REPO_ROOT, "vendor")
+for _whl in sorted(_glob_pi.glob(_os.path.join(_VENDOR_DIR, "*.whl"))):
+    sys.path.insert(0, _whl)
+from devflow_sdk.core.ui import error
 
 
 def build_questions(data):
@@ -25,7 +34,7 @@ def load_stdin_json(stream):
     try:
         return json.load(stream)
     except json.JSONDecodeError as exc:
-        print(f"ERROR: Invalid JSON on stdin: {exc}", file=sys.stderr)
+        error(f"Invalid JSON on stdin: {exc}")
         sys.exit(1)
 
 

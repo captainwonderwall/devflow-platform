@@ -12,6 +12,7 @@ for _whl in sorted(_glob.glob(os.path.join(_VENDOR_DIR, "*.whl"))):
 
 from devflow_sdk.core.branch_name import parse_branch
 from devflow_sdk.core.git.git_ops import current_branch, get_base_branch
+from devflow_sdk.core.ui import error
 
 FIX_PREFIXES = {"fix", "bugfix", "hotfix"}
 
@@ -87,7 +88,7 @@ def collect():
 
 def validate_data(data):
     if not data.get("branch"):
-        print("ERROR: Not a git repo. Run this from inside your project.", file=sys.stderr)
+        error("Not a git repo. Run this from inside your project.")
         sys.exit(1)
 
 

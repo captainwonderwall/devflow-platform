@@ -16,6 +16,7 @@ from devflow_sdk.core.git import git_ops
 from devflow_sdk.core.ai import run_ai_prompt
 from devflow_sdk.core.summary import summary
 from devflow_sdk.core.prompts import select
+from devflow_sdk.core.ui import status, error, info
 
 DIRTY_ABORT = "Abort"
 DIRTY_STASH = "Stash changes, squash, then restore them"
@@ -85,33 +86,32 @@ def main():
 
     branch = git_ops.current_branch()
     if not branch:
-        print("ERROR: Not a git repo. Run this from inside your project.", file=sys.stderr)
+        error("Not a git repo. Run this from inside your project.")
         sys.exit(1)
 
     base = git_ops.get_base_branch()
     count = git_ops.commits_ahead(base)
     if count <= 1:
-        print(f"Nothing to squash — {count} commit(s) ahead of {base}.")
+        info(f"Nothing to squash — {count} commit(s) ahead of {base}.")
         sys.exit(0)
 
     stashed = False
     if git_ops.is_dirty():
         choice = resolve_dirty_choice(prompt_dirty_tree_choice())
         if choice == "abort":
-            print("Aborted: commit or stash your changes, then rerun.", file=sys.stderr)
+            error("Aborted: commit or stash your changes, then rerun.")
             sys.exit(1)
         if not git_ops.stash_push():
-            print("ERROR: git stash push failed.", file=sys.stderr)
+            error("git stash push failed.")
             sys.exit(1)
         stashed = True
 
     def restore_stash():
         if stashed:
             if not git_ops.stash_pop():
-                print(
-                    "WARNING: git stash pop failed; your changes are still stashed. "
-                    "Recover with: git stash pop",
-                    file=sys.stderr,
+                error(
+                    "git stash pop failed; your changes are still stashed. "
+                    "Recover with: git stash pop"
                 )
 
     atexit.register(restore_stash)
@@ -122,21 +122,21 @@ def main():
     log_text = git_ops.log_for_prompt(base)
     diff_stat_text = git_ops.diff_stat(base)
 
-    print("Drafting commit message with AI...")
+    status("Drafting commit message with AI...")
     ai_result = run_ai_prompt(
         build_prompt(log_text, diff_stat_text), tier="fast", result_type="text"
     )
     if not ai_result.ok:
-        print(f"ERROR: AI CLI failed:\n{ai_result.error}", file=sys.stderr)
+        error(f"AI CLI failed:\n{ai_result.error}")
         sys.exit(1)
 
     message = extract_commit_message(ai_result.result)
     if not message:
-        print("ERROR: AI returned an empty commit message.", file=sys.stderr)
+        error("AI returned an empty commit message.")
         sys.exit(1)
 
     if not git_ops.soft_reset_and_commit(base, message):
-        print("ERROR: git reset/commit failed while squashing.", file=sys.stderr)
+        error("git reset/commit failed while squashing.")
         sys.exit(1)
 
     summary.add("Branch", branch)
@@ -151,11 +151,8 @@ def main():
             summary.add("Push", f"origin/{branch} (force-with-lease)")
         else:
             summary.add("Push", "failed")
-            print(f"ERROR: force-push failed:\n{output}", file=sys.stderr)
-            print(
-                "The squash is local-only. Retry manually: git push --force-with-lease",
-                file=sys.stderr,
-            )
+            error(f"force-push failed:\n{output}")
+            error("The squash is local-only. Retry manually: git push --force-with-lease")
             summary.print_summary()
             sys.exit(1)
     else:

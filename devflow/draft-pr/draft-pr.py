@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import atexit
 import os
 import subprocess
 import sys
@@ -14,6 +15,8 @@ for _whl in sorted(_glob.glob(os.path.join(VENDOR_DIR, "*.whl"))):
 from devflow_sdk.core.ai import run_ai_prompt
 from devflow_sdk.core.prompts import select, prompt
 from devflow_sdk.core.config import load_config, load_tool_config
+from devflow_sdk.core.ui import status, success, error, info
+from devflow_sdk.core.summary import summary
 from devflow_sdk.plugin import DraftPrPlugin, select_plugin
 from devflow_sdk.core.config.wizard.tools.draft_pr import DraftPrConfig, resolve_plugin
 
@@ -47,6 +50,9 @@ def resolve_jira(data, github_issue_arg):
 
 
 def main():
+    atexit.register(summary.print_summary)
+    summary.start_rate_fetch()
+
     import argparse
     parser = argparse.ArgumentParser()
     parser.add_argument("--github-issue", default=None)
@@ -56,7 +62,7 @@ def main():
     validate_state(data)
     existing_url = check_existing_pr(data.get("branch", ""))
     if existing_url:
-        print(f"PR already exists: {existing_url}")
+        info(f"PR already exists: {existing_url}")
         sys.exit(0)
 
     devflow_cfg = load_config()
@@ -73,9 +79,9 @@ def main():
 
     plugin = select_plugin(DraftPrPlugin, configured_plugin_name)
     if plugin is None:
-        print("Error: no plugins registered.", file=sys.stderr)
-        print("Install a plugin with: brew install <plugin-formula>", file=sys.stderr)
-        print("Or run 'devflow-plugin list' to see what is installed.", file=sys.stderr)
+        error("Error: no plugins registered.")
+        error("Install a plugin with: brew install <plugin-formula>")
+        error("Or run 'devflow-plugin list' to see what is installed.")
         sys.exit(1)
 
     # Standard inputs
@@ -102,7 +108,7 @@ def main():
     prompt_str = plugin.build_prompt(data, user_inputs)
     ai_result = run_ai_prompt(prompt_str, tier="capable", result_type="json")
     if not ai_result.ok:
-        print(f"AI error: {ai_result.error}", file=sys.stderr)
+        error(f"AI error: {ai_result.error}")
         sys.exit(1)
 
     body_str = plugin.build_body(ai_result.result, user_inputs)
@@ -116,12 +122,16 @@ def main():
         f.write(body_str)
 
     write_create_script(title, body_path, script_path, base=data.get("base"))
-    url, error = run_create_script(script_path)
+    url, error_msg = run_create_script(script_path)
     if url:
-        print(f"\nPR created: {url}")
-    elif error:
-        print(f"\nPR creation failed: {error}", file=sys.stderr)
-        print(f"Run manually: bash {script_path}", file=sys.stderr)
+        success(f"PR created: {url}")
+        summary.add("PR", url)
+        branch = data.get("branch")
+        if branch:
+            summary.add("Branch", branch)
+    elif error_msg:
+        error(f"PR creation failed: {error_msg}")
+        error(f"Run manually: bash {script_path}")
 
 
 if __name__ == "__main__":

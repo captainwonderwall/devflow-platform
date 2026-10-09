@@ -47,6 +47,7 @@ def _run_main(argv, tracked=None, find_return=None, select_return=None,
         stack.enter_context(unittest.mock.patch.object(continue_issue, "find_for_issue",
             return_value=find_return))
         mock_ide = stack.enter_context(unittest.mock.patch.object(continue_issue, "prompt_and_open_ide"))
+        stack.enter_context(unittest.mock.patch.object(continue_issue, "prompt_and_open_ai_agent"))
         mock_persist = stack.enter_context(unittest.mock.patch.object(
             continue_issue, "_persist_continue_branch_for_shell", return_value=persist_return))
         try:

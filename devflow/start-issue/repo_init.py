@@ -5,6 +5,7 @@ import sys
 
 from devflow_sdk.core.ai import run_ai_prompt
 from devflow_sdk.core.prompts import confirm
+from devflow_sdk.core.ui import status, success, error, info
 
 WT_CONFIG = ".config/wt.toml"
 
@@ -58,10 +59,10 @@ def _collect_repo_files(repo_root):
 
 def detect_and_write_config(repo_root):
     if has_wt_config(repo_root):
-        print(f"Found existing {WT_CONFIG} — skipping repo init.")
+        status(f"Found existing {WT_CONFIG} — skipping repo init.")
         return
 
-    print("No .config/wt.toml found. Detecting repo type with Claude...")
+    status("No .config/wt.toml found. Detecting repo type with Claude...")
     prompt = _CLAUDE_PROMPT_TEMPLATE.format(files=_collect_repo_files(repo_root))
 
     ai_result = run_ai_prompt(
@@ -73,28 +74,26 @@ def detect_and_write_config(repo_root):
     )
 
     if not ai_result.ok:
-        print(
+        error(
             f"WARNING: Claude failed to detect repo type. "
-            f"Add [pre-start] hooks to {WT_CONFIG} manually.\n{ai_result.error}",
-            file=sys.stderr,
+            f"Add [pre-start] hooks to {WT_CONFIG} manually.\n{ai_result.error}"
         )
         return
 
     toml_content = _strip_code_fence(ai_result.result)
 
     if "[pre-start]" not in toml_content:
-        print(
+        error(
             f"WARNING: Claude output did not contain valid [pre-start] TOML. "
-            f"Skipping repo init.",
-            file=sys.stderr,
+            f"Skipping repo init."
         )
         return
 
     config_path = os.path.join(repo_root, WT_CONFIG)
     os.makedirs(os.path.dirname(config_path), exist_ok=True)
 
-    print(f"\nGenerated {WT_CONFIG}:\n")
-    print(toml_content)
+    info(f"\nGenerated {WT_CONFIG}:\n")
+    info(toml_content)
 
     with open(config_path, "w") as f:
         f.write(toml_content + "\n")
@@ -107,12 +106,11 @@ def detect_and_write_config(repo_root):
                 cwd=repo_root,
                 check=True,
             )
-            print(f"Committed {WT_CONFIG}.")
+            success(f"Committed {WT_CONFIG}.")
         except subprocess.CalledProcessError as e:
-            print(
+            error(
                 f"WARNING: could not commit {WT_CONFIG}: {e}\n"
-                f"Wrote it (not committed — add and commit it when ready).",
-                file=sys.stderr,
+                f"Wrote it (not committed — add and commit it when ready)."
             )
     else:
-        print(f"Wrote {WT_CONFIG} (not committed — add and commit it when ready).")
+        info(f"Wrote {WT_CONFIG} (not committed — add and commit it when ready).")

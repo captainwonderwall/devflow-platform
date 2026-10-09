@@ -3,8 +3,15 @@ import json
 import os
 import subprocess
 import sys
+import glob as _glob_prep
 
-SCRIPTS_DIR = os.path.dirname(os.path.abspath(__file__))
+_SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+_VENDOR_DIR = os.path.join(os.path.dirname(_SCRIPT_DIR), "vendor")
+for _whl in sorted(_glob_prep.glob(os.path.join(_VENDOR_DIR, "*.whl"))):
+    sys.path.insert(0, _whl)
+from devflow_sdk.core.ui import error
+
+SCRIPTS_DIR = _SCRIPT_DIR
 
 
 def run_script(script_name, stdin_data=None):
@@ -14,7 +21,7 @@ def run_script(script_name, stdin_data=None):
         kwargs["input"] = json.dumps(stdin_data)
     result = subprocess.run([sys.executable, script_path], **kwargs)
     if result.returncode != 0:
-        print(result.stderr, file=sys.stderr)
+        error(result.stderr.rstrip())
         sys.exit(result.returncode)
     return json.loads(result.stdout)
 
@@ -22,7 +29,7 @@ def run_script(script_name, stdin_data=None):
 def validate_state(data):
     branch = data.get("branch")
     if not branch:
-        print("ERROR: Not a git repo. Run this from inside your project.", file=sys.stderr)
+        error("Not a git repo. Run this from inside your project.")
         sys.exit(1)
     raw_base = data.get("base")
     base = raw_base or "main"
@@ -31,10 +38,10 @@ def validate_state(data):
     # to the "main" fallback so this doesn't regress the previous behavior.
     is_blocked = branch == base or (not raw_base and branch in {"main", "master"})
     if is_blocked:
-        print(f"ERROR: You're on {branch}. Switch to a feature branch first.", file=sys.stderr)
+        error(f"You're on {branch}. Switch to a feature branch first.")
         sys.exit(1)
     if not data.get("git_log"):
-        print(f"ERROR: No commits found ahead of {base}. Nothing to PR.", file=sys.stderr)
+        error(f"No commits found ahead of {base}. Nothing to PR.")
         sys.exit(1)
 
 
