@@ -23,6 +23,12 @@ resolve_dirty_choice = finish_issue.resolve_dirty_choice
 resolve_unmerged_choice = finish_issue.resolve_unmerged_choice
 
 
+def _patch_close_intellij(stack, result="not_running"):
+    return stack.enter_context(
+        unittest.mock.patch.object(finish_issue, "close_intellij_project", return_value=result)
+    )
+
+
 class TestCwdInsideWorktree(unittest.TestCase):
     def test_cwd_equals_worktree_path(self):
         self.assertTrue(_cwd_inside_worktree("/repos/feat-52", cwd="/repos/feat-52"))
@@ -115,6 +121,7 @@ class TestMainUnmergedBranchHandling(unittest.TestCase):
             stack.enter_context(unittest.mock.patch.object(finish_issue, "_cwd_inside_worktree", return_value=False))
             stack.enter_context(unittest.mock.patch.object(finish_issue, "remove_issue_context"))
             stack.enter_context(unittest.mock.patch.object(finish_issue, "remove_worktree"))
+            _patch_close_intellij(stack)
             mock_run = stack.enter_context(unittest.mock.patch.object(
                 finish_issue.subprocess, "run",
                 return_value=unittest.mock.MagicMock(returncode=0, stderr="")))
@@ -187,6 +194,7 @@ class TestMainDirtyWorktreeHandling(unittest.TestCase):
                 finish_issue, "_clear_force_marker_for_shell", return_value=True))
             stack.enter_context(unittest.mock.patch.object(finish_issue, "_cwd_inside_worktree", return_value=False))
             stack.enter_context(unittest.mock.patch.object(finish_issue, "remove_worktree"))
+            _patch_close_intellij(stack)
             mock_run = stack.enter_context(unittest.mock.patch.object(
                 finish_issue.subprocess, "run",
                 return_value=unittest.mock.MagicMock(returncode=0, stderr="")))
@@ -281,6 +289,7 @@ class TestMainIssueContextCleanup(unittest.TestCase):
                 return_value=finish_issue.DIRTY_ABORT))
             stack.enter_context(unittest.mock.patch.object(finish_issue, "_persist_branch_for_shell"))
             stack.enter_context(unittest.mock.patch.object(finish_issue, "_cwd_inside_worktree", return_value=False))
+            _patch_close_intellij(stack)
             mock_remove = stack.enter_context(unittest.mock.patch.object(finish_issue, "remove_issue_context",
                 side_effect=lambda p: call_order.append("remove_issue_context")))
             stack.enter_context(unittest.mock.patch.object(finish_issue, "remove_worktree"))
@@ -326,7 +335,7 @@ class TestMainIssueAutoDetection(unittest.TestCase):
             cwd_inside=cwd_inside,
         )
 
-    def _run(self, argv, tracked_worktrees=None, find_return=None, select_return=None):
+    def _run(self, argv, tracked_worktrees=None, find_return=None, checkbox_return=None):
         cfg = self._base_patches(argv, tracked_worktrees=tracked_worktrees, find_return=find_return)
 
         with contextlib.ExitStack() as stack:
@@ -337,8 +346,8 @@ class TestMainIssueAutoDetection(unittest.TestCase):
                 return_value=cfg["fetched_issue"]))
             stack.enter_context(unittest.mock.patch.object(finish_issue, "list_tracked_worktrees",
                 return_value=cfg["tracked_worktrees"]))
-            mock_select = stack.enter_context(unittest.mock.patch.object(finish_issue, "select",
-                return_value=select_return))
+            mock_checkbox = stack.enter_context(unittest.mock.patch.object(finish_issue, "checkbox",
+                return_value=checkbox_return))
             stack.enter_context(unittest.mock.patch.object(finish_issue, "query_worktrees",
                 return_value=cfg["worktrees"]))
             stack.enter_context(unittest.mock.patch.object(finish_issue, "find_for_issue",
@@ -350,6 +359,7 @@ class TestMainIssueAutoDetection(unittest.TestCase):
             stack.enter_context(unittest.mock.patch.object(finish_issue, "_cwd_inside_worktree", return_value=False))
             stack.enter_context(unittest.mock.patch.object(finish_issue, "remove_issue_context"))
             stack.enter_context(unittest.mock.patch.object(finish_issue, "remove_worktree"))
+            _patch_close_intellij(stack)
             stack.enter_context(unittest.mock.patch.object(finish_issue.subprocess, "run",
                 return_value=unittest.mock.MagicMock(returncode=0, stderr="")))
             try:
@@ -357,13 +367,13 @@ class TestMainIssueAutoDetection(unittest.TestCase):
                 exit_code = 0
             except SystemExit as e:
                 exit_code = e.code
-        return exit_code, mock_fetch, mock_select
+        return exit_code, mock_fetch, mock_checkbox
 
     def test_cli_arg_calls_fetch_skips_tracking_check(self):
-        exit_code, mock_fetch, mock_select = self._run(["finish-issue", "65"])
+        exit_code, mock_fetch, mock_checkbox = self._run(["finish-issue", "65"])
         self.assertEqual(exit_code, 0)
         mock_fetch.assert_called_once_with("65")
-        mock_select.assert_not_called()
+        mock_checkbox.assert_not_called()
 
     def test_no_arg_cwd_is_tracked_worktree_skips_fetch(self):
         from devflow_sdk.worktree_state import WorktreeEntry
@@ -388,6 +398,7 @@ class TestMainIssueAutoDetection(unittest.TestCase):
             stack.enter_context(unittest.mock.patch.object(finish_issue, "_persist_branch_for_shell", return_value=True))
             stack.enter_context(unittest.mock.patch.object(finish_issue, "remove_issue_context"))
             stack.enter_context(unittest.mock.patch.object(finish_issue, "remove_worktree"))
+            _patch_close_intellij(stack)
             stack.enter_context(unittest.mock.patch.object(finish_issue.subprocess, "run",
                 return_value=unittest.mock.MagicMock(returncode=0, stderr="")))
             try:
@@ -399,33 +410,33 @@ class TestMainIssueAutoDetection(unittest.TestCase):
         mock_fetch.assert_not_called()
 
     def test_no_arg_empty_tracked_list_exits_0(self):
-        exit_code, mock_fetch, mock_select = self._run(["finish-issue"], tracked_worktrees=[])
+        exit_code, mock_fetch, mock_checkbox = self._run(["finish-issue"], tracked_worktrees=[])
         self.assertEqual(exit_code, 0)
         mock_fetch.assert_not_called()
-        mock_select.assert_not_called()
+        mock_checkbox.assert_not_called()
 
     def test_no_arg_picker_selection_skips_fetch(self):
         from devflow_sdk.worktree_state import WorktreeEntry
         entry = WorktreeEntry(path="/repos/gh65", ticket_id="65", source="github")
         match = Workspace(branch="feat/wt/gh65-something", path="/repos/gh65", is_main=False)
         label = "65 (github) → /repos/gh65"
-        exit_code, mock_fetch, mock_select = self._run(
+        exit_code, mock_fetch, mock_checkbox = self._run(
             ["finish-issue"],
             tracked_worktrees=[entry],
             find_return=[match],
-            select_return=label,
+            checkbox_return=[label],
         )
         self.assertEqual(exit_code, 0)
         mock_fetch.assert_not_called()
-        mock_select.assert_called_once()
+        mock_checkbox.assert_called_once()
 
     def test_no_arg_picker_cancel_exits_1(self):
         from devflow_sdk.worktree_state import WorktreeEntry
         entry = WorktreeEntry(path="/repos/gh65", ticket_id="65", source="github")
-        exit_code, mock_fetch, mock_select = self._run(
+        exit_code, mock_fetch, mock_checkbox = self._run(
             ["finish-issue"],
             tracked_worktrees=[entry],
-            select_return=None,
+            checkbox_return=None,
         )
         self.assertEqual(exit_code, 1)
         mock_fetch.assert_not_called()
@@ -455,6 +466,7 @@ class TestCheckShellFunctionCalledInFinishIssue(unittest.TestCase):
             stack.enter_context(unittest.mock.patch.object(finish_issue, "_cwd_inside_worktree", return_value=False))
             stack.enter_context(unittest.mock.patch.object(finish_issue, "remove_issue_context"))
             stack.enter_context(unittest.mock.patch.object(finish_issue, "remove_worktree"))
+            _patch_close_intellij(stack)
             stack.enter_context(unittest.mock.patch.object(finish_issue.subprocess, "run",
                 return_value=unittest.mock.MagicMock(returncode=0, stderr="")))
             try:
@@ -496,6 +508,7 @@ class TestMainWorktreeStateIntegration(unittest.TestCase):
             stack.enter_context(unittest.mock.patch.object(finish_issue, "_clear_force_marker_for_shell", return_value=True))
             stack.enter_context(unittest.mock.patch.object(finish_issue, "_cwd_inside_worktree", return_value=False))
             stack.enter_context(unittest.mock.patch.object(finish_issue, "remove_issue_context"))
+            _patch_close_intellij(stack)
             mock_remove = stack.enter_context(unittest.mock.patch.object(finish_issue, "remove_worktree"))
             stack.enter_context(unittest.mock.patch.object(finish_issue.subprocess, "run",
                 return_value=unittest.mock.MagicMock(returncode=0, stderr="")))
@@ -512,6 +525,154 @@ class TestMainWorktreeStateIntegration(unittest.TestCase):
     def test_remove_worktree_called_in_prepare_path(self):
         mock_remove = self._run_main(prepare=True)
         mock_remove.assert_called_once_with("/repos/gh65")
+
+
+class TestMultiIssueSelection(unittest.TestCase):
+    """Exercises multi-issue batch finishing via positional args."""
+
+    def _run_multi(self, issue_keys, merged=True, dirty=False):
+        argv = ["finish-issue"] + issue_keys
+        worktrees = [{"branch": "main", "path": "/repos/main", "is_main": True}]
+
+        def make_match(key):
+            return Workspace(branch=f"feat/wt/gh{key}", path=f"/repos/gh{key}", is_main=False)
+
+        fetched = {k: {"source": "github", "id": k, "title": f"Issue {k}"} for k in issue_keys}
+        matches = {k: [make_match(k)] for k in issue_keys}
+
+        with contextlib.ExitStack() as stack:
+            stack.enter_context(unittest.mock.patch("sys.argv", argv))
+            stack.enter_context(unittest.mock.patch.object(finish_issue, "check_manager"))
+            stack.enter_context(unittest.mock.patch.object(finish_issue, "check_shell_function"))
+            stack.enter_context(unittest.mock.patch.object(finish_issue, "fetch",
+                side_effect=lambda k: fetched[k]))
+            stack.enter_context(unittest.mock.patch.object(finish_issue, "query_worktrees",
+                return_value=worktrees))
+            stack.enter_context(unittest.mock.patch.object(finish_issue, "find_for_issue",
+                side_effect=lambda issue_id, source: matches[issue_id]))
+            stack.enter_context(unittest.mock.patch.object(finish_issue, "get_main_branch", return_value="main"))
+            stack.enter_context(unittest.mock.patch.object(finish_issue, "is_merged", return_value=merged))
+            stack.enter_context(unittest.mock.patch.object(finish_issue, "is_dirty", return_value=dirty))
+            stack.enter_context(unittest.mock.patch.object(finish_issue, "_persist_branch_for_shell", return_value=True))
+            stack.enter_context(unittest.mock.patch.object(finish_issue, "_cwd_inside_worktree", return_value=False))
+            stack.enter_context(unittest.mock.patch.object(finish_issue, "remove_issue_context"))
+            mock_remove_wt = stack.enter_context(unittest.mock.patch.object(finish_issue, "remove_worktree"))
+            _patch_close_intellij(stack)
+            mock_run = stack.enter_context(unittest.mock.patch.object(
+                finish_issue.subprocess, "run",
+                return_value=unittest.mock.MagicMock(returncode=0, stderr="")))
+            try:
+                finish_issue.main()
+                exit_code = 0
+            except SystemExit as e:
+                exit_code = e.code
+        return exit_code, mock_run, mock_remove_wt
+
+    def test_multi_arg_removes_all_worktrees(self):
+        exit_code, mock_run, mock_remove_wt = self._run_multi(["65", "66"])
+        self.assertEqual(exit_code, 0)
+        self.assertEqual(mock_remove_wt.call_count, 2)
+        paths = {call[0][0] for call in mock_remove_wt.call_args_list}
+        self.assertEqual(paths, {"/repos/gh65", "/repos/gh66"})
+
+    def test_multi_arg_never_uses_prepare_mode(self):
+        """In multi-issue mode, dotfile persistence functions must not be called."""
+        with contextlib.ExitStack() as stack:
+            stack.enter_context(unittest.mock.patch("sys.argv", ["finish-issue", "65", "66"]))
+            stack.enter_context(unittest.mock.patch.object(finish_issue, "check_manager"))
+            stack.enter_context(unittest.mock.patch.object(finish_issue, "check_shell_function"))
+            stack.enter_context(unittest.mock.patch.object(finish_issue, "fetch",
+                side_effect=lambda k: {"source": "github", "id": k, "title": f"Issue {k}"}))
+            stack.enter_context(unittest.mock.patch.object(finish_issue, "query_worktrees",
+                return_value=[{"branch": "main", "path": "/repos/main", "is_main": True}]))
+            stack.enter_context(unittest.mock.patch.object(finish_issue, "find_for_issue",
+                side_effect=lambda issue_id, source: [
+                    Workspace(branch=f"feat/wt/gh{issue_id}", path=f"/repos/gh{issue_id}", is_main=False)
+                ]))
+            stack.enter_context(unittest.mock.patch.object(finish_issue, "get_main_branch", return_value="main"))
+            stack.enter_context(unittest.mock.patch.object(finish_issue, "is_merged", return_value=True))
+            stack.enter_context(unittest.mock.patch.object(finish_issue, "is_dirty", return_value=False))
+            mock_persist = stack.enter_context(unittest.mock.patch.object(
+                finish_issue, "_persist_worktree_for_shell", return_value=True))
+            stack.enter_context(unittest.mock.patch.object(finish_issue, "_persist_branch_for_shell", return_value=True))
+            stack.enter_context(unittest.mock.patch.object(finish_issue, "_cwd_inside_worktree", return_value=False))
+            stack.enter_context(unittest.mock.patch.object(finish_issue, "remove_issue_context"))
+            stack.enter_context(unittest.mock.patch.object(finish_issue, "remove_worktree"))
+            _patch_close_intellij(stack)
+            stack.enter_context(unittest.mock.patch.object(finish_issue.subprocess, "run",
+                return_value=unittest.mock.MagicMock(returncode=0, stderr="")))
+            try:
+                finish_issue.main()
+            except SystemExit:
+                pass
+        mock_persist.assert_not_called()
+
+
+class TestIntelliJClose(unittest.TestCase):
+    """Exercises the IntelliJ close step in _close_intellij_for_issue."""
+
+    def _run_with_intellij_result(self, intellij_result, user_choice=None):
+        argv = ["finish-issue", "65"]
+        worktrees = [{"branch": "main", "path": "/repos/main", "is_main": True}]
+        match = Workspace(branch="feat/wt/gh65-something", path="/repos/gh65", is_main=False)
+
+        with contextlib.ExitStack() as stack:
+            stack.enter_context(unittest.mock.patch("sys.argv", argv))
+            stack.enter_context(unittest.mock.patch.object(finish_issue, "check_manager"))
+            stack.enter_context(unittest.mock.patch.object(finish_issue, "check_shell_function"))
+            stack.enter_context(unittest.mock.patch.object(finish_issue, "fetch",
+                return_value={"source": "github", "id": "65", "title": "t"}))
+            stack.enter_context(unittest.mock.patch.object(finish_issue, "query_worktrees", return_value=worktrees))
+            stack.enter_context(unittest.mock.patch.object(finish_issue, "find_for_issue", return_value=[match]))
+            stack.enter_context(unittest.mock.patch.object(finish_issue, "get_main_branch", return_value="main"))
+            stack.enter_context(unittest.mock.patch.object(finish_issue, "is_merged", return_value=True))
+            stack.enter_context(unittest.mock.patch.object(finish_issue, "is_dirty", return_value=False))
+            stack.enter_context(unittest.mock.patch.object(finish_issue, "_persist_branch_for_shell", return_value=True))
+            stack.enter_context(unittest.mock.patch.object(finish_issue, "_cwd_inside_worktree", return_value=False))
+            stack.enter_context(unittest.mock.patch.object(finish_issue, "remove_issue_context"))
+            mock_remove_wt = stack.enter_context(unittest.mock.patch.object(finish_issue, "remove_worktree"))
+            stack.enter_context(unittest.mock.patch.object(
+                finish_issue, "close_intellij_project", return_value=intellij_result))
+            stack.enter_context(unittest.mock.patch.object(finish_issue, "select", return_value=user_choice))
+            stack.enter_context(unittest.mock.patch.object(finish_issue.subprocess, "run",
+                return_value=unittest.mock.MagicMock(returncode=0, stderr="")))
+            try:
+                finish_issue.main()
+                exit_code = 0
+            except SystemExit as e:
+                exit_code = e.code
+        return exit_code, mock_remove_wt
+
+    def test_not_running_continues_normally(self):
+        exit_code, mock_remove_wt = self._run_with_intellij_result("not_running")
+        self.assertEqual(exit_code, 0)
+        mock_remove_wt.assert_called_once()
+
+    def test_closed_continues_normally(self):
+        exit_code, mock_remove_wt = self._run_with_intellij_result("closed")
+        self.assertEqual(exit_code, 0)
+        mock_remove_wt.assert_called_once()
+
+    def test_failed_continue_choice_proceeds(self):
+        exit_code, mock_remove_wt = self._run_with_intellij_result(
+            "failed", user_choice=finish_issue.INTELLIJ_CONTINUE
+        )
+        self.assertEqual(exit_code, 0)
+        mock_remove_wt.assert_called_once()
+
+    def test_failed_skip_choice_aborts_issue(self):
+        exit_code, mock_remove_wt = self._run_with_intellij_result(
+            "failed", user_choice=finish_issue.INTELLIJ_SKIP
+        )
+        self.assertEqual(exit_code, 1)
+        mock_remove_wt.assert_not_called()
+
+    def test_failed_ctrl_c_aborts_issue(self):
+        exit_code, mock_remove_wt = self._run_with_intellij_result(
+            "failed", user_choice=None
+        )
+        self.assertEqual(exit_code, 1)
+        mock_remove_wt.assert_not_called()
 
 
 if __name__ == "__main__":
