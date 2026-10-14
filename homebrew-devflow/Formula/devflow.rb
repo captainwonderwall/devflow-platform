@@ -11,8 +11,8 @@ class Devflow < Formula
 
   # TODO: update url and sha256 after releasing devflow-sdk/v1.1.0
   resource "devflow-sdk" do
-    url "https://github.com/captainwonderwall/devflow-platform/releases/download/devflow-sdk%2Fv1.6.0/devflow_sdk-1.6.0-py3-none-any.whl"
-    sha256 "1a26f8509afc25be3fc992f66675c6cb14d8a9afe89c4ffafc4a0c1441026544"
+    url "https://github.com/captainwonderwall/devflow-platform/releases/download/devflow-sdk%2Fv1.6.1/devflow_sdk-1.6.1-py3-none-any.whl"
+    sha256 "2d625bb77218cfc2168e88e9de11da1570691b9fc778099dbf5b5c21f4497c8d"
   end
 
   resource "questionary" do
