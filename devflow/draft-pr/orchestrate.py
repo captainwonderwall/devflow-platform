@@ -26,12 +26,17 @@ def check_existing_pr(branch):
         return None
 
 
-def run_create_script(script_path=None):
+def run_create_script(
+    script_path: str | None = None,
+) -> tuple[str | None, str | None]:
     """Run the create-pr shell script. Returns (url, error) tuple."""
     path = script_path or SCRIPT_PATH
-    result = subprocess.run(["bash", path], stdout=subprocess.PIPE, text=True)
+    result = subprocess.run(["bash", path], capture_output=True, text=True)
     if result.returncode != 0:
-        return None, None
+        error = result.stderr.strip() or result.stdout.strip()
+        if not error:
+            error = f"PR creation script exited with status {result.returncode}."
+        return None, error
     output = result.stdout.strip()
     match = re.search(r"https://\S+", output)
     if match:

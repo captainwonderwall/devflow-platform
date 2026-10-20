@@ -344,7 +344,7 @@ def test_launch_interactive_session_builds_command_from_provider():
          patch("devflow_sdk.core.ai.subprocess.run") as mock_run:
         launch_interactive_session("Brainstorm", cwd="/worktree")
     cmd = mock_run.call_args[0][0]
-    assert cmd == ["claude", "Brainstorm"]
+    assert cmd == ["claude", "--permission-mode", "plan", "Brainstorm"]
     assert mock_run.call_args[1].get("cwd") == "/worktree"
 
 
@@ -366,8 +366,12 @@ def test_launch_interactive_session_uses_opencode_when_configured(tmp_path, monk
     cfg = tmp_path / "config.json"
     cfg.write_text('{"ai_provider": "opencode"}')
     monkeypatch.setattr("devflow_sdk.core.config.io.CONFIG_PATH", cfg)
+    monkeypatch.setenv("DEVFLOW_TEST_INHERITED", "present")
     with patch("devflow_sdk.core.ai.shutil.which", return_value="/usr/bin/opencode"), \
          patch("devflow_sdk.core.ai.subprocess.run") as mock_run:
         launch_interactive_session("Brainstorm")
     cmd = mock_run.call_args[0][0]
     assert cmd[0] == "opencode"
+    env = mock_run.call_args[1]["env"]
+    assert env["OPENCODE_EXPERIMENTAL_PLAN_MODE"] == "true"
+    assert env["DEVFLOW_TEST_INHERITED"] == "present"

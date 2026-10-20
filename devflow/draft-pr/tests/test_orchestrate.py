@@ -73,11 +73,25 @@ class TestRunCreateScript(unittest.TestCase):
         self.assertIsNone(error)
 
     @patch("orchestrate.subprocess.run")
-    def test_returns_none_error_on_nonzero_exit(self, mock_run):
-        mock_run.return_value = MagicMock(returncode=1, stdout="")
+    def test_returns_stderr_on_nonzero_exit(self, mock_run):
+        mock_run.return_value = MagicMock(
+            returncode=1,
+            stdout="",
+            stderr="HTTP 502: 502 Bad Gateway (https://api.github.com/graphql)",
+        )
         url, error = run_create_script()
         self.assertIsNone(url)
-        self.assertIsNone(error)
+        self.assertEqual(
+            error,
+            "HTTP 502: 502 Bad Gateway (https://api.github.com/graphql)",
+        )
+
+    @patch("orchestrate.subprocess.run")
+    def test_returns_exit_status_when_failure_has_no_output(self, mock_run):
+        mock_run.return_value = MagicMock(returncode=1, stdout="", stderr="")
+        url, error = run_create_script()
+        self.assertIsNone(url)
+        self.assertEqual(error, "PR creation script exited with status 1.")
 
 
 class TestTmpDir(unittest.TestCase):
