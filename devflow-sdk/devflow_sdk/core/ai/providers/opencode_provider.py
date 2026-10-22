@@ -39,14 +39,24 @@ def _parse_event_stream(stdout, stderr, returncode, model, as_json):
             error=str(error), needs_interaction=False,
         )
 
-    text_parts = [
-        event["part"].get("text", "")
-        for event in events
-        if event.get("type") == "text"
-        and isinstance(event.get("part"), dict)
-        and isinstance(event["part"].get("text"), str)
-    ]
-    if not text_parts:
+    text_by_message_id = {}
+    message_order = []
+    for event in events:
+        part = event.get("part")
+        if (
+            event.get("type") != "text"
+            or not isinstance(part, dict)
+            or not isinstance(part.get("text"), str)
+        ):
+            continue
+
+        message_id = part.get("messageID")
+        if message_id not in text_by_message_id:
+            text_by_message_id[message_id] = []
+            message_order.append(message_id)
+        text_by_message_id[message_id].append(part["text"])
+
+    if not message_order:
         return parse_provider_output(
             stdout, stderr, returncode, model,
             provider_label="OpenCode", as_json=as_json,
@@ -54,7 +64,8 @@ def _parse_event_stream(stdout, stderr, returncode, model, as_json):
             session_keys=("session_id", "sessionID"),
         )
 
-    synthetic = json.dumps({"text": "\n".join(text_parts), "sessionID": session_id})
+    first_message_text = "\n".join(text_by_message_id[message_order[0]])
+    synthetic = json.dumps({"text": first_message_text, "sessionID": session_id})
     return parse_provider_output(
         synthetic, stderr, returncode, model,
         provider_label="OpenCode", as_json=as_json,
@@ -89,7 +100,10 @@ class OpenCodeProvider(AiProvider):
     def build_command(self, prompt, model, session_id, stateless, trust_level):
         # `stateless` is intentionally not passed as a flag: OpenCode is
         # stateless-by-default unless a `--session` id is supplied.
-        cmd = ["opencode", "run", prompt, "--format", "json", "--model", model]
+        cmd = [
+            "opencode", "run", prompt, "--format", "json", "--model", model,
+            "--agent", "build",
+        ]
         if session_id:
             cmd += ["--session", session_id]
         if trust_level == "full":

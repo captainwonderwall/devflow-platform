@@ -104,7 +104,10 @@ def test_opencode_build_command_basic():
     provider = OpenCodeProvider()
     cmd = provider.build_command("hello", "github-copilot/claude-sonnet-4-5", session_id=None,
                                   stateless=True, trust_level="default")
-    assert cmd == ["opencode", "run", "hello", "--format", "json", "--model", "github-copilot/claude-sonnet-4-5"]
+    assert cmd == [
+        "opencode", "run", "hello", "--format", "json", "--model",
+        "github-copilot/claude-sonnet-4-5", "--agent", "build",
+    ]
 
 
 def test_opencode_build_command_with_session():
@@ -194,7 +197,10 @@ def test_opencode_parse_output_json_event_stream():
         json.dumps({"type": "tool_use", "sessionID": "sess-xyz", "part": {}}),
         json.dumps({
             "type": "text", "sessionID": "sess-xyz",
-            "part": {"type": "text", "text": '{"title":"My PR"}'},
+            "part": {
+                "type": "text", "messageID": "message-1",
+                "text": '{"title":"My PR"}',
+            },
         }),
         json.dumps({"type": "step_finish", "sessionID": "sess-xyz", "part": {}}),
     ])
@@ -203,6 +209,37 @@ def test_opencode_parse_output_json_event_stream():
     )
     assert result.ok is True
     assert result.result == {"title": "My PR"}
+    assert result.session_id == "sess-xyz"
+
+
+def test_opencode_parse_output_uses_first_message_text():
+    stdout = "\n".join([
+        json.dumps({
+            "type": "text",
+            "sessionID": "sess-xyz",
+            "part": {
+                "type": "text",
+                "messageID": "message-1",
+                "text": '{"title":"First answer"}',
+            },
+        }),
+        json.dumps({
+            "type": "text",
+            "sessionID": "sess-xyz",
+            "part": {
+                "type": "text",
+                "messageID": "message-2",
+                "text": '{"title":"Follow-up answer"}',
+            },
+        }),
+    ])
+
+    result = OpenCodeProvider().parse_output(
+        stdout, "", 0, "github-copilot/claude-sonnet-4-5"
+    )
+
+    assert result.ok is True
+    assert result.result == {"title": "First answer"}
     assert result.session_id == "sess-xyz"
 
 

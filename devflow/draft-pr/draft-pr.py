@@ -56,6 +56,7 @@ def main():
     import argparse
     parser = argparse.ArgumentParser()
     parser.add_argument("--github-issue", default=None)
+    parser.add_argument("--debug", action="store_true")
     args, _ = parser.parse_known_args()
 
     data = collect()
@@ -106,7 +107,9 @@ def main():
         user_inputs.update(extra_answers)
 
     prompt_str = plugin.build_prompt(data, user_inputs)
-    ai_result = run_ai_prompt(prompt_str, tier="capable", result_type="json")
+    ai_result = run_ai_prompt(
+        prompt_str, tier="capable", result_type="json", debug=args.debug
+    )
     if not ai_result.ok:
         error(f"AI error: {ai_result.error}")
         sys.exit(1)

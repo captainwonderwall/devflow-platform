@@ -129,6 +129,25 @@ class TestMainSinglePlugin(unittest.TestCase):
         with self.assertRaises(SystemExit):
             self._run_main(plugin, ai)
 
+    def test_debug_flag_is_passed_to_ai_prompt(self) -> None:
+        plugin = _make_plugin()
+        ai = MagicMock(ok=True, result={"title": "My PR"})
+        with patch.object(draft_pr, "collect", return_value=_make_data()), \
+             patch.object(draft_pr, "validate_state"), \
+             patch.object(draft_pr, "check_existing_pr", return_value=None), \
+             patch.object(draft_pr, "select_plugin", return_value=plugin), \
+             patch.object(draft_pr, "resolve_jira", return_value=("CONS-123", None)), \
+             patch.object(draft_pr, "select", return_value="No"), \
+             patch.object(draft_pr, "run_ai_prompt", return_value=ai) as run_ai_prompt, \
+             patch.object(draft_pr, "write_create_script"), \
+             patch.object(draft_pr, "run_create_script", return_value=(None, None)), \
+             patch("questionary.prompt", return_value=_STANDARD_ANSWERS), \
+             patch("builtins.input", return_value="no"), \
+             patch.object(sys, "argv", ["draft-pr", "--debug"]):
+            draft_pr.main()
+
+        self.assertTrue(run_ai_prompt.call_args.kwargs["debug"])
+
 
 class TestMainMultiplePlugins(unittest.TestCase):
     def test_sdk_selected_plugin_is_used_by_main(self):
